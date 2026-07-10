@@ -9,6 +9,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- SheetJS: leitura/escrita de planilhas Excel (.xlsx) para exportar/importar demandas -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         :root {
             --primary: #2d5a8c;
@@ -2263,9 +2265,9 @@
                     <button class="theme-btn" id="themeLight" title="Tema Claro" data-icon="sun"></button>
                 </div>
                 <button class="btn btn-secondary" id="btnAuthSupabase" title="Somente leitura — clique para entrar e habilitar edição" style="margin-right: 0.5rem;"><span data-icon="lock" style="margin-right: 0.25rem;"></span>Somente leitura</button>
-                <button class="btn btn-secondary" id="btnExportDemandas" title="Exportar demandas para JSON" style="margin-right: 0.5rem;"><span data-icon="download" style="margin-right: 0.25rem;"></span>Exportar</button>
-                <button class="btn btn-secondary" id="btnImportDemandas" title="Importar demandas de JSON" style="margin-right: 0.5rem;"><span data-icon="upload" style="margin-right: 0.25rem;"></span>Importar</button>
-                <input type="file" id="inputImportFile" accept=".json" style="display: none;">
+                <button class="btn btn-secondary" id="btnExportDemandas" title="Exportar todas as demandas para Excel (.xlsx), com todos os campos" style="margin-right: 0.5rem;"><span data-icon="download" style="margin-right: 0.25rem;"></span>Exportar</button>
+                <button class="btn btn-secondary" id="btnImportDemandas" title="Importar demandas de Excel (.xlsx/.csv) ou JSON — atualiza por número e cria as novas" style="margin-right: 0.5rem;"><span data-icon="upload" style="margin-right: 0.25rem;"></span>Importar</button>
+                <input type="file" id="inputImportFile" accept=".xlsx,.xls,.csv,.json" style="display: none;">
                 <button class="btn btn-primary" id="btnNewDemand"><span data-icon="plus" style="margin-right: 0.5rem;"></span>Nova Demanda</button>
             </div>
         </div>
@@ -2693,6 +2695,50 @@
         const BACKUP_KEY = 'demandas_backup'; // Backup de segurança
         const BACKUP_HISTORY_KEY = 'demandas_backup_history'; // Histórico de backups (últimos 5)
         const MIN_DEMANDAS_SEGURO = 39; // Número mínimo de demandas - NUNCA deve ficar abaixo disso
+
+        // ====== MAPA DE CAMPOS PARA EXPORTAÇÃO/IMPORTAÇÃO EXCEL ======
+        // Fonte única de verdade: define a ordem das colunas e o rótulo (cabeçalho)
+        // em português de cada campo da Demanda. Usado tanto para gerar o .xlsx
+        // quanto para reconhecer as colunas na importação. Cobre TODOS os 22 campos,
+        // então uma demanda importada é idêntica a uma cadastrada pelo link.
+        // - chave: nome interno da propriedade na classe Demanda
+        // - rotulo: texto do cabeçalho na planilha
+        // - tipo: 'numero' força conversão numérica; 'data' normaliza para AAAA-MM-DD
+        const CAMPOS_DEMANDA = [
+            { chave: 'numero',        rotulo: 'Número',          tipo: 'texto'  },
+            { chave: 'titulo',        rotulo: 'Título',          tipo: 'texto'  },
+            { chave: 'descricao',     rotulo: 'Descrição',       tipo: 'texto'  },
+            { chave: 'tipo',          rotulo: 'Tipo',            tipo: 'texto'  },
+            { chave: 'status',        rotulo: 'Status',          tipo: 'texto'  },
+            { chave: 'prioridade',    rotulo: 'Prioridade',      tipo: 'texto'  },
+            { chave: 'numeroOrdem',   rotulo: 'Ordem',           tipo: 'numero' },
+            { chave: 'impacto',       rotulo: 'Impacto',         tipo: 'texto'  },
+            { chave: 'urgencia',      rotulo: 'Urgência',        tipo: 'texto'  },
+            { chave: 'complexidade',  rotulo: 'Complexidade',    tipo: 'texto'  },
+            { chave: 'origem',        rotulo: 'Origem',          tipo: 'texto'  },
+            { chave: 'sistema',       rotulo: 'Sistema',         tipo: 'texto'  },
+            { chave: 'solicitante',   rotulo: 'Solicitante',     tipo: 'texto'  },
+            { chave: 'responsavel',   rotulo: 'Responsável',     tipo: 'texto'  },
+            { chave: 'dataAbertura',  rotulo: 'Data Abertura',   tipo: 'data'   },
+            { chave: 'vencimento',    rotulo: 'Vencimento',      tipo: 'data'   },
+            { chave: 'slaHoras',      rotulo: 'SLA (horas)',     tipo: 'numero' },
+            { chave: 'dataConclusao', rotulo: 'Data Conclusão',  tipo: 'data'   },
+            { chave: 'progresso',     rotulo: 'Progresso (%)',   tipo: 'numero' },
+            { chave: 'observacoes',   rotulo: 'Observações',     tipo: 'texto'  },
+            { chave: 'ordemKanban',   rotulo: 'Ordem Kanban',    tipo: 'numero' }
+        ];
+        // Índice reverso (rótulo/chave normalizados -> chave interna) para a importação
+        // aceitar tanto o cabeçalho em português quanto o nome interno do campo.
+        const CAMPOS_DEMANDA_INDICE = (() => {
+            const normalizar = (s) => String(s || '').trim().toLowerCase()
+                .normalize('NFD').replace(/[\u0300-\u036f]/g, ''); // remove acentos
+            const idx = {};
+            CAMPOS_DEMANDA.forEach(c => {
+                idx[normalizar(c.rotulo)] = c;
+                idx[normalizar(c.chave)] = c;
+            });
+            return { idx, normalizar };
+        })();
 
         // Estados possíveis
         const TIPOS = ['Incidente', 'Melhoria', 'Projeto', 'Suporte', 'Reunião', 'Análise', 'Integração', 'Outro', 'CSS', 'Ticket'];
@@ -3467,58 +3513,152 @@
             }
 
             // Exporta demandas para arquivo JSON
+            // Exporta todas as demandas para uma planilha Excel (.xlsx) com TODOS os
+            // campos (uma coluna por campo da Demanda, cabeçalhos em português).
+            // A mesma planilha serve de modelo para reimportar/editar em massa.
             exportarDemandas() {
-                const dados = {
-                    exportadoEm: new Date().toISOString(),
-                    totalDemandas: this.demandas.length,
-                    demandas: this.demandas
-                };
-                const json = JSON.stringify(dados, null, 2);
-                const blob = new Blob([json], { type: 'application/json' });
-                const url = URL.createObjectURL(blob);
-                const link = document.createElement('a');
-                link.href = url;
-                link.download = `demandas_cockpit_${new Date().toISOString().split('T')[0]}.json`;
-                link.click();
-                URL.revokeObjectURL(url);
-                this.mostrarToast(`${this.demandas.length} demandas exportadas com sucesso!`, 'success');
+                if (typeof XLSX === 'undefined') {
+                    this.mostrarToast('Biblioteca de Excel ainda carregando. Tente novamente em instantes.', 'error');
+                    return;
+                }
+                // Monta uma linha (objeto com cabeçalhos PT) por demanda, na ordem de CAMPOS_DEMANDA
+                const linhas = this.demandas.map(d => {
+                    const linha = {};
+                    CAMPOS_DEMANDA.forEach(campo => {
+                        let valor = d[campo.chave];
+                        if (valor === undefined || valor === null) valor = '';
+                        linha[campo.rotulo] = valor;
+                    });
+                    return linha;
+                });
+
+                const cabecalhos = CAMPOS_DEMANDA.map(c => c.rotulo);
+                const planilha = XLSX.utils.json_to_sheet(linhas, { header: cabecalhos });
+                // Largura de coluna confortável (título, descrição e observações mais largos)
+                planilha['!cols'] = CAMPOS_DEMANDA.map(c => {
+                    if (['titulo', 'descricao', 'observacoes'].includes(c.chave)) return { wch: 40 };
+                    if (c.tipo === 'data') return { wch: 14 };
+                    return { wch: 16 };
+                });
+
+                const livro = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(livro, planilha, 'Demandas');
+                const nomeArquivo = `demandas_cockpit_${new Date().toISOString().split('T')[0]}.xlsx`;
+                XLSX.writeFile(livro, nomeArquivo);
+                this.mostrarToast(`${this.demandas.length} demandas exportadas para Excel!`, 'success');
             }
 
-            // Importa demandas de arquivo JSON
+            // Normaliza um valor lido da planilha conforme o tipo do campo
+            // (numérico -> Number; data -> AAAA-MM-DD; demais -> string aparada).
+            normalizarValorCampo(valor, tipo) {
+                if (valor === undefined || valor === null) return tipo === 'numero' ? 0 : '';
+                if (tipo === 'numero') {
+                    const n = parseInt(String(valor).replace(/[^\d-]/g, ''), 10);
+                    return Number.isFinite(n) ? n : 0;
+                }
+                if (tipo === 'data') {
+                    if (valor === '') return '';
+                    // Se o Excel entregou um Date (cellDates) ou número serial, converte
+                    if (valor instanceof Date && !isNaN(valor)) return valor.toISOString().split('T')[0];
+                    const txt = String(valor).trim();
+                    // dd/mm/aaaa -> aaaa-mm-dd
+                    const br = txt.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+                    if (br) return `${br[3]}-${br[2]}-${br[1]}`;
+                    // aaaa-mm-dd (com ou sem hora) já é válido
+                    const iso = txt.match(/^(\d{4}-\d{2}-\d{2})/);
+                    if (iso) return iso[1];
+                    return txt;
+                }
+                return String(valor).trim();
+            }
+
+            // Importa demandas de planilha Excel (.xlsx/.xls/.csv) ou JSON.
+            // Cada linha vira uma Demanda idêntica a uma cadastrada pelo link e é
+            // mesclada por NÚMERO (upsert): número existente atualiza a demanda;
+            // número novo cria uma demanda. Nunca apaga as demandas que não estão
+            // no arquivo. Ao final chama salvarDados() -> grava no banco (exige login).
             importarDemandas(event) {
                 const file = event.target.files[0];
                 if (!file) return;
+                const nome = (file.name || '').toLowerCase();
+                const ehJson = nome.endsWith('.json');
+
+                if (typeof XLSX === 'undefined' && !ehJson) {
+                    this.mostrarToast('Biblioteca de Excel ainda carregando. Tente novamente em instantes.', 'error');
+                    event.target.value = '';
+                    return;
+                }
 
                 const reader = new FileReader();
-                reader.onload = (e) => {
+                reader.onload = async (e) => {
                     try {
-                        const dados = JSON.parse(e.target.result);
-                        const demandasRaw = dados.demandas || dados;
-                        
-                        if (!Array.isArray(demandasRaw)) {
-                            this.mostrarToast('Arquivo inválido: formato não reconhecido.', 'error');
+                        let linhasBrutas;
+                        if (ehJson) {
+                            // Compatibilidade com o formato JSON antigo
+                            const dados = JSON.parse(e.target.result);
+                            linhasBrutas = dados.demandas || dados;
+                        } else {
+                            // Lê a primeira aba da planilha como array de objetos {cabeçalho: valor}
+                            const livro = XLSX.read(e.target.result, { type: 'array', cellDates: true });
+                            const primeiraAba = livro.SheetNames[0];
+                            linhasBrutas = XLSX.utils.sheet_to_json(livro.Sheets[primeiraAba], { defval: '' });
+                        }
+
+                        if (!Array.isArray(linhasBrutas) || linhasBrutas.length === 0) {
+                            this.mostrarToast('Arquivo vazio ou em formato não reconhecido.', 'error');
+                            event.target.value = '';
                             return;
                         }
 
-                        // Confirmar importação
-                        const qtdAtual = this.demandas.length;
-                        const qtdImportar = demandasRaw.length;
-                        
-                        if (confirm(`Deseja substituir as ${qtdAtual} demandas atuais por ${qtdImportar} demandas do arquivo importado?`)) {
-                            // Converte objetos JSON em instâncias de Demanda
-                            this.demandas = demandasRaw.map(d => new Demanda(d));
-                            localStorage.setItem('cockpit_demandas', JSON.stringify(this.demandas));
-                            this.atualizarDashboard();
-                            this.filtrarDemandas();
-                            this.renderizarKanban();
-                            this.mostrarToast(`${qtdImportar} demandas importadas com sucesso!`, 'success');
+                        // Converte cada linha (chaves = cabeçalhos PT ou nomes internos) em dados de Demanda
+                        const { idx, normalizar } = CAMPOS_DEMANDA_INDICE;
+                        const demandasArquivo = linhasBrutas.map(linha => {
+                            const dados = {};
+                            Object.keys(linha).forEach(coluna => {
+                                const campo = idx[normalizar(coluna)];
+                                if (campo) dados[campo.chave] = this.normalizarValorCampo(linha[coluna], campo.tipo);
+                            });
+                            return dados;
+                        }).filter(d => (d.titulo && String(d.titulo).trim()) || (d.numero && String(d.numero).trim()));
+
+                        if (demandasArquivo.length === 0) {
+                            this.mostrarToast('Nenhuma linha válida encontrada (é preciso ao menos Número ou Título).', 'error');
+                            event.target.value = '';
+                            return;
                         }
+
+                        const totalArquivo = demandasArquivo.length;
+                        if (!confirm(`Importar ${totalArquivo} linha(s) do arquivo?\n\nDemandas com número já existente serão ATUALIZADAS; números novos serão CRIADOS. As demais demandas atuais são mantidas.`)) {
+                            event.target.value = '';
+                            return;
+                        }
+
+                        // Upsert por número: atualiza existentes, cria novas
+                        let criadas = 0, atualizadas = 0;
+                        demandasArquivo.forEach(dados => {
+                            const numero = dados.numero ? String(dados.numero).trim() : '';
+                            const existente = numero ? this.demandas.find(d => String(d.numero).trim() === numero) : null;
+                            if (existente) {
+                                Object.assign(existente, dados);
+                                atualizadas++;
+                            } else {
+                                this.demandas.push(new Demanda(dados));
+                                criadas++;
+                            }
+                        });
+
+                        await this.salvarDados(); // valida, cria backup, grava no Supabase (se logado) e no localStorage
+                        this.renderizar();
+                        this.mostrarToast(`Importação concluída: ${criadas} criada(s), ${atualizadas} atualizada(s).`, 'success');
                     } catch (err) {
-                        this.mostrarToast('Erro ao ler arquivo: ' + err.message, 'error');
+                        this.mostrarToast('Erro ao ler arquivo: ' + (err.message || err), 'error');
+                    } finally {
+                        event.target.value = ''; // permite reimportar o mesmo arquivo
                     }
                 };
-                reader.readAsText(file);
-                event.target.value = ''; // Limpa input para permitir reimportar mesmo arquivo
+                // Excel precisa de ArrayBuffer; JSON é texto
+                if (ehJson) reader.readAsText(file);
+                else reader.readAsArrayBuffer(file);
             }
 
             // Abre modal para criar nova demanda
