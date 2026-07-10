@@ -5,6 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cockpit Operacional - Gestão de Demandas</title>
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <!-- Tipografia: Inter (Google Fonts, display=swap para não bloquear render) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
             --primary: #2d5a8c;
@@ -35,7 +39,12 @@
             --glass-border: rgba(255, 255, 255, 0.28);
         }
 
-        /* Sem dependência de CDN - usando fonts do sistema */
+        /* Tipografia base: Inter (carregada via Google Fonts no <head>).
+           Stack de fallback mantém boa legibilidade caso a fonte não carregue. */
+        :root {
+            --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            --font-mono: 'SF Mono', 'JetBrains Mono', 'Cascadia Code', ui-monospace, monospace;
+        }
 
         * {
             margin: 0;
@@ -46,15 +55,18 @@
         html, body {
             width: 100%;
             height: 100%;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            font-family: var(--font-sans);
             background: linear-gradient(135deg, #03101f 0%, #0a2c52 45%, #06203d 100%);
             color: var(--text-primary);
             line-height: 1.6;
             overflow: hidden;
             font-weight: 400;
+            /* Inter tem espaçamento ligeiramente largo; -0.011em aperta para leitura mais densa e elegante */
+            letter-spacing: -0.011em;
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
             text-rendering: optimizeLegibility;
+            font-feature-settings: 'cv11', 'ss01';
         }
 
         /* ===== TEMA CLARO - OVERRIDES CSS ===== */
@@ -169,10 +181,12 @@
         .header-title {
             display: flex;
             flex-direction: column;
-            gap: 0.3rem;
-            font-size: 1.6rem;
-            font-weight: 600;
-            letter-spacing: -0.3px;
+            gap: 0.2rem;
+            font-size: 1.55rem;
+            font-weight: 700;
+            /* Inter em título grande fica mais elegante com tracking negativo mais firme */
+            letter-spacing: -0.025em;
+            line-height: 1.15;
         }
 
         .header-actions {
@@ -749,17 +763,21 @@
         }
 
         .stat-label {
-            font-size: 0.8rem;
+            font-size: 0.78rem;
             color: var(--text-tertiary);
             margin-bottom: 0.5rem;
             text-transform: uppercase;
-            letter-spacing: 0.3px;
+            font-weight: 500;
+            letter-spacing: 0.06em;
         }
 
         .stat-value {
             font-size: 1.8rem;
             font-weight: 700;
             color: var(--primary-light);
+            /* Dígitos de largura fixa: números alinhados verticalmente entre cards */
+            font-variant-numeric: tabular-nums;
+            letter-spacing: -0.02em;
         }
 
         /* TABLE */
@@ -767,8 +785,6 @@
             width: 100%;
             max-width: 100%;
             min-width: 0;
-            margin-left: 0;
-            margin-right: 0;
             margin: 0 0 2rem 0;
             box-sizing: border-box;
             background: var(--glass);
@@ -920,6 +936,10 @@
         .table td {
             padding: 1rem;
             color: var(--text-primary);
+            font-size: 0.9rem;
+            vertical-align: middle;
+            /* Dígitos de largura fixa: IDs, datas e percentuais alinham entre linhas */
+            font-variant-numeric: tabular-nums;
         }
 
         .badge {
@@ -1844,8 +1864,6 @@
             width: 100%;
             max-width: 100%;
             min-width: 0;
-            margin-left: 0;
-            margin-right: 0;
             margin: 0 0 2rem 0;
             box-sizing: border-box;
             display: grid;
@@ -2821,21 +2839,16 @@
 
             async inicializar() {
                 try {
-                    console.log('🔧 Inicializando CockpitApp...');
                     if (typeof CockpitAuth !== 'undefined') {
                         await CockpitAuth.inicializar();
                     }
                     await this.carregarDados();
-                    console.log('📦 Dados carregados:', this.demandas.length, 'demandas');
 
                     this.carregarTema();
-                    console.log('🎨 Tema carregado');
 
                     this.vincularEventos();
-                    console.log('⚙️ Eventos vinculados');
 
                     this.renderizar();
-                    console.log('🎯 App renderizado com sucesso');
                 } catch (err) {
                     console.error('❌ Erro na inicialização:', err);
                 }
@@ -2988,11 +3001,9 @@
                                 return new Demanda(d);
                             });
                             this.kanbanOrderSalva = data.kanban_order;
-                            console.log(`📡 Supabase: ${demandasServidor.length} demandas`);
                         }
                     }
                 } catch (err) {
-                    console.log('📋 Supabase indisponível ou ainda não configurado:', err.message || err);
                 }
 
                 // 2. Carrega do localStorage (backup local)
@@ -3004,7 +3015,6 @@
                             d.status = this.migrarStatus(d.status);
                             return new Demanda(d);
                         });
-                        console.log(`💾 LocalStorage: ${demandasLocal.length} demandas`);
                     }
                 } catch (err) {
                     console.warn('⚠️ Erro ao ler localStorage:', err);
@@ -3025,7 +3035,6 @@
                                 return null;
                             }
                         }).filter(d => d !== null);
-                        console.log(`📦 SEED: ${demandasSeed.length} demandas`);
                     }
                 } catch (err) {
                     console.error('❌ Erro ao ler SEED_DEMANDAS:', err);
@@ -3062,13 +3071,11 @@
                         if (!mapaDemandas.has(chave)) {
                             mapaDemandas.set(chave, d);
                             adicionadas++;
-                            console.log(`➕ Recuperada demanda ${chave} de ${fonte.nome}`);
                         }
                     });
                 });
 
                 this.demandas = Array.from(mapaDemandas.values());
-                console.log(`✅ Total: ${this.demandas.length} demandas (base: ${base.nome}, +${adicionadas} recuperadas)`);
 
                 // Salva o conjunto completo mesclado
                 await this.salvarDados();
@@ -3116,7 +3123,6 @@
                     if (historico.length > 5) historico = historico.slice(0, 5);
                     localStorage.setItem(BACKUP_HISTORY_KEY, JSON.stringify(historico));
                     
-                    console.log(`🔒 Backup criado: ${this.demandas.length} demandas (${motivo})`);
                     return true;
                 } catch (err) {
                     console.error('❌ Erro ao criar backup:', err);
@@ -3130,7 +3136,6 @@
                     const backup = localStorage.getItem(BACKUP_KEY);
                     if (backup) {
                         const dados = JSON.parse(backup);
-                        console.log(`🔄 Backup disponível: ${dados.quantidade} demandas de ${dados.timestamp}`);
                         return dados;
                     }
                 } catch (err) {
@@ -3160,7 +3165,6 @@
                     const backup = this.recuperarBackup();
                     if (backup && backup.demandas.length > 0) {
                         this.demandas = backup.demandas.map(d => new Demanda(d));
-                        console.log(`🔄 Recuperadas ${this.demandas.length} demandas do backup`);
                     }
                     return false;
                 }
@@ -3182,7 +3186,6 @@
                             }
                         });
                         this.demandas = Array.from(mapa.values());
-                        console.log(`✅ Mesclado: agora tem ${this.demandas.length} demandas`);
                     }
                 }
                 
@@ -3202,7 +3205,6 @@
                                 atualizado_em: new Date().toISOString()
                             });
                         if (error) throw error;
-                        console.log(`✅ Supabase: ${this.demandas.length} demandas salvas`);
                     } catch (err) {
                         console.warn('⚠️ Supabase indisponível ou sem permissão de escrita (faça login):', err.message || err);
                         if (typeof CockpitAuth !== 'undefined' && !CockpitAuth.estaLogado()) {
@@ -3213,7 +3215,6 @@
 
                 // Backup no localStorage (principal)
                 localStorage.setItem(STORAGE_KEY, JSON.stringify(this.demandas));
-                console.log(`💾 Local: ${this.demandas.length} demandas salvas`);
                 
                 return true;
             }
@@ -3672,7 +3673,6 @@
                     }
                 });
                 
-                console.log(`📊 Reordenadas ${linhasDaFrente.length} demandas da frente ${frente}`);
                 
                 // Salvar dados
                 this.salvarDados();
@@ -3834,12 +3834,6 @@
                 const tbody = document.getElementById('demandasTable');
 
                 if (!tbody) return;
-
-                console.log(`📊 Renderizando tabela com ${demandas?.length || 0} demandas`);
-                console.log(`✅ Total em this.demandas: ${this.demandas.length}`);
-                if (demandas && demandas.length > 0) {
-                    console.log(`📌 Primeira demanda ID:`, demandas[0].id, `- Última ID:`, demandas[demandas.length - 1].id);
-                }
 
                 // Empty state quando nenhuma demanda
                 if (!demandas || demandas.length === 0) {
@@ -4901,8 +4895,8 @@
                                 cursor: default;
                             }
                             .metric-card:hover { transform: translateY(-3px); box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
-                            .metric-value { font-size: 2.2rem; font-weight: 700; line-height: 1.2; }
-                            .metric-label { font-size: 0.75rem; color: var(--text-tertiary); margin-top: 0.3rem; }
+                            .metric-value { font-size: 2.2rem; font-weight: 700; line-height: 1.2; font-variant-numeric: tabular-nums; letter-spacing: -0.03em; }
+                            .metric-label { font-size: 0.75rem; color: var(--text-tertiary); margin-top: 0.3rem; font-weight: 500; letter-spacing: 0.02em; }
                             .metric-trend { font-size: 0.7rem; margin-top: 0.5rem; padding: 2px 8px; border-radius: 10px; display: inline-block; }
                             .insights-panels { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
                             .panel {
@@ -5519,7 +5513,6 @@
             // Função central que re-renderiza a UI após qualquer modificação
             // Atualiza dashboard (métricas/cards/gráficos) e tabela de demandas
             renderizar() {
-                console.log(`🚀 Renderizando app - demandas carregadas: ${this.demandas.length}`);
                 this.atualizarDashboard();
                 const abaAtiva = document.querySelector('.tab.active')?.dataset.tab || 'dashboard';
 
@@ -5625,7 +5618,7 @@
             const criticos = demandas.filter(d => d.prioridade === 'Crítica').length;
             
             let html = `
-<div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 900px;">
+<div style="font-family: 'Inter', 'Segoe UI', Arial, sans-serif; max-width: 900px;">
     <div style="background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%); color: white; padding: 20px; border-radius: 10px 10px 0 0;">
         <h2 style="margin: 0; font-size: 20px;">⚡ Cockpit Minhas Atividades</h2>
         <p style="margin: 5px 0 0 0; opacity: 0.9; font-size: 14px;">Relatório de Demandas - ${hoje}</p>
@@ -5747,12 +5740,9 @@
         }
 
         document.addEventListener('DOMContentLoaded', () => {
-            console.log('🎯 DOMContentLoaded - Iniciando Cockpit...');
-            console.log('📊 SEED_DEMANDAS disponível:', typeof SEED_DEMANDAS !== 'undefined', 'com', SEED_DEMANDAS?.length, 'demandas');
 
             window.app = new CockpitApp();
 
-            console.log('✅ CockpitApp inicializado com', app.demandas.length, 'demandas');
 
             // Injeta logos nos cards de Distribuição por Tipo
             const logoSizes = { 'C4C': '51px', 'MKT': '65px', 'SD': '35px' };
@@ -5766,55 +5756,23 @@
                 el.style.cssText += 'display:flex;align-items:center;';
             });
 
-            // DEBUG: Estrutura de altura
-            setTimeout(() => {
-                const viewport = { width: window.innerWidth, height: window.innerHeight };
-                const appContainer = document.querySelector('.app-container');
-                const header = document.querySelector('.header');
-                const tabs = document.querySelector('.tabs');
-                const mainContent = document.querySelector('.main-content');
-                const contentArea = document.querySelector('.content-area');
-                const tabDashboard = document.getElementById('tab-dashboard');
-
-                console.log('\n=== DIAGNÓSTICO DE SCROLL ===');
-                console.log('📱 Viewport:', viewport.width, 'x', viewport.height);
-                console.log('📦 app-container:', appContainer.clientHeight, '(scroll:', appContainer.scrollHeight, ')');
-                console.log('📋 header:', header.clientHeight);
-                console.log('🏷️ tabs:', tabs.clientHeight);
-                console.log('🔲 main-content:', mainContent.clientHeight, '(scroll:', mainContent.scrollHeight, ')');
-                console.log('📄 content-area:', contentArea.clientHeight, '(scroll:', contentArea.scrollHeight, ')');
-                console.log('📑 tab-dashboard:', tabDashboard.clientHeight, '(scroll:', tabDashboard.scrollHeight, ')');
-                console.log('✅ Scroll disponível?', contentArea.scrollHeight > contentArea.clientHeight);
-            }, 500);
-
-            // Renderizar TODOS os ícones
-            const iconsRendered = document.querySelectorAll('[data-icon]').length;
-            console.log(`🎨 Renderizando ${iconsRendered} ícones...`);
+            // Renderiza os ícones inline (SVG) marcados com data-icon
             document.querySelectorAll('[data-icon]').forEach(el => {
                 const iconName = el.dataset.icon;
                 if (ICONS[iconName]) {
                     el.innerHTML = ICONS[iconName];
                 } else if (el.dataset.icon) {
-                    console.warn(`⚠️ Ícone não encontrado: ${iconName}`);
+                    console.warn(`Ícone não encontrado: ${iconName}`);
                 }
             });
 
-            // Forçar scroll funcionar
+            // Garante barra de rolagem vertical quando o conteúdo excede a área visível
             setTimeout(() => {
                 const contentArea = document.querySelector('.content-area');
-                if (contentArea) {
-                    // Verificar se há conteúdo para scroll
-                    if (contentArea.scrollHeight > contentArea.clientHeight) {
-                        console.log('✅ Scroll ativado! scrollHeight:', contentArea.scrollHeight, 'clientHeight:', contentArea.clientHeight);
-                        // Forçar reflow para garantir que o scroll funciona
-                        contentArea.style.overflowY = 'scroll';
-                    } else {
-                        console.log('⚠️ Sem conteúdo para scroll');
-                    }
+                if (contentArea && contentArea.scrollHeight > contentArea.clientHeight) {
+                    contentArea.style.overflowY = 'scroll';
                 }
             }, 1000);
-
-            console.log('✅ Drag and drop com mouse inicializado');
         });
 
         // Inicializar Lucide Icons após biblioteca carregar
