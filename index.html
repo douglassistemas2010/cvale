@@ -2325,7 +2325,6 @@
             <button class="tab" data-tab="demandas"><i data-lucide="list" style="width: 1rem; height: 1rem; margin-right: 0.5rem; display: inline-block; vertical-align: -2px;"></i>Demandas</button>
             <button class="tab" data-tab="kanban"><i data-lucide="layout-grid" style="width: 1rem; height: 1rem; margin-right: 0.5rem; display: inline-block; vertical-align: -2px;"></i>Kanban</button>
             <button class="tab" data-tab="insights"><i data-lucide="lightbulb" style="width: 1rem; height: 1rem; margin-right: 0.5rem; display: inline-block; vertical-align: -2px;"></i>Insights</button>
-            <button class="tab" data-tab="relatorios"><i data-lucide="bar-chart-3" style="width: 1rem; height: 1rem; margin-right: 0.5rem; display: inline-block; vertical-align: -2px;"></i>Relatórios</button>
             <div class="tabs-logo">
                 <img src="LOGO_transparente.png" alt="C.Vale" title="C.Vale Cooperativa Agroindustrial">
             </div>
@@ -2581,13 +2580,6 @@
                     </div>
                 </div>
 
-                <!-- RELATÓRIOS TAB -->
-                <div id="tab-relatorios" class="tab-content hidden">
-                    <h2 style="margin-bottom: 1.5rem; font-size: 1.3rem;">Relatórios</h2>
-                    <div class="charts-grid" id="relatoriosContainer">
-                        <!-- Preenchido dinamicamente -->
-                    </div>
-                </div>
             </div>
         </div>
     </div>
@@ -3533,11 +3525,6 @@
 
                 if (abaAtiva === 'insights') {
                     this.renderizarInsights();
-                    return;
-                }
-
-                if (abaAtiva === 'relatorios') {
-                    this.renderizarRelatorios();
                 }
             }
 
@@ -4078,12 +4065,14 @@
                         return ordemA - ordemB;
                     });
 
-                    // Header do grupo (frente) - design minimalista moderno
+                    // Header do grupo (frente) - badge de cor da frente + contagem
                     let html = `
                         <tr class="group-header">
                             <td colspan="11" style="padding: 1rem; font-size: 0.9rem; font-weight: 600; letter-spacing: 0.4px;">
-                                <span style="color: var(--text-secondary); text-transform: uppercase; opacity: 0.7;">${frente}</span>
-                                <span style="color: var(--text-tertiary); font-weight: 400; font-size: 0.85rem; margin-left: 0.5rem; opacity: 0.6;">${demandasFrente.length}</span>
+                                <span style="display: inline-flex; align-items: center; gap: 0.5rem;">
+                                    ${getBadgeFrente(frente)}
+                                    <span style="color: var(--text-tertiary); font-weight: 400; font-size: 0.85rem; opacity: 0.7;">${demandasFrente.length} demanda${demandasFrente.length > 1 ? 's' : ''}</span>
+                                </span>
                             </td>
                         </tr>
                     `;
@@ -4989,611 +4978,272 @@
                 });
             }
 
+            // Insights = análise de gestão (não repete o Dashboard). Combina um bloco
+            // OPERACIONAL (o que agir agora: SLA, envelhecimento, gargalos) com um bloco
+            // GERENCIAL (tendência/saúde: throughput, tempo médio, saúde por frente).
+            // Todos os números saem dos campos reais das demandas (sem histórico de
+            // transição de status, então "idade" = tempo desde a abertura).
             renderizarInsights() {
                 const container = document.getElementById('insightsContainer');
                 if (!container) return;
 
                 try {
-                    const hoje = new Date();
-                    const totalDemandas = this.demandas.length;
-                    const abertas = this.demandas.filter(d => !['Concluído', 'Pausado'].includes(d.status));
-                    
-                    // Cálculos
-                    const vencidas = abertas.filter(d => d.obterStatusSLA && d.obterStatusSLA() === 'vencido').length;
-                    const altaPrioridade = abertas.filter(d => ['Alta', 'Crítica'].includes(d.prioridade)).length;
-                    const dias7 = new Date(hoje.getTime() - 7 * 24 * 60 * 60 * 1000);
-                    const concluidas7d = this.demandas.filter(d => d.dataConclusao && new Date(d.dataConclusao) > dias7).length;
-                    const novas7d = this.demandas.filter(d => d.dataAbertura && new Date(d.dataAbertura) > dias7).length;
-                    
-                    // Score de saúde
-                    let healthScore = 100 - (vencidas * 5) - (altaPrioridade * 2);
-                    healthScore = Math.max(0, Math.min(100, healthScore));
-                    const healthColor = healthScore >= 80 ? '#10b981' : healthScore >= 50 ? '#f59e0b' : '#ef4444';
-                    const healthStatus = healthScore >= 80 ? 'Excelente' : healthScore >= 50 ? 'Atenção' : 'Crítico';
-                    
-                    // Distribuição por Status (top 5)
-                    const statusCount = {};
-                    abertas.forEach(d => {
-                        statusCount[d.status] = (statusCount[d.status] || 0) + 1;
-                    });
-                    const topStatus = Object.entries(statusCount)
-                        .sort((a, b) => b[1] - a[1])
-                        .slice(0, 5);
-                    
-                    // Próximos vencimentos
-                    const proximos = abertas
-                        .filter(d => d.vencimento)
-                        .map(d => ({ ...d, diasRestantes: Math.ceil((new Date(d.vencimento) - hoje) / (1000 * 60 * 60 * 24)) }))
-                        .filter(d => d.diasRestantes >= 0 && d.diasRestantes <= 7)
-                        .sort((a, b) => a.diasRestantes - b.diasRestantes)
-                        .slice(0, 5);
-                    
-                    // Por frente
-                    const porFrente = {};
+                    const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+                    const MS_DIA = 86400000;
+                    const parseData = (s) => { if (!s) return null; const d = new Date(s); return isNaN(d) ? null : d; };
+                    const diasDe = (s) => { const d = parseData(s); return d === null ? null : Math.floor((hoje - d) / MS_DIA); };
+                    const slaDe = (d) => d.obterStatusSLA ? d.obterStatusSLA() : 'dentro';
+                    const idade = (d) => { const x = diasDe(d.dataAbertura); return x === null ? 0 : Math.max(0, x); };
+                    const fmtIdade = (n) => n >= 365 ? `${Math.floor(n / 365)}a` : n >= 30 ? `${Math.floor(n / 30)}m` : `${n}d`;
+
+                    // ===== Conjuntos base =====
+                    const total = this.demandas.length;
+                    const concluidas = this.demandas.filter(d => d.status === 'Concluído');
+                    const abertas = this.demandas.filter(d => d.status !== 'Concluído');
+
+                    // ===== SLA (operacional) =====
+                    const comPrazo = abertas.filter(d => d.vencimento);
+                    const vencidas = abertas.filter(d => slaDe(d) === 'vencido');
+                    const vencendo = abertas.filter(d => ['hoje', 'amanha', 'vencendo'].includes(slaDe(d)));
+                    const noPrazo = comPrazo.filter(d => slaDe(d) === 'dentro');
+                    const semPrazo = abertas.filter(d => !d.vencimento);
+                    const pctNoPrazo = comPrazo.length ? Math.round(noPrazo.length / comPrazo.length * 100) : 100;
+
+                    // ===== Envelhecimento (aging) das abertas =====
+                    const faixas = [
+                        { rot: '0–7 dias', min: 0, max: 7, cor: '#10b981', qtd: 0 },
+                        { rot: '8–30 dias', min: 8, max: 30, cor: '#3b82f6', qtd: 0 },
+                        { rot: '31–90 dias', min: 31, max: 90, cor: '#f59e0b', qtd: 0 },
+                        { rot: '+90 dias', min: 91, max: Infinity, cor: '#ef4444', qtd: 0 }
+                    ];
+                    abertas.forEach(d => { const i = idade(d); const f = faixas.find(f => i >= f.min && i <= f.max); if (f) f.qtd++; });
+                    const maxFaixa = Math.max(1, ...faixas.map(f => f.qtd));
+
+                    // Paradas há mais tempo (abertas mais antigas)
+                    const maisAntigas = abertas.map(d => ({ d, i: idade(d) })).sort((a, b) => b.i - a.i).slice(0, 6);
+
+                    // Agir agora: abertas Crítica/Alta vencidas ou vencendo, priorizadas
+                    const pesoPrio = { 'Crítica': 0, 'Alta': 1, 'Média': 2, 'Baixa': 3 };
+                    const agirAgora = abertas
+                        .filter(d => ['Crítica', 'Alta'].includes(d.prioridade) && ['vencido', 'hoje', 'amanha', 'vencendo'].includes(slaDe(d)))
+                        .sort((a, b) => (pesoPrio[a.prioridade] ?? 9) - (pesoPrio[b.prioridade] ?? 9) || ((a.obterSLARestante?.() ?? 999) - (b.obterSLARestante?.() ?? 999)))
+                        .slice(0, 6);
+
+                    // ===== Gerencial =====
+                    const em30d = (s) => { const x = diasDe(s); return x !== null && x >= 0 && x <= 30; };
+                    const novas30 = this.demandas.filter(d => em30d(d.dataAbertura)).length;
+                    const concl30 = concluidas.filter(d => em30d(d.dataConclusao)).length;
+                    const saldo30 = novas30 - concl30;
+
+                    const duracoes = concluidas.map(d => {
+                        const a = parseData(d.dataAbertura), c = parseData(d.dataConclusao);
+                        return (a && c && c >= a) ? Math.round((c - a) / MS_DIA) : null;
+                    }).filter(x => x !== null);
+                    const tempoMedio = duracoes.length ? Math.round(duracoes.reduce((s, x) => s + x, 0) / duracoes.length) : null;
+                    const pctConcluidas = total ? Math.round(concluidas.length / total * 100) : 0;
+
+                    // Health score explicável: 60% aderência a SLA + 40% ausência de envelhecimento
+                    const semEnvelhecimento = abertas.length ? Math.round(abertas.filter(d => idade(d) <= 30).length / abertas.length * 100) : 100;
+                    const healthScore = Math.round(pctNoPrazo * 0.6 + semEnvelhecimento * 0.4);
+                    const healthCor = healthScore >= 80 ? '#10b981' : healthScore >= 50 ? '#f59e0b' : '#ef4444';
+                    const healthStatus = healthScore >= 80 ? 'Saudável' : healthScore >= 50 ? 'Atenção' : 'Crítico';
+
+                    // Saúde por frente
+                    const frentes = {};
                     this.demandas.forEach(d => {
-                        const f = d.origem || 'Outros';
-                        if (!porFrente[f]) porFrente[f] = { total: 0, emAndamento: 0 };
-                        porFrente[f].total++;
-                        if (d.status === 'Em Andamento') porFrente[f].emAndamento++;
+                        const f = d.origem || 'Outro';
+                        if (!frentes[f]) frentes[f] = { abertas: 0, vencidas: 0, comPrazo: 0, noPrazo: 0, somaProg: 0 };
+                        const fr = frentes[f];
+                        if (d.status !== 'Concluído') {
+                            fr.abertas++; fr.somaProg += Number(d.progresso) || 0;
+                            if (d.vencimento) { fr.comPrazo++; if (slaDe(d) === 'vencido') fr.vencidas++; else if (slaDe(d) === 'dentro') fr.noPrazo++; }
+                        }
                     });
-                    
-                    // Layout Inovador - Mission Control Style
+                    const frentesArr = Object.entries(frentes).filter(([, v]) => v.abertas > 0).sort((a, b) => b[1].abertas - a[1].abertas);
+
+                    const abrir = (numero) => `onclick="app.editarDemanda('${numero}')"`;
+
                     container.innerHTML = `
                         <style>
-                            .insights-grid { display: grid; gap: 1.5rem; }
-                            .insights-hero { 
-                                display: grid; 
-                                grid-template-columns: 1fr 2fr;
-                                gap: 1.5rem;
-                                margin-bottom: 0.5rem;
+                            .ins { display: grid; gap: 1.5rem; }
+                            .ins-head { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem; }
+                            .ins-head h2 { font-size: 1.35rem; font-weight: 700; letter-spacing: -0.02em; }
+                            .ins-head p { color: var(--text-tertiary); font-size: 0.85rem; margin-top: 0.15rem; }
+                            .ins-health { display: flex; align-items: center; gap: 1rem; padding: 0.8rem 1.4rem; border-radius: 16px;
+                                background: linear-gradient(135deg, ${healthCor}22, ${healthCor}0d); border: 1px solid ${healthCor}44; }
+                            .ins-health-score { font-size: 2.6rem; font-weight: 800; line-height: 1; color: ${healthCor}; font-variant-numeric: tabular-nums; }
+                            .ins-health-meta { font-size: 0.75rem; color: var(--text-secondary); line-height: 1.5; }
+                            .ins-health-meta b { color: ${healthCor}; }
+                            .ins-kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; }
+                            .ins-kpi { background: var(--glass); border: 1px solid var(--glass-border); border-radius: 16px; padding: 1.1rem 1.2rem;
+                                border-left: 4px solid var(--kc, #3b82f6); }
+                            .ins-kpi .v { font-size: 2rem; font-weight: 700; line-height: 1; color: var(--kc); font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+                            .ins-kpi .l { font-size: 0.78rem; color: var(--text-secondary); margin-top: 0.35rem; font-weight: 500; }
+                            .ins-kpi .s { font-size: 0.7rem; color: var(--text-tertiary); margin-top: 0.1rem; }
+                            .ins-section-title { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-tertiary);
+                                font-weight: 600; display: flex; align-items: center; gap: 0.5rem; }
+                            .ins-section-title i { width: 15px; height: 15px; }
+                            .ins-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+                            .ins-panel { background: var(--glass); border: 1px solid var(--glass-border); border-radius: 16px; padding: 1.3rem; }
+                            .ins-panel-title { font-size: 0.95rem; font-weight: 600; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; }
+                            .ins-panel-title i { width: 17px; height: 17px; opacity: 0.8; }
+                            .aging-row { display: grid; grid-template-columns: 92px 1fr 40px; align-items: center; gap: 0.75rem; margin-bottom: 0.7rem; }
+                            .aging-row:last-child { margin-bottom: 0; }
+                            .aging-lbl { font-size: 0.8rem; color: var(--text-secondary); }
+                            .aging-track { height: 10px; background: rgba(148,163,184,0.12); border-radius: 6px; overflow: hidden; }
+                            .aging-fill { height: 100%; border-radius: 6px; transition: width 0.4s ease; }
+                            .aging-val { font-size: 0.85rem; font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; }
+                            .ins-list { display: flex; flex-direction: column; gap: 0.5rem; }
+                            .ins-item { display: flex; align-items: center; gap: 0.7rem; padding: 0.6rem 0.75rem; border-radius: 10px;
+                                background: rgba(148,163,184,0.06); cursor: pointer; transition: all 0.18s ease; }
+                            .ins-item:hover { background: rgba(148,163,184,0.13); transform: translateX(3px); }
+                            .ins-chip { font-size: 0.68rem; font-weight: 700; padding: 0.2rem 0.55rem; border-radius: 6px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+                            .ins-item-txt { flex: 1; font-size: 0.85rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+                            .ins-empty { text-align: center; padding: 1.6rem; color: var(--text-tertiary); font-size: 0.85rem; }
+                            .ins-mgmt { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+                            .ins-stat { background: var(--glass); border: 1px solid var(--glass-border); border-radius: 16px; padding: 1.2rem; text-align: center; }
+                            .ins-stat .v { font-size: 1.9rem; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+                            .ins-stat .l { font-size: 0.78rem; color: var(--text-secondary); margin-top: 0.4rem; }
+                            .ins-stat .s { font-size: 0.68rem; color: var(--text-tertiary); margin-top: 0.2rem; }
+                            .frente-row { display: grid; grid-template-columns: 130px 60px 1fr 74px; align-items: center; gap: 0.9rem; padding: 0.6rem 0; border-top: 1px solid var(--border-color); }
+                            .frente-row:first-of-type { border-top: none; }
+                            .frente-abertas { font-size: 0.85rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+                            .frente-abertas span { font-weight: 400; color: var(--text-tertiary); font-size: 0.72rem; }
+                            .prog-track { height: 8px; background: rgba(148,163,184,0.12); border-radius: 5px; overflow: hidden; }
+                            .prog-fill { height: 100%; border-radius: 5px; }
+                            .frente-sla { font-size: 0.78rem; font-weight: 600; text-align: right; font-variant-numeric: tabular-nums; }
+                            @media (max-width: 900px) {
+                                .ins-kpis { grid-template-columns: repeat(2, 1fr); }
+                                .ins-grid2, .ins-mgmt { grid-template-columns: 1fr; }
                             }
-                            .health-gauge {
-                                background: linear-gradient(145deg, var(--glass), rgba(0,0,0,0.2));
-                                border-radius: 20px;
-                                padding: 2rem;
-                                text-align: center;
-                                position: relative;
-                                overflow: hidden;
-                                border: 1px solid var(--glass-border);
-                            }
-                            .health-gauge::before {
-                                content: '';
-                                position: absolute;
-                                top: -50%;
-                                left: -50%;
-                                width: 200%;
-                                height: 200%;
-                                background: radial-gradient(circle, ${healthColor}15 0%, transparent 70%);
-                                animation: pulse 3s ease-in-out infinite;
-                            }
-                            @keyframes pulse { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
-                            .health-score {
-                                font-size: 5rem;
-                                font-weight: 800;
-                                color: ${healthColor};
-                                line-height: 1;
-                                position: relative;
-                                text-shadow: 0 0 40px ${healthColor}66;
-                            }
-                            .health-label { font-size: 1rem; color: var(--text-secondary); margin-top: 0.5rem; }
-                            .health-status {
-                                display: inline-block;
-                                margin-top: 1rem;
-                                padding: 0.4rem 1.2rem;
-                                background: ${healthColor}22;
-                                color: ${healthColor};
-                                border-radius: 20px;
-                                font-weight: 600;
-                                font-size: 0.85rem;
-                            }
-                            .metrics-row {
-                                display: grid;
-                                grid-template-columns: repeat(4, 1fr);
-                                gap: 1rem;
-                            }
-                            .metric-card {
-                                background: var(--glass);
-                                border: 1px solid var(--glass-border);
-                                border-radius: 16px;
-                                padding: 1.2rem;
-                                text-align: center;
-                                transition: all 0.3s ease;
-                                cursor: default;
-                            }
-                            .metric-card:hover { transform: translateY(-3px); box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
-                            .metric-value { font-size: 2.2rem; font-weight: 700; line-height: 1.2; font-variant-numeric: tabular-nums; letter-spacing: -0.03em; }
-                            .metric-label { font-size: 0.75rem; color: var(--text-tertiary); margin-top: 0.3rem; font-weight: 500; letter-spacing: 0.02em; }
-                            .metric-trend { font-size: 0.7rem; margin-top: 0.5rem; padding: 2px 8px; border-radius: 10px; display: inline-block; }
-                            .insights-panels { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
-                            .panel {
-                                background: var(--glass);
-                                border: 1px solid var(--glass-border);
-                                border-radius: 16px;
-                                padding: 1.5rem;
-                            }
-                            .panel-title {
-                                font-size: 0.9rem;
-                                font-weight: 600;
-                                color: var(--text-secondary);
-                                margin-bottom: 1rem;
-                                display: flex;
-                                align-items: center;
-                                gap: 0.5rem;
-                            }
-                            .panel-title i { width: 18px; height: 18px; }
-                            .aging-bars { display: grid; gap: 0.8rem; }
-                            .aging-item { display: flex; align-items: center; gap: 1rem; }
-                            .aging-label { min-width: 80px; font-size: 0.8rem; }
-                            .aging-bar { flex: 1; height: 8px; background: rgba(255,255,255,0.1); border-radius: 4px; overflow: hidden; }
-                            .aging-fill { height: 100%; border-radius: 4px; transition: width 0.8s ease; }
-                            .aging-value { min-width: 50px; text-align: right; font-weight: 600; font-size: 0.85rem; }
-                            .alert-list { display: grid; gap: 0.6rem; }
-                            .alert-item {
-                                display: flex;
-                                align-items: center;
-                                gap: 0.8rem;
-                                padding: 0.7rem;
-                                background: rgba(255,255,255,0.03);
-                                border-radius: 10px;
-                                cursor: pointer;
-                                transition: all 0.2s;
-                            }
-                            .alert-item:hover { background: rgba(255,255,255,0.08); transform: translateX(4px); }
-                            .alert-badge {
-                                padding: 3px 10px;
-                                border-radius: 6px;
-                                font-size: 0.7rem;
-                                font-weight: 600;
-                                min-width: 55px;
-                                text-align: center;
-                            }
-                            .alert-text { flex: 1; font-size: 0.85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-                            .frente-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 0.8rem; }
-                            .frente-item {
-                                text-align: center;
-                                padding: 1rem 0.5rem;
-                                background: rgba(255,255,255,0.03);
-                                border-radius: 12px;
-                                transition: all 0.2s;
-                            }
-                            .frente-item:hover { background: rgba(255,255,255,0.08); }
-                            .frente-name { font-size: 0.75rem; color: var(--text-tertiary); margin-bottom: 0.3rem; }
-                            .frente-value { font-size: 1.5rem; font-weight: 700; }
-                            .frente-sub { font-size: 0.7rem; color: var(--text-tertiary); }
                         </style>
-                        
-                        <div class="insights-grid">
-                            <!-- Hero Section: Health Score + Key Metrics -->
-                            <div class="insights-hero">
-                                <div class="health-gauge">
-                                    <div class="health-score">${healthScore}</div>
-                                    <div class="health-label">Saúde do Portfólio</div>
-                                    <div class="health-status">${healthStatus}</div>
+
+                        <div class="ins">
+                            <div class="ins-head">
+                                <div>
+                                    <h2>Insights</h2>
+                                    <p>Análise de ${total} demanda${total !== 1 ? 's' : ''} · ${abertas.length} em aberto · ${hoje.toLocaleDateString('pt-BR')}</p>
                                 </div>
-                                <div class="metrics-row">
-                                    <div class="metric-card">
-                                        <div class="metric-value" style="color: #3b82f6;">${totalDemandas}</div>
-                                        <div class="metric-label">Total</div>
-                                        <div class="metric-trend" style="background: #3b82f622; color: #3b82f6;">Demandas</div>
-                                    </div>
-                                    <div class="metric-card">
-                                        <div class="metric-value" style="color: #10b981;">${abertas.length}</div>
-                                        <div class="metric-label">Em Aberto</div>
-                                        <div class="metric-trend" style="background: #10b98122; color: #10b981;">${Math.round((abertas.length/totalDemandas)*100)}%</div>
-                                    </div>
-                                    <div class="metric-card">
-                                        <div class="metric-value" style="color: #ef4444;">${vencidas}</div>
-                                        <div class="metric-label">Vencidas</div>
-                                        <div class="metric-trend" style="background: #ef444422; color: #ef4444;">SLA</div>
-                                    </div>
-                                    <div class="metric-card">
-                                        <div class="metric-value" style="color: #f59e0b;">${altaPrioridade}</div>
-                                        <div class="metric-label">Alta Prioridade</div>
-                                        <div class="metric-trend" style="background: #f59e0b22; color: #f59e0b;">Urgente</div>
+                                <div class="ins-health">
+                                    <div class="ins-health-score">${healthScore}</div>
+                                    <div class="ins-health-meta">
+                                        Saúde do portfólio: <b>${healthStatus}</b><br>
+                                        ${pctNoPrazo}% no prazo · ${semEnvelhecimento}% sem envelhecer
                                     </div>
                                 </div>
                             </div>
-                            
-                            <!-- Velocity Row -->
-                            <div class="metrics-row" style="grid-template-columns: repeat(3, 1fr);">
-                                <div class="metric-card">
-                                    <div class="metric-value" style="color: #10b981;">${concluidas7d}</div>
-                                    <div class="metric-label">Concluídas 7d</div>
+
+                            <!-- KPIs de SLA -->
+                            <div class="ins-kpis">
+                                <div class="ins-kpi" style="--kc:#10b981;">
+                                    <div class="v">${noPrazo.length}</div>
+                                    <div class="l">No prazo</div>
+                                    <div class="s">${pctNoPrazo}% das abertas com prazo</div>
                                 </div>
-                                <div class="metric-card">
-                                    <div class="metric-value" style="color: #3b82f6;">${novas7d}</div>
-                                    <div class="metric-label">Novas 7d</div>
+                                <div class="ins-kpi" style="--kc:#f59e0b;">
+                                    <div class="v">${vencendo.length}</div>
+                                    <div class="l">Vencendo (≤ 3 dias)</div>
+                                    <div class="s">exigem atenção próxima</div>
                                 </div>
-                                <div class="metric-card">
-                                    <div class="metric-value" style="color: ${novas7d > 0 && concluidas7d/novas7d >= 1 ? '#10b981' : '#f59e0b'};">${novas7d > 0 ? (concluidas7d/novas7d).toFixed(1) : '∞'}x</div>
-                                    <div class="metric-label">Velocidade</div>
+                                <div class="ins-kpi" style="--kc:#ef4444;">
+                                    <div class="v">${vencidas.length}</div>
+                                    <div class="l">Vencidas</div>
+                                    <div class="s">SLA estourado</div>
+                                </div>
+                                <div class="ins-kpi" style="--kc:#64748b;">
+                                    <div class="v">${semPrazo.length}</div>
+                                    <div class="l">Sem prazo</div>
+                                    <div class="s">falta definir vencimento</div>
                                 </div>
                             </div>
-                            
-                            <!-- Panels Row -->
-                            <div class="insights-panels">
-                                <!-- Status Panel -->
-                                <div class="panel">
-                                    <div class="panel-title"><i data-lucide="bar-chart-3"></i> Demandas por Status</div>
-                                    <div class="aging-bars">
-                                        ${topStatus.map(([status, count]) => {
-                                            const cor = CORES_STATUS[status] || '#6b7280';
-                                            const perc = abertas.length > 0 ? Math.round((count/abertas.length)*100) : 0;
-                                            return `<div class="aging-item">
-                                                <span class="aging-label" style="color: ${cor}; min-width: 120px;">${status}</span>
-                                                <div class="aging-bar"><div class="aging-fill" style="width: ${perc}%; background: ${cor};"></div></div>
-                                                <span class="aging-value" style="color: ${cor};">${count}</span>
+
+                            <!-- OPERACIONAL -->
+                            <div class="ins-section-title"><i data-lucide="target"></i> Operacional · o que agir agora</div>
+                            <div class="ins-grid2">
+                                <div class="ins-panel">
+                                    <div class="ins-panel-title"><i data-lucide="hourglass"></i> Envelhecimento das abertas</div>
+                                    ${faixas.map(f => `
+                                        <div class="aging-row">
+                                            <span class="aging-lbl">${f.rot}</span>
+                                            <div class="aging-track"><div class="aging-fill" style="width:${Math.round(f.qtd / maxFaixa * 100)}%; background:${f.cor};"></div></div>
+                                            <span class="aging-val" style="color:${f.cor};">${f.qtd}</span>
+                                        </div>`).join('')}
+                                </div>
+                                <div class="ins-panel">
+                                    <div class="ins-panel-title"><i data-lucide="alert-triangle"></i> Prioridade alta em risco de SLA</div>
+                                    <div class="ins-list">
+                                        ${agirAgora.length ? agirAgora.map(d => {
+                                            const venc = slaDe(d) === 'vencido';
+                                            const cor = venc ? '#ef4444' : '#f59e0b';
+                                            const rest = d.obterSLARestante ? d.obterSLARestante() : null;
+                                            const lbl = venc ? `${Math.abs(rest ?? 0)}d atrás` : rest === 0 ? 'HOJE' : rest === 1 ? 'amanhã' : `${rest}d`;
+                                            return `<div class="ins-item" ${abrir(d.numero)}>
+                                                <span class="ins-chip" style="background:${cor}22;color:${cor};">${lbl}</span>
+                                                <span class="ins-item-txt" title="${d.titulo}">${d.titulo}</span>
+                                                ${getBadgeFrente(d.origem)}
                                             </div>`;
-                                        }).join('')}
-                                    </div>
-                                </div>
-                                
-                                <!-- Alerts Panel -->
-                                <div class="panel">
-                                    <div class="panel-title"><i data-lucide="alert-triangle"></i> Vencendo em 7 Dias</div>
-                                    <div class="alert-list">
-                                        ${proximos.length > 0 ? proximos.map(d => {
-                                            const cor = d.diasRestantes === 0 ? '#ef4444' : d.diasRestantes <= 2 ? '#f59e0b' : '#3b82f6';
-                                            const label = d.diasRestantes === 0 ? 'HOJE' : d.diasRestantes === 1 ? 'Amanhã' : `${d.diasRestantes}d`;
-                                            return `<div class="alert-item" onclick="app.abrirModalEdicao(app.demandas.find(x => x.numero === '${d.numero}'))">
-                                                <span class="alert-badge" style="background: ${cor}22; color: ${cor};">${label}</span>
-                                                <span class="alert-text">${d.titulo}</span>
-                                            </div>`;
-                                        }).join('') : '<div style="text-align: center; padding: 2rem; color: var(--text-tertiary);">✅ Nenhum vencimento próximo</div>'}
+                                        }).join('') : '<div class="ins-empty">✅ Nenhuma prioridade alta em risco de SLA</div>'}
                                     </div>
                                 </div>
                             </div>
-                            
-                            <!-- Frentes Panel -->
-                            <div class="panel">
-                                <div class="panel-title"><i data-lucide="layers"></i> Distribuição por Frente</div>
-                                <div class="frente-grid">
-                                    ${Object.entries(porFrente).map(([f, d]) => {
-                                        const cor = corDaFrente(f);
-                                        return `<div class="frente-item">
-                                            <div class="frente-name">${getBadgeFrente(f)}</div>
-                                            <div class="frente-value" style="color: ${cor};">${d.total}</div>
-                                            <div class="frente-sub">${d.emAndamento} em andamento</div>
+
+                            <div class="ins-panel">
+                                <div class="ins-panel-title"><i data-lucide="clock"></i> Paradas há mais tempo</div>
+                                <div class="ins-list">
+                                    ${maisAntigas.length ? maisAntigas.map(({ d, i }) => {
+                                        const cor = i > 90 ? '#ef4444' : i > 30 ? '#f59e0b' : '#3b82f6';
+                                        return `<div class="ins-item" ${abrir(d.numero)}>
+                                            <span class="ins-chip" style="background:${cor}22;color:${cor};">${fmtIdade(i)}</span>
+                                            <span class="ins-item-txt" title="${d.titulo}">${d.titulo}</span>
+                                            <span class="ins-chip" style="background:rgba(148,163,184,0.14);color:var(--text-secondary);">${d.status}</span>
+                                            ${getBadgeFrente(d.origem)}
                                         </div>`;
-                                    }).join('')}
+                                    }).join('') : '<div class="ins-empty">Nenhuma demanda aberta</div>'}
                                 </div>
+                            </div>
+
+                            <!-- GERENCIAL -->
+                            <div class="ins-section-title"><i data-lucide="trending-up"></i> Gerencial · tendência e saúde</div>
+                            <div class="ins-mgmt">
+                                <div class="ins-stat">
+                                    <div class="v" style="color:${saldo30 > 0 ? '#f59e0b' : '#10b981'};">${saldo30 > 0 ? '+' : ''}${saldo30}</div>
+                                    <div class="l">Saldo do backlog (30d)</div>
+                                    <div class="s">${novas30} novas · ${concl30} concluídas</div>
+                                </div>
+                                <div class="ins-stat">
+                                    <div class="v" style="color:#3b82f6;">${tempoMedio !== null ? tempoMedio + 'd' : '—'}</div>
+                                    <div class="l">Tempo médio de conclusão</div>
+                                    <div class="s">${duracoes.length ? 'base: ' + duracoes.length + ' concluída' + (duracoes.length !== 1 ? 's' : '') : 'sem datas suficientes'}</div>
+                                </div>
+                                <div class="ins-stat">
+                                    <div class="v" style="color:#10b981;">${pctConcluidas}%</div>
+                                    <div class="l">Taxa de conclusão</div>
+                                    <div class="s">${concluidas.length} de ${total}</div>
+                                </div>
+                            </div>
+
+                            <div class="ins-panel">
+                                <div class="ins-panel-title"><i data-lucide="layers"></i> Saúde por frente <span style="font-weight:400;font-size:0.75rem;color:var(--text-tertiary);margin-left:auto;">abertas · progresso médio · % no prazo</span></div>
+                                ${frentesArr.map(([f, v]) => {
+                                    const prog = v.abertas ? Math.round(v.somaProg / v.abertas) : 0;
+                                    const pct = v.comPrazo ? Math.round(v.noPrazo / v.comPrazo * 100) : null;
+                                    const pctCor = pct === null ? 'var(--text-tertiary)' : pct >= 70 ? '#10b981' : pct >= 40 ? '#f59e0b' : '#ef4444';
+                                    return `<div class="frente-row">
+                                        ${getBadgeFrente(f)}
+                                        <span class="frente-abertas">${v.abertas} <span>abertas</span></span>
+                                        <div class="prog-track"><div class="prog-fill" style="width:${prog}%; background:${corDaFrente(f)};"></div></div>
+                                        <span class="frente-sla" style="color:${pctCor};">${pct === null ? 's/ prazo' : pct + '% ✓'}</span>
+                                    </div>`;
+                                }).join('')}
                             </div>
                         </div>
                     `;
-                    
-                    // Renderizar ícones
+
                     setTimeout(() => { if (typeof lucide !== 'undefined') lucide.createIcons(); }, 50);
                 } catch (err) {
                     console.error('Erro ao renderizar Insights:', err);
                     container.innerHTML = '<div style="padding: 2rem; text-align: center; color: var(--text-secondary);">Erro ao carregar Insights</div>';
                 }
-            }
-
-            renderizarRelatorios() {
-                const container = document.getElementById('relatoriosContainer');
-                if (!container) return;
-
-                try {
-                    container.innerHTML = '';
-                    
-                    // Agrupa demandas por origem/frente (todas as demandas)
-                    const demandasAbertas = this.demandas;
-                    const frenteAgrupada = {};
-                    
-                    demandasAbertas.forEach(d => {
-                        const frente = d.origem || d.sistema || 'Outros';
-                        if (!frenteAgrupada[frente]) {
-                            frenteAgrupada[frente] = [];
-                        }
-                        frenteAgrupada[frente].push(d);
-                    });
-                    
-                    // Ícones por frente
-                    const iconesFrente = {
-                        'C4C': 'cloud',
-                        'ESG': 'leaf',
-                        'MKT': 'megaphone',
-                        'SD': 'truck',
-                        'Dev Interno': 'code-2',
-                        'Outros': 'folder'
-                    };
-                    
-                    // Ordena as frentes por quantidade de demandas (maior primeiro)
-                    const frentesOrdenadas = Object.keys(frenteAgrupada).sort(
-                        (a, b) => frenteAgrupada[b].length - frenteAgrupada[a].length
-                    );
-                    
-                    // Cria seção para cada frente
-                    frentesOrdenadas.forEach(frente => {
-                        const demandas = frenteAgrupada[frente];
-                        const cor = corDaFrente(frente);
-                        const icone = iconesFrente[frente] || 'folder';
-                        
-                        // Container da frente
-                        const secaoFrente = document.createElement('div');
-                        secaoFrente.className = 'frente-section';
-                        secaoFrente.style.cssText = `
-                            margin-bottom: 2rem;
-                            padding: 1.5rem;
-                            background: var(--glass);
-                            border: 1px solid var(--glass-border);
-                            border-radius: 16px;
-                            backdrop-filter: blur(20px);
-                        `;
-                        
-                        // Card principal da frente
-                        const cardFrente = document.createElement('div');
-                        cardFrente.className = 'frente-card';
-                        cardFrente.style.cssText = `
-                            display: flex;
-                            align-items: center;
-                            gap: 1rem;
-                            margin-bottom: 1.5rem;
-                            padding: 1rem 1.5rem;
-                            background: linear-gradient(135deg, ${cor}22, ${cor}11);
-                            border-left: 4px solid ${cor};
-                            border-radius: 12px;
-                        `;
-                        cardFrente.innerHTML = `
-                            <div style="
-                                width: 50px;
-                                height: 50px;
-                                background: linear-gradient(135deg, ${cor}, ${cor}cc);
-                                border-radius: 12px;
-                                display: flex;
-                                align-items: center;
-                                justify-content: center;
-                                box-shadow: 0 4px 15px ${cor}40;
-                            ">
-                                <i data-lucide="${icone}" style="width: 28px; height: 28px; color: white;"></i>
-                            </div>
-                            <div style="flex: 1;">
-                                <div style="font-size: 1.3rem; font-weight: 700; color: var(--text-primary);">${frente}</div>
-                                <div style="font-size: 0.85rem; color: var(--text-secondary);">${demandas.length} demanda${demandas.length > 1 ? 's' : ''} em aberto</div>
-                            </div>
-                            <div style="
-                                font-size: 2.5rem;
-                                font-weight: 700;
-                                color: ${cor};
-                                min-width: 60px;
-                                text-align: right;
-                            ">${demandas.length}</div>
-                        `;
-                        secaoFrente.appendChild(cardFrente);
-                        
-                        // Grid de mini-cards das demandas
-                        const gridDemandas = document.createElement('div');
-                        gridDemandas.style.cssText = `
-                            display: grid;
-                            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-                            gap: 0.8rem;
-                        `;
-                        
-                        demandas.forEach(d => {
-                            const statusCor = CORES_STATUS[d.status] || '#6b7280';
-                            const miniCard = document.createElement('div');
-                            miniCard.className = 'mini-demanda-card';
-                            miniCard.style.cssText = `
-                                background: var(--bg-secondary);
-                                border: 1px solid var(--glass-border);
-                                border-left: 3px solid ${statusCor};
-                                border-radius: 8px;
-                                padding: 0.8rem 1rem;
-                                cursor: pointer;
-                                transition: all 0.2s ease;
-                            `;
-                            miniCard.onmouseover = () => {
-                                miniCard.style.transform = 'translateX(4px)';
-                                miniCard.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
-                            };
-                            miniCard.onmouseout = () => {
-                                miniCard.style.transform = 'translateX(0)';
-                                miniCard.style.boxShadow = 'none';
-                            };
-                            miniCard.onclick = () => this.abrirModalEdicao(d);
-                            
-                            // Badge de prioridade
-                            let prioridadeBadge = '';
-                            if (d.prioridade === 'Alta' || d.prioridade === 'Crítica') {
-                                const prioridadeCor = d.prioridade === 'Crítica' ? '#ef4444' : '#f59e0b';
-                                prioridadeBadge = `<span style="
-                                    font-size: 0.65rem;
-                                    padding: 2px 6px;
-                                    background: ${prioridadeCor}22;
-                                    color: ${prioridadeCor};
-                                    border-radius: 4px;
-                                    font-weight: 600;
-                                    margin-left: 0.5rem;
-                                ">${d.prioridade}</span>`;
-                            }
-                            
-                            miniCard.innerHTML = `
-                                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.4rem;">
-                                    <span style="font-size: 0.7rem; color: var(--text-tertiary); font-weight: 600;">#${d.numero || d.id}</span>
-                                    <span style="
-                                        font-size: 0.65rem;
-                                        padding: 2px 8px;
-                                        background: ${statusCor}22;
-                                        color: ${statusCor};
-                                        border-radius: 4px;
-                                        font-weight: 600;
-                                    ">${d.status}</span>
-                                </div>
-                                <div style="
-                                    font-size: 0.85rem;
-                                    font-weight: 600;
-                                    color: var(--text-primary);
-                                    white-space: nowrap;
-                                    overflow: hidden;
-                                    text-overflow: ellipsis;
-                                    margin-bottom: 0.3rem;
-                                " title="${d.titulo}">${d.titulo}${prioridadeBadge}</div>
-                                <div style="
-                                    font-size: 0.75rem;
-                                    color: var(--text-secondary);
-                                    display: flex;
-                                    align-items: center;
-                                    gap: 0.8rem;
-                                ">
-                                    <span><i data-lucide="calendar" style="width: 12px; height: 12px; margin-right: 4px; vertical-align: -2px;"></i>${d.vencimento || 'Sem prazo'}</span>
-                                    <span><i data-lucide="tag" style="width: 12px; height: 12px; margin-right: 4px; vertical-align: -2px;"></i>${d.tipo}</span>
-                                </div>
-                            `;
-                            gridDemandas.appendChild(miniCard);
-                        });
-                        
-                        secaoFrente.appendChild(gridDemandas);
-                        container.appendChild(secaoFrente);
-                    });
-                    
-                    // Resumo geral no final
-                    const resumo = document.createElement('div');
-                    resumo.style.cssText = `
-                        margin-top: 2rem;
-                        padding: 1.5rem;
-                        background: var(--glass);
-                        border: 1px solid var(--glass-border);
-                        border-radius: 16px;
-                        backdrop-filter: blur(20px);
-                        text-align: center;
-                    `;
-                    resumo.innerHTML = `
-                        <div style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.5rem;">Total de Demandas em Aberto</div>
-                        <div style="font-size: 3rem; font-weight: 700; color: var(--primary);">${demandasAbertas.length}</div>
-                        <div style="font-size: 0.8rem; color: var(--text-tertiary); margin-top: 0.5rem;">distribuídas em ${frentesOrdenadas.length} frente${frentesOrdenadas.length > 1 ? 's' : ''}</div>
-                    `;
-                    container.appendChild(resumo);
-
-                    // Renderizar ícones Lucide
-                    setTimeout(() => {
-                        if (typeof lucide !== 'undefined') {
-                            lucide.createIcons();
-                        }
-                    }, 100);
-
-                    // Reafirmar overflow
-                    requestAnimationFrame(() => {
-                        const contentArea = document.getElementById('contentArea');
-                        if (contentArea) {
-                            contentArea.style.overflowY = 'auto';
-                            contentArea.style.overflowX = 'hidden';
-                        }
-                    });
-                } catch (err) {
-                    console.error('Erro ao renderizar Relatórios:', err);
-                    container.innerHTML = '<div style="padding: 2rem; text-align: center; color: var(--text-secondary);">Erro ao carregar Relatórios</div>';
-                }
-            }
-
-            desenharGraficoRelatorios() {
-                // Status Chart
-                const statusData = {};
-                const statusCores = {};
-                this.demandas.forEach(d => {
-                    statusData[d.status] = (statusData[d.status] || 0) + 1;
-                    statusCores[d.status] = CORES_STATUS[d.status] || '#2d5a8c';
-                });
-
-                const canvasStatus = document.getElementById('chartStatusRel');
-                if (canvasStatus) {
-                    const ctx = canvasStatus.getContext('2d');
-                    const labels = Object.keys(statusData);
-                    const data = Object.values(statusData);
-                    const cores = labels.map(s => statusCores[s]);
-
-                    ctx.clearRect(0, 0, canvasStatus.width, canvasStatus.height);
-                    this.desenharGraficoBarrasRelatorios(ctx, labels, data, cores, canvasStatus);
-                }
-
-                // Tipo Chart
-                const tipoData = {};
-                const tipoCores = {};
-                this.demandas.forEach(d => {
-                    tipoData[d.tipo] = (tipoData[d.tipo] || 0) + 1;
-                    tipoCores[d.tipo] = CORES_TIPO[d.tipo] || '#2d5a8c';
-                });
-
-                const canvasTipo = document.getElementById('chartTipoRel');
-                if (canvasTipo) {
-                    const ctx = canvasTipo.getContext('2d');
-                    const labels = Object.keys(tipoData);
-                    const data = Object.values(tipoData);
-                    const cores = labels.map(t => tipoCores[t]);
-
-                    ctx.clearRect(0, 0, canvasTipo.width, canvasTipo.height);
-                    this.desenharGraficoBarrasRelatorios(ctx, labels, data, cores, canvasTipo);
-                }
-
-                // SLA Chart
-                const slaStatus = { dentro: 0, vencendo: 0, vencido: 0 };
-                this.demandas.forEach(d => {
-                    const status = d.obterStatusSLA ? d.obterStatusSLA() : 'dentro';
-                    if (status === 'vencido') slaStatus.vencido++;
-                    else if (['vencendo', 'hoje', 'amanha'].includes(status)) slaStatus.vencendo++;
-                    else slaStatus.dentro++;
-                });
-
-                const canvasSLA = document.getElementById('chartSLARel');
-                if (canvasSLA) {
-                    const ctx = canvasSLA.getContext('2d');
-                    const labels = ['Dentro SLA', 'Vencendo', 'Vencido'];
-                    const data = [slaStatus.dentro, slaStatus.vencendo, slaStatus.vencido];
-                    const cores = ['#10b981', '#f59e0b', '#ef4444'];
-
-                    ctx.clearRect(0, 0, canvasSLA.width, canvasSLA.height);
-                    this.desenharGraficoBarrasRelatorios(ctx, labels, data, cores, canvasSLA);
-                }
-
-                // Prioridade Chart
-                const prioridadeData = {};
-                const prioridadeCores = { 'Crítica': '#ef4444', 'Alta': '#f59e0b', 'Média': '#fbbf24', 'Baixa': '#10b981' };
-                this.demandas.forEach(d => {
-                    prioridadeData[d.prioridade] = (prioridadeData[d.prioridade] || 0) + 1;
-                });
-
-                const canvasPrioridade = document.getElementById('chartPrioridadeRel');
-                if (canvasPrioridade) {
-                    const ctx = canvasPrioridade.getContext('2d');
-                    const labels = Object.keys(prioridadeData);
-                    const data = Object.values(prioridadeData);
-                    const cores = labels.map(p => prioridadeCores[p]);
-
-                    ctx.clearRect(0, 0, canvasPrioridade.width, canvasPrioridade.height);
-                    this.desenharGraficoBarrasRelatorios(ctx, labels, data, cores, canvasPrioridade);
-                }
-            }
-
-            desenharGraficoBarrasRelatorios(ctx, labels, data, cores, canvas) {
-                const padding = 40;
-                const width = canvas.width - 2 * padding;
-                const height = canvas.height - 2 * padding;
-                const maxValue = Math.max(...data);
-                const barWidth = width / (labels.length * 1.5);
-
-                // Desenhar eixos
-                ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
-                ctx.lineWidth = 1;
-                ctx.beginPath();
-                ctx.moveTo(padding, padding);
-                ctx.lineTo(padding, canvas.height - padding);
-                ctx.lineTo(canvas.width - padding, canvas.height - padding);
-                ctx.stroke();
-
-                // Desenhar barras
-                data.forEach((value, idx) => {
-                    const barHeight = (value / maxValue) * height;
-                    const x = padding + idx * (barWidth + width / (labels.length * 1.5));
-                    const y = canvas.height - padding - barHeight;
-
-                    ctx.fillStyle = cores[idx];
-                    ctx.fillRect(x, y, barWidth, barHeight);
-
-                    // Label
-                    ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-                    ctx.font = '12px sans-serif';
-                    ctx.textAlign = 'center';
-                    ctx.fillText(value, x + barWidth / 2, canvas.height - padding + 20);
-                });
             }
 
             getDemandas() {
