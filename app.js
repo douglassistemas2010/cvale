@@ -1568,9 +1568,11 @@
                     'Testes Com Erros': 'x-circle'
                 };
                 
-                // Total de demandas primeiro
+                // Total de demandas primeiro — não conta Concluído: o KPI "Total" representa
+                // o volume de trabalho em aberto, não o histórico acumulado.
                 const total = this.demandas.length;
-                
+                const totalAtivas = this.demandas.filter(d => d.status !== 'Concluído').length;
+
                 // Gera HTML dos cards
                 let html = `
                     <div class="card card-clickable" onclick="app.trocarAba('demandas')" title="Clique para ver todas as demandas">
@@ -1578,8 +1580,8 @@
                             <div class="card-title">Total</div>
                             <div class="card-icon" data-lucide="package"></div>
                         </div>
-                        <div class="card-value">${total}</div>
-                        <div class="card-subtitle">Todas as demandas</div>
+                        <div class="card-value">${totalAtivas}</div>
+                        <div class="card-subtitle">Demandas ativas (exclui concluídas)</div>
                     </div>
                 `;
                 

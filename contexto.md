@@ -104,6 +104,17 @@ depois) — decidiu-se não mexer nisso agora porque `salvarDados()` já é idem
 inteiro) e o ganho de remover a segunda chamada é pequeno perto do risco de mexer no fluxo de
 drag-and-drop de novo.
 
+## Sessão de 03/08/2026 (4) — KPI "Total" não deve contar Concluído
+
+Card "Total" do Dashboard (`gerarCardsStatus()`, `app.js`) contava todas as demandas, inclusive
+Concluído — usuário pediu pra representar volume de trabalho em aberto, não histórico acumulado.
+Agora `totalAtivas = this.demandas.filter(d => d.status !== 'Concluído').length` só nesse card;
+subtítulo virou "Demandas ativas (exclui concluídas)". Os cards de status individuais (inclusive o
+próprio card "Concluído") continuam calculando "% do total" sobre o total geral (todas as
+demandas) — não mudei essa base pra não alterar o significado dos outros percentuais, só o número
+do KPI "Total" em si. Testado no Chrome (Playwright): 4 demandas seed (2 ativas + 2 concluídas) →
+Total mostrou 2, card Concluído continuou mostrando 2 (50% do total geral).
+
 ## Pendências
 
 - Decidir com o usuário como tratar a comparação XLSX × Cockpit (ponto 1 da sessão de 03/08 acima)
