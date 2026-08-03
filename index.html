@@ -2015,183 +2015,6 @@
             color: var(--primary);
         }
 
-        /* FAB Compartilhamento - Design Criativo */
-        .fab-container {
-            position: fixed;
-            bottom: 30px;
-            right: 30px;
-            z-index: 1000;
-        }
-
-        .fab-main {
-            width: 60px;
-            height: 60px;
-            border-radius: 50%;
-            border: none;
-            cursor: pointer;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            box-shadow: 0 6px 30px rgba(102, 126, 234, 0.5);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-            position: relative;
-            overflow: hidden;
-        }
-
-        .fab-main::before {
-            content: '';
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
-            opacity: 0;
-            transition: opacity 0.3s ease;
-        }
-
-        .fab-main:hover::before {
-            opacity: 1;
-        }
-
-        .fab-main:hover {
-            transform: scale(1.1) rotate(90deg);
-            box-shadow: 0 8px 40px rgba(102, 126, 234, 0.7);
-        }
-
-        .fab-main svg {
-            width: 28px;
-            height: 28px;
-            stroke: white;
-            fill: none;
-            position: relative;
-            z-index: 1;
-            transition: transform 0.3s ease;
-        }
-
-        .fab-container:hover .fab-main svg {
-            transform: rotate(-90deg);
-        }
-
-        .fab-options {
-            position: absolute;
-            bottom: 70px;
-            right: 5px;
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-            opacity: 0;
-            visibility: hidden;
-            transform: translateY(20px);
-            transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-        }
-
-        .fab-container:hover .fab-options {
-            opacity: 1;
-            visibility: visible;
-            transform: translateY(0);
-        }
-
-        .fab-option {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            cursor: pointer;
-            background: transparent;
-            border: none;
-            padding: 0;
-            transition: transform 0.2s ease;
-        }
-
-        .fab-option:hover {
-            transform: translateX(-5px);
-        }
-
-        .fab-option-icon {
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-            transition: all 0.3s ease;
-        }
-
-        .fab-option:hover .fab-option-icon {
-            transform: scale(1.15);
-        }
-
-        .fab-option-label {
-            background: var(--bg-secondary);
-            color: var(--text-primary);
-            padding: 8px 16px;
-            border-radius: 20px;
-            font-size: 0.85rem;
-            font-weight: 500;
-            white-space: nowrap;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
-            border: 1px solid var(--glass-border);
-            opacity: 0;
-            transform: translateX(10px);
-            transition: all 0.2s ease 0.1s;
-        }
-
-        .fab-option:hover .fab-option-label {
-            opacity: 1;
-            transform: translateX(0);
-        }
-
-        .fab-email .fab-option-icon {
-            background: linear-gradient(135deg, #ea4335, #ff6b6b);
-        }
-
-        .fab-teams .fab-option-icon {
-            background: linear-gradient(135deg, #5059c9, #7b83eb);
-        }
-
-        .fab-option-icon svg {
-            width: 24px;
-            height: 24px;
-            stroke: white;
-            fill: none;
-        }
-
-        .fab-teams .fab-option-icon svg {
-            fill: white;
-            stroke: none;
-        }
-
-        /* Ripple effect */
-        .fab-main::after {
-            content: '';
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            border-radius: 50%;
-            background: rgba(255, 255, 255, 0.3);
-            transform: scale(0);
-            transition: transform 0.5s ease;
-        }
-
-        .fab-main:active::after {
-            transform: scale(2);
-            opacity: 0;
-        }
-
-        /* Pulse animation */
-        @keyframes fabPulse {
-            0%, 100% { box-shadow: 0 6px 30px rgba(102, 126, 234, 0.5); }
-            50% { box-shadow: 0 6px 40px rgba(102, 126, 234, 0.8), 0 0 0 10px rgba(102, 126, 234, 0.1); }
-        }
-
-        .fab-main {
-            animation: fabPulse 3s ease-in-out infinite;
-        }
-
-        .fab-main:hover {
-            animation: none;
-        }
-
         /* Animação pulsante para status "Em Testes Integrados" */
         @keyframes statusTestePulse {
             0%, 100% { 
@@ -2272,33 +2095,6 @@
     </style>
 </head>
 <body>
-    <!-- FAB Compartilhamento Criativo -->
-    <div class="fab-container">
-        <div class="fab-options">
-            <button class="fab-option fab-teams" onclick="compartilharTeams()" title="Enviar por Teams">
-                <span class="fab-option-label">Microsoft Teams</span>
-                <div class="fab-option-icon">
-                    <svg viewBox="0 0 24 24"><path d="M20 2h-3v3.5a1.5 1.5 0 0 1-3 0V2H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h5l3 4 3-4h5a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2z"/></svg>
-                </div>
-            </button>
-            <button class="fab-option fab-email" onclick="compartilharEmail()" title="Enviar por Email">
-                <span class="fab-option-label">Enviar por Email</span>
-                <div class="fab-option-icon">
-                    <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
-                </div>
-            </button>
-        </div>
-        <button class="fab-main" title="Compartilhar">
-            <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="18" cy="5" r="3"/>
-                <circle cx="6" cy="12" r="3"/>
-                <circle cx="18" cy="19" r="3"/>
-                <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
-                <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
-            </svg>
-        </button>
-    </div>
-
     <div class="app-container">
         <!-- HEADER -->
         <div class="header">
@@ -2545,7 +2341,13 @@
                                     <th style="cursor: pointer; width: 120px;" data-sort="numeroOrdem"><span style="display: flex; align-items: center; gap: 0.5rem;">Priorização <span class="sort-icon" style="font-size: 0.8em; opacity: 0.5;">↕</span></span></th>
                                     <th style="cursor: pointer;" data-sort="origem"><span style="display: flex; align-items: center; gap: 0.5rem;">Frente <span class="sort-icon" style="font-size: 0.8em; opacity: 0.5;">↕</span></span></th>
                                     <th style="cursor: pointer;" data-sort="tipo"><span style="display: flex; align-items: center; gap: 0.5rem;">Categoria <span class="sort-icon" style="font-size: 0.8em; opacity: 0.5;">↕</span></span></th>
-                                    <th style="cursor: pointer;" data-sort="status"><span style="display: flex; align-items: center; gap: 0.5rem;">Status <span class="sort-icon" style="font-size: 0.8em; opacity: 0.5;">↕</span></span></th>
+                                    <th style="cursor: pointer;" data-sort="status">
+                                        <span style="display: flex; align-items: center; gap: 0.5rem;">Status <span class="sort-icon" style="font-size: 0.8em; opacity: 0.5;">↕</span></span>
+                                        <label style="display: flex; align-items: center; gap: 0.3rem; font-weight: 400; font-size: 0.7rem; color: var(--text-tertiary); margin-top: 0.35rem; cursor: pointer; white-space: nowrap;" onclick="event.stopPropagation();">
+                                            <input type="checkbox" id="toggleConcluidos" style="cursor: pointer; margin: 0;">
+                                            Mostrar concluídos
+                                        </label>
+                                    </th>
                                     <th style="cursor: pointer;" data-sort="prioridade"><span style="display: flex; align-items: center; gap: 0.5rem;">Prioridade <span class="sort-icon" style="font-size: 0.8em; opacity: 0.5;">↕</span></span></th>
                                     <th style="cursor: pointer;" data-sort="progresso"><span style="display: flex; align-items: center; gap: 0.5rem;">Progresso <span class="sort-icon" style="font-size: 0.8em; opacity: 0.5;">↕</span></span></th>
                                     <th style="cursor: pointer;" data-sort="dataAbertura"><span style="display: flex; align-items: center; gap: 0.5rem;">Abertura <span class="sort-icon" style="font-size: 0.8em; opacity: 0.5;">↕</span></span></th>
@@ -2686,7 +2488,7 @@
 
                 <div class="form-actions">
                     <button type="button" class="btn btn-cancel" id="btnCancelar">Cancelar</button>
-                    <button type="submit" class="btn btn-primary">Salvar</button>
+                    <button type="submit" class="btn btn-primary" id="btnSalvarDemanda">Salvar</button>
                 </div>
             </form>
         </div>
@@ -2927,6 +2729,17 @@
             }
         }
 
+        // Normaliza texto para busca: minúsculas, sem acentos e sem pontuação
+        // (ex.: "atendiménto." e "Atendimento" viram a mesma string comparável)
+        function normalizarTexto(texto) {
+            return (texto || '')
+                .toString()
+                .toLowerCase()
+                .normalize('NFD')
+                .replace(/[̀-ͯ]/g, '')
+                .replace(/[^a-z0-9\s]/g, '');
+        }
+
         // ====== CLASSE APP ======
         // Gerenciador principal do Cockpit Operacional
         // Responsabilidades: Carregar dados, renderizar dashboard/tabelas/gráficos,
@@ -2938,6 +2751,8 @@
                 this.sortColumn = null;
                 this.sortDirection = 'asc';
                 this.kanbanOrderSalva = null;
+                // Frentes com as linhas expandidas na tabela de Demandas (as demais ficam encolhidas, só com o cabeçalho do grupo)
+                this.frentesExpandidas = new Set(JSON.parse(localStorage.getItem('cockpit_frentes_expandidas') || '[]'));
                 this.inicializar();
             }
 
@@ -3391,6 +3206,16 @@
                 document.getElementById('filterPrioridade').addEventListener('change', () => this.filtrarDemandas());
                 document.getElementById('filterSLA').addEventListener('change', () => this.filtrarDemandas());
 
+                // Flag "Mostrar concluídos" no cabeçalho da coluna Status — oculta por padrão
+                const toggleConcluidos = document.getElementById('toggleConcluidos');
+                if (toggleConcluidos) {
+                    toggleConcluidos.checked = localStorage.getItem('cockpit_mostrar_concluidos') === 'true';
+                    toggleConcluidos.addEventListener('change', () => {
+                        localStorage.setItem('cockpit_mostrar_concluidos', toggleConcluidos.checked);
+                        this.filtrarDemandas();
+                    });
+                }
+
                 // Custom Selects
                 this.inicializarCustomSelects();
 
@@ -3508,7 +3333,8 @@
                     const filtroStatus = document.getElementById('filterStatus')?.value || '';
                     const filtroPrioridade = document.getElementById('filterPrioridade')?.value || '';
                     const filtroSla = document.getElementById('filterSLA')?.value || '';
-                    const temFiltrosAtivos = !!(searchValue || filtroTipo || filtroStatus || filtroPrioridade || filtroSla);
+                    const ocultandoConcluidos = !document.getElementById('toggleConcluidos')?.checked;
+                    const temFiltrosAtivos = !!(searchValue || filtroTipo || filtroStatus || filtroPrioridade || filtroSla || ocultandoConcluidos);
 
                     if (temFiltrosAtivos) {
                         this.filtrarDemandas();
@@ -3735,8 +3561,15 @@
 
             // Salva demanda nova ou atualiza existente
             // Coleta dados do formulário e verifica se é edição (numeroChamado preenchido)
+            //
+            // Fecha o modal e re-renderiza IMEDIATAMENTE após atualizar o array em memória
+            // (otimista), sem esperar a gravação no Supabase — essa gravação é lenta pela rede
+            // e travar a UI nela deixava o modal "pendurado" por segundos. A persistência
+            // (Supabase + localStorage) roda depois, em segundo plano. this.salvandoDemanda
+            // trava o botão contra duplo clique/duplo submit enquanto salva.
             async salvarDemanda(e) {
                 e.preventDefault();
+                if (this.salvandoDemanda) return;
 
                 const form = document.getElementById('formDemanda');
                 const titulo = document.getElementById('titulo').value.trim();
@@ -3752,46 +3585,62 @@
                     return;
                 }
 
-                const numeroChamado = document.getElementById('numeroChamado').value.trim();
-                const demandaData = {
-                    numero: numeroChamado,
-                    titulo,
-                    tipo,
-                    origem: document.getElementById('origem').value,
-                    numeroOrdem: parseInt(document.getElementById('numeroOrdem').value) || 0,
-                    prioridade: document.getElementById('prioridade').value,
-                    dataAbertura: document.getElementById('dataAbertura').value,
-                    vencimento: document.getElementById('vencimento').value,
-                    status: document.getElementById('status').value,
-                    progresso: parseInt(document.getElementById('progresso').value) || 0,
-                    observacoes: document.getElementById('observacoes').value
-                };
-
-                // Verifica se é edição (demanda existente com esse número)
-                const demandaExistente = this.demandas.find(d => d.numero === numeroChamado);
-                const demandaOriginal = document.getElementById('numeroChamadoOriginal')?.value;
-                
-                if (demandaOriginal && demandaOriginal !== numeroChamado) {
-                    // Mudou o número - atualiza a demanda original
-                    const demanda = this.demandas.find(d => d.numero === demandaOriginal);
-                    if (demanda) {
-                        Object.assign(demanda, demandaData);
-                        this.mostrarToast('✏️ Demanda atualizada com sucesso!');
-                    }
-                } else if (demandaExistente) {
-                    // Editar demanda existente
-                    Object.assign(demandaExistente, demandaData);
-                    this.mostrarToast('✏️ Demanda atualizada com sucesso!');
-                } else {
-                    // Criar nova
-                    const novaDemanda = new Demanda(demandaData);
-                    this.demandas.push(novaDemanda);
-                    this.mostrarToast('✅ Demanda criada com sucesso!');
+                this.salvandoDemanda = true;
+                const btnSalvar = document.getElementById('btnSalvarDemanda');
+                if (btnSalvar) {
+                    btnSalvar.disabled = true;
+                    btnSalvar.textContent = 'Salvando...';
                 }
 
-                await this.salvarDados();
-                this.fecharModal();
-                this.renderizar();
+                try {
+                    const numeroChamado = document.getElementById('numeroChamado').value.trim();
+                    const demandaData = {
+                        numero: numeroChamado,
+                        titulo,
+                        tipo,
+                        origem: document.getElementById('origem').value,
+                        numeroOrdem: parseInt(document.getElementById('numeroOrdem').value) || 0,
+                        prioridade: document.getElementById('prioridade').value,
+                        dataAbertura: document.getElementById('dataAbertura').value,
+                        vencimento: document.getElementById('vencimento').value,
+                        status: document.getElementById('status').value,
+                        progresso: parseInt(document.getElementById('progresso').value) || 0,
+                        observacoes: document.getElementById('observacoes').value
+                    };
+
+                    // Verifica se é edição (demanda existente com esse número)
+                    const demandaExistente = this.demandas.find(d => d.numero === numeroChamado);
+                    const demandaOriginal = document.getElementById('numeroChamadoOriginal')?.value;
+
+                    if (demandaOriginal && demandaOriginal !== numeroChamado) {
+                        // Mudou o número - atualiza a demanda original
+                        const demanda = this.demandas.find(d => d.numero === demandaOriginal);
+                        if (demanda) {
+                            Object.assign(demanda, demandaData);
+                            this.mostrarToast('✏️ Demanda atualizada com sucesso!');
+                        }
+                    } else if (demandaExistente) {
+                        // Editar demanda existente
+                        Object.assign(demandaExistente, demandaData);
+                        this.mostrarToast('✏️ Demanda atualizada com sucesso!');
+                    } else {
+                        // Criar nova
+                        const novaDemanda = new Demanda(demandaData);
+                        this.demandas.push(novaDemanda);
+                        this.mostrarToast('✅ Demanda criada com sucesso!');
+                    }
+
+                    this.fecharModal();
+                    this.renderizar();
+
+                    await this.salvarDados();
+                } finally {
+                    this.salvandoDemanda = false;
+                    if (btnSalvar) {
+                        btnSalvar.disabled = false;
+                        btnSalvar.textContent = 'Salvar';
+                    }
+                }
             }
 
             editarDemanda(numero) {
@@ -3974,25 +3823,28 @@
             // Aplica múltiplos filtros em cascata e re-renderiza a tabela
             filtrarDemandas() {
                 // Coleta valores dos filtros da UI
-                const busca = document.getElementById('searchDemand').value.toLowerCase();
+                // Busca ignora acentuação e pontuação — "atendimento" encontra "atendiménto." ou "atendimento,"
+                const busca = normalizarTexto(document.getElementById('searchDemand').value);
                 const tipo = document.getElementById('filterTipo').value;
                 const status = document.getElementById('filterStatus').value;
                 const prioridade = document.getElementById('filterPrioridade').value;
                 const sla = document.getElementById('filterSLA').value;
+                const mostrarConcluidos = document.getElementById('toggleConcluidos')?.checked || false;
 
                 // Aplica cada filtro se valor não vazio
                 let filtradas = this.demandas.filter(d => {
-                    const matchBusca = !busca || d.titulo.toLowerCase().includes(busca) || d.numero.toLowerCase().includes(busca);
+                    const matchBusca = !busca || normalizarTexto(d.titulo).includes(busca) || normalizarTexto(d.numero).includes(busca) || normalizarTexto(d.descricao).includes(busca);
                     const matchTipo = !tipo || d.tipo === tipo;
                     const matchStatus = !status || d.status === status;
                     const matchPrioridade = !prioridade || d.prioridade === prioridade;
+                    const matchConcluido = mostrarConcluidos || d.status !== 'Concluído';
 
                     let matchSLA = true;
                     if (sla === 'dentro') matchSLA = d.obterStatusSLA() === 'dentro';
                     if (sla === 'vencendo') matchSLA = ['vencendo', 'hoje', 'amanha'].includes(d.obterStatusSLA());
                     if (sla === 'vencido') matchSLA = d.obterStatusSLA() === 'vencido';
 
-                    return matchBusca && matchTipo && matchStatus && matchPrioridade && matchSLA;
+                    return matchBusca && matchTipo && matchStatus && matchPrioridade && matchSLA && matchConcluido;
                 });
 
                 // Aplica ordenação se coluna foi selecionada
@@ -4065,11 +3917,17 @@
                         return ordemA - ordemB;
                     });
 
-                    // Header do grupo (frente) - badge de cor da frente + contagem
+                    // Encolhida por padrão — só expande se a frente estiver no Set frentesExpandidas (persistido em localStorage)
+                    const frenteExpandida = this.frentesExpandidas.has(frente);
+
+                    // Header do grupo (frente) - clicável para expandir/encolher, badge de cor da frente + contagem
                     let html = `
-                        <tr class="group-header">
+                        <tr class="group-header" data-frente="${frente}" onclick="app.toggleFrente('${frente}')" style="cursor: pointer;">
                             <td colspan="11" style="padding: 1rem; font-size: 0.9rem; font-weight: 600; letter-spacing: 0.4px;">
                                 <span style="display: inline-flex; align-items: center; gap: 0.5rem;">
+                                    <span class="group-chevron" style="display: inline-flex; transition: transform 0.15s ease; transform: rotate(${frenteExpandida ? '90' : '0'}deg); opacity: 0.6;">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                                    </span>
                                     ${getBadgeFrente(frente)}
                                     <span style="color: var(--text-tertiary); font-weight: 400; font-size: 0.85rem; opacity: 0.7;">${demandasFrente.length} demanda${demandasFrente.length > 1 ? 's' : ''}</span>
                                 </span>
@@ -4108,7 +3966,7 @@
                         }
 
                         return `
-                            <tr class="group-item" data-numero="${d.numero}" data-frente="${frente}" style="color: var(--text-primary); background: transparent; cursor: pointer;" onclick="app.editarDemanda('${d.numero}')">
+                            <tr class="group-item" data-numero="${d.numero}" data-frente="${frente}" style="${frenteExpandida ? '' : 'display: none;'} color: var(--text-primary); background: transparent; cursor: pointer;" onclick="app.editarDemanda('${d.numero}')">
                                 <td style="color: var(--text-primary);"><strong>${d.numero}</strong></td>
                                 <td style="color: var(--text-primary);">${d.titulo}</td>
                                 <td style="text-align: center;">
@@ -4156,6 +4014,24 @@
                 });
 
                 // Inicializar Lucide icons se disponível
+            }
+
+            // Expande/encolhe as linhas de uma frente na tabela de Demandas sem re-renderizar tudo
+            // Estado persistido em localStorage para sobreviver a reload/troca de aba
+            toggleFrente(frente) {
+                if (this.frentesExpandidas.has(frente)) {
+                    this.frentesExpandidas.delete(frente);
+                } else {
+                    this.frentesExpandidas.add(frente);
+                }
+                localStorage.setItem('cockpit_frentes_expandidas', JSON.stringify([...this.frentesExpandidas]));
+
+                const expandida = this.frentesExpandidas.has(frente);
+                document.querySelectorAll(`tr.group-item[data-frente="${frente}"]`).forEach(tr => {
+                    tr.style.display = expandida ? '' : 'none';
+                });
+                const chevron = document.querySelector(`tr.group-header[data-frente="${frente}"] .group-chevron`);
+                if (chevron) chevron.style.transform = `rotate(${expandida ? '90' : '0'}deg)`;
             }
 
             // Gera cards dinâmicos baseados nos tipos de status existentes
@@ -5419,169 +5295,6 @@
             URL.revokeObjectURL(url);
             
             return 'Cockpit_Minhas_Atividades.html';
-        }
-
-        // Gera tabela HTML formatada para compartilhamento
-        function gerarTabelaCompartilhamento() {
-            const demandas = window.app ? window.app.demandas : [];
-            const hoje = new Date().toLocaleDateString('pt-BR');
-            
-            // Agrupa por frente
-            const grupos = {};
-            demandas.forEach(d => {
-                if (!grupos[d.origem]) grupos[d.origem] = [];
-                grupos[d.origem].push(d);
-            });
-            
-            // Ordena cada grupo por numeroOrdem
-            Object.keys(grupos).forEach(frente => {
-                grupos[frente].sort((a, b) => {
-                    const ordemA = a.numeroOrdem !== undefined && a.numeroOrdem !== null && a.numeroOrdem !== '' ? Number(a.numeroOrdem) : 9999;
-                    const ordemB = b.numeroOrdem !== undefined && b.numeroOrdem !== null && b.numeroOrdem !== '' ? Number(b.numeroOrdem) : 9999;
-                    return ordemA - ordemB;
-                });
-            });
-            
-            // Cores dos status
-            const coresStatus = {
-                'Aguardando CSS': '#f59e0b',
-                'Aguardando Retorno TI': '#8b5cf6',
-                'Concluído': '#10b981',
-                'Em Análise Inicial': '#06b6d4',
-                'Em Andamento': '#3b82f6',
-                'Em Orçamentação': '#ec4899',
-                'Em Testes Integrados': '#0ea5e9',
-                'Pendente': '#6b7280',
-                'Suspenso': '#78716c',
-                'Testes Com Erros': '#ef4444'
-            };
-            
-            // Resumo
-            const total = demandas.length;
-            const emAndamento = demandas.filter(d => d.status === 'Em Andamento').length;
-            const concluidos = demandas.filter(d => d.status === 'Concluído').length;
-            const criticos = demandas.filter(d => d.prioridade === 'Crítica').length;
-            
-            let html = `
-<div style="font-family: 'Inter', 'Segoe UI', Arial, sans-serif; max-width: 900px;">
-    <div style="background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%); color: white; padding: 20px; border-radius: 10px 10px 0 0;">
-        <h2 style="margin: 0; font-size: 20px;">⚡ Cockpit Minhas Atividades</h2>
-        <p style="margin: 5px 0 0 0; opacity: 0.9; font-size: 14px;">Relatório de Demandas - ${hoje}</p>
-    </div>
-    
-    <div style="display: flex; gap: 15px; padding: 15px; background: #f8fafc; border-left: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0;">
-        <div style="flex: 1; text-align: center; padding: 10px; background: white; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-            <div style="font-size: 24px; font-weight: bold; color: #1e3a5f;">${total}</div>
-            <div style="font-size: 12px; color: #64748b;">Total</div>
-        </div>
-        <div style="flex: 1; text-align: center; padding: 10px; background: white; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-            <div style="font-size: 24px; font-weight: bold; color: #3b82f6;">${emAndamento}</div>
-            <div style="font-size: 12px; color: #64748b;">Em Andamento</div>
-        </div>
-        <div style="flex: 1; text-align: center; padding: 10px; background: white; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-            <div style="font-size: 24px; font-weight: bold; color: #10b981;">${concluidos}</div>
-            <div style="font-size: 12px; color: #64748b;">Concluídos</div>
-        </div>
-        <div style="flex: 1; text-align: center; padding: 10px; background: white; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-            <div style="font-size: 24px; font-weight: bold; color: #ef4444;">${criticos}</div>
-            <div style="font-size: 12px; color: #64748b;">Críticos</div>
-        </div>
-    </div>
-    
-    <table style="width: 100%; border-collapse: collapse; font-size: 13px; background: white; border: 1px solid #e2e8f0;">
-        <thead>
-            <tr style="background: #f1f5f9;">
-                <th style="padding: 10px; text-align: left; border-bottom: 2px solid #cbd5e1; font-weight: 600; color: #475569;">Priorização</th>
-                <th style="padding: 10px; text-align: left; border-bottom: 2px solid #cbd5e1; font-weight: 600; color: #475569;">ID</th>
-                <th style="padding: 10px; text-align: left; border-bottom: 2px solid #cbd5e1; font-weight: 600; color: #475569;">Título</th>
-                <th style="padding: 10px; text-align: center; border-bottom: 2px solid #cbd5e1; font-weight: 600; color: #475569;">Status</th>
-                <th style="padding: 10px; text-align: center; border-bottom: 2px solid #cbd5e1; font-weight: 600; color: #475569;">Prioridade</th>
-            </tr>
-        </thead>
-        <tbody>`;
-            
-            const ordemFrentes = ['C4C', 'SD', 'ESG', 'Dev Interno', 'MKT'];
-            const frentesOrdenadas = ordemFrentes.filter(f => grupos[f]).concat(Object.keys(grupos).filter(f => !ordemFrentes.includes(f)));
-            
-            frentesOrdenadas.forEach(frente => {
-                html += `
-            <tr style="background: #e2e8f0;">
-                <td colspan="5" style="padding: 8px 10px; font-weight: 600; color: #1e3a5f; font-size: 14px;">
-                    📁 ${frente} (${grupos[frente].length} demandas)
-                </td>
-            </tr>`;
-                
-                grupos[frente].forEach((d, idx) => {
-                    const corStatus = coresStatus[d.status] || '#6b7280';
-                    const corPrioridade = d.prioridade === 'Crítica' ? '#ef4444' : d.prioridade === 'Alta' ? '#f97316' : d.prioridade === 'Média' ? '#eab308' : '#22c55e';
-                    const bgRow = idx % 2 === 0 ? '#ffffff' : '#f8fafc';
-                    const ordem = d.numeroOrdem !== undefined && d.numeroOrdem !== null && d.numeroOrdem !== '' ? d.numeroOrdem + 'º' : '-';
-                    
-                    html += `
-            <tr style="background: ${bgRow};">
-                <td style="padding: 8px 10px; border-bottom: 1px solid #e2e8f0; text-align: center; font-weight: 600; color: #1e3a5f;">${ordem}</td>
-                <td style="padding: 8px 10px; border-bottom: 1px solid #e2e8f0; font-family: monospace; color: #64748b;">${d.numero}</td>
-                <td style="padding: 8px 10px; border-bottom: 1px solid #e2e8f0; color: #1e293b;">${d.titulo}</td>
-                <td style="padding: 8px 10px; border-bottom: 1px solid #e2e8f0; text-align: center;">
-                    <span style="background: ${corStatus}22; color: ${corStatus}; padding: 3px 8px; border-radius: 12px; font-size: 11px; font-weight: 500;">${d.status}</span>
-                </td>
-                <td style="padding: 8px 10px; border-bottom: 1px solid #e2e8f0; text-align: center;">
-                    <span style="background: ${corPrioridade}22; color: ${corPrioridade}; padding: 3px 8px; border-radius: 12px; font-size: 11px; font-weight: 500;">${d.prioridade}</span>
-                </td>
-            </tr>`;
-                });
-            });
-            
-            html += `
-        </tbody>
-    </table>
-    <div style="background: #f1f5f9; padding: 10px; text-align: center; font-size: 11px; color: #64748b; border-radius: 0 0 10px 10px; border: 1px solid #e2e8f0; border-top: none;">
-        Gerado automaticamente pelo Cockpit Minhas Atividades • Douglas Araújo Gomes
-    </div>
-</div>`;
-            
-            return html;
-        }
-
-        // Copia HTML para área de transferência
-        async function copiarTabelaParaClipboard() {
-            const html = gerarTabelaCompartilhamento();
-            
-            try {
-                // Cria um blob HTML para copiar formatado
-                const blob = new Blob([html], { type: 'text/html' });
-                const clipboardItem = new ClipboardItem({ 'text/html': blob });
-                await navigator.clipboard.write([clipboardItem]);
-                return true;
-            } catch (err) {
-                console.error('Erro ao copiar:', err);
-                // Fallback: copia como texto
-                const tempDiv = document.createElement('div');
-                tempDiv.innerHTML = html;
-                const texto = tempDiv.innerText;
-                await navigator.clipboard.writeText(texto);
-                return true;
-            }
-        }
-
-        async function compartilharEmail() {
-            const copiado = await copiarTabelaParaClipboard();
-            
-            const assunto = encodeURIComponent('Cockpit Minhas Atividades - Gestão de Demandas');
-            const corpo = encodeURIComponent(`Olá,\n\nSegue abaixo o relatório de demandas.\n\n[Cole aqui com Ctrl+V para inserir a tabela formatada]\n\nAtenciosamente,\nDouglas Araújo Gomes`);
-            
-            window.open(`mailto:?subject=${assunto}&body=${corpo}`, '_blank');
-            
-            if (window.app) app.mostrarToast('📋 Tabela copiada! Cole no email com Ctrl+V', 'success');
-        }
-
-        async function compartilharTeams() {
-            const copiado = await copiarTabelaParaClipboard();
-            
-            // Abre o Teams
-            window.open('https://teams.microsoft.com/_#/conversations', '_blank');
-            
-            if (window.app) app.mostrarToast('📋 Tabela copiada! Cole no Teams com Ctrl+V', 'success');
         }
 
         document.addEventListener('DOMContentLoaded', () => {
