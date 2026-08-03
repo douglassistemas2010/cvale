@@ -12,12 +12,17 @@ Guarda os dados em um banco Supabase (Postgres na nuvem) em vez do antigo arquiv
 ## Estrutura
 
 ```
-index.html              # aplicação (dashboard, kanban, relatórios etc.)
+index.html              # HTML (estrutura das telas, modais, formulários)
+style.css                # todo o CSS (era inline no index.html até 03/08/2026)
+app.js                    # toda a lógica (dashboard, kanban, relatórios etc. — era inline no index.html)
 supabase-config.js       # URL + chave pública do Supabase (preencher, ver abaixo)
 supabase/schema.sql      # cria a tabela + regras de acesso (RLS)
 supabase/seed.sql        # importa as demandas reais atuais (rodar 1x)
 assets/, LOGO_transparente.png, lucide.min.js  # imagens e ícones usados pela página
 ```
+
+Continua sem build step — são só 3 arquivos estáticos (`index.html` + `style.css` + `app.js`)
+servidos diretamente pelo GitHub Pages, nada para compilar.
 
 ## 1. Usar o projeto Supabase existente (banco-principal)
 

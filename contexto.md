@@ -68,9 +68,43 @@ alterar comportamento de mais nada.
   ver `README.md`: site estático pensado para GitHub Pages sem pipeline. Não é um problema a
   corrigir, só uma escolha consciente de simplicidade.
 
+## Sessão de 03/08/2026 (3) — aplicados todos os achados de estrutura da sessão anterior
+
+Usuário pediu para aplicar tudo que tinha sido levantado como achado. Tudo abaixo foi feito,
+testado num Chrome real via Playwright (com rede do Supabase bloqueada de propósito, pra testar
+com dados determinísticos) e publicado.
+
+- **P0 — XSS corrigido.** Título, número, responsável, status, prioridade e tipo de demanda iam
+  direto pro `innerHTML` sem escapar (tabela, Kanban, Insights, cards do Dashboard) — como a
+  leitura do site é pública, um desses campos com `<script>`/`<img onerror>` executaria pra
+  qualquer visitante. Adicionadas `escapeHtml()` e `escapeAttrJs()` (essa segunda pensa na pegadinha
+  de atributos `onclick="...('${valor}')"`: o navegador decodifica entidades HTML do atributo
+  *antes* de interpretar o JS dentro dele, então só `escapeHtml` sozinho não bastava — precisa
+  escapar pro JS primeiro, HTML depois). Aplicado em ~15 pontos. Testado injetando
+  `<img src=x onerror=alert(1)>` como título: confirmado neutralizado na tabela e no Kanban.
+- **P1 — código morto removido.** `concluirDemanda`, `reabrirDemanda`, `mudarStatusDemanda`,
+  `atualizarProgresso` (nenhum tinha botão/evento chamando) e `baixarHTML` (sobra do botão de
+  compartilhar já removido antes).
+- **P1 — duplicação extraída.** `templateBadgePrioridade()`, `templateBarraProgresso()` e
+  `progressoExibido()` — badge de prioridade e barra de progresso estavam com o mesmo HTML escrito
+  2-3 vezes (tabela, card do Kanban, cards de status do Dashboard).
+- **P2 — persistência isolada.** Criado `SupabaseRepo` (`buscar()`/`salvar()`) — antes
+  `carregarDados()` e `salvarDados()` falavam direto com `supabaseClient`/tabela/colunas; agora só
+  o `SupabaseRepo` conhece esse detalhe.
+- **P2 — renderização otimista padronizada.** `excluirDemanda` e `importarDemandas` agora
+  atualizam a tela antes de aguardar o Supabase (mesmo padrão que já existia em `salvarDemanda`).
+- **P3 — index.html dividido em 3 arquivos.** CSS foi para `style.css` (2080 linhas), JS para
+  `app.js` (2822 linhas), `index.html` ficou só com a estrutura (444 linhas). Continua sem build
+  step — só `<link>`/`<script src>` normais, GitHub Pages serve os 3 direto. `README.md`
+  atualizado com a nova estrutura de arquivos.
+
+**Achado durante os testes (não é regressão, é comportamento correto):** o Kanban dispara
+`salvarDados()` duas vezes por arraste entre colunas (uma no `drop`, outra no `dragend` logo
+depois) — decidiu-se não mexer nisso agora porque `salvarDados()` já é idempotente (grava o array
+inteiro) e o ganho de remover a segunda chamada é pequeno perto do risco de mexer no fluxo de
+drag-and-drop de novo.
+
 ## Pendências
 
 - Decidir com o usuário como tratar a comparação XLSX × Cockpit (ponto 1 da sessão de 03/08 acima)
   antes de importar/sincronizar qualquer dado.
-- Decidir se aplica os achados de estrutura acima (remover código morto, padronizar renderização
-  otimista, evitar salvarDados() duplicado no drag do Kanban).
