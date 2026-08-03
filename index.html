@@ -4730,6 +4730,7 @@
                                     c.style.borderColor = '';
                                 });
                                 this.sincronizarOrdemKanban(board);
+                                this.atualizarDashboard();
                                 this.salvarDados();
                             });
 
@@ -4787,6 +4788,12 @@
 
                             // Sincronizar ordem dos cards com o DOM
                             this.sincronizarOrdemKanban(board);
+
+                            // Atualiza o Dashboard (cards de status, gráficos, SLA) imediatamente,
+                            // já que mudar o status no Kanban não passa por renderizar() como as
+                            // outras ações (salvarDemanda, concluirDemanda etc.) — sem isso o
+                            // Dashboard só refletia a mudança depois de trocar de aba manualmente.
+                            this.atualizarDashboard();
 
                             this.salvarDados();
                             this.mostrarToast(`✅ ${numero} movido para ${status}`);

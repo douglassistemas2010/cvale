@@ -39,6 +39,38 @@ atualizado pela última vez em 10/07/2026). Achados que ficaram em aberto:
 - Removido o botão flutuante de compartilhar (Teams/Email) — não funcionava e foi descartado
   (função `gerarTabelaCompartilhamento` e afins removidas por serem código morto).
 
+## Sessão de 03/08/2026 (2) — bug do Dashboard não atualizar sozinho
+
+**Causa raiz encontrada:** ao arrastar um card no Kanban para outra coluna (mudando o status),
+os handlers `drop` e `dragend` (`index.html` ~linha 4725 e ~4771) atualizavam `demanda.status` e
+chamavam `salvarDados()`, mas nunca chamavam `atualizarDashboard()`. Todo o resto do app segue o
+padrão `this.renderizar()` (que sempre chama `atualizarDashboard()` internamente) depois de
+qualquer mutação — só o Kanban ficava de fora. Resultado: os cards/gráficos do Dashboard só
+refletiam a mudança de status depois que o usuário trocava de aba manualmente.
+
+**Correção aplicada:** adicionado `this.atualizarDashboard()` nos dois handlers (`drop` e
+`dragend`) do Kanban, logo após `sincronizarOrdemKanban()`. Mudança cirúrgica (7 linhas), sem
+alterar comportamento de mais nada.
+
+**Achados de estrutura (não aplicados ainda, aguardando decisão do usuário):**
+- Código morto confirmado (grep no arquivo inteiro, sem nenhuma outra referência): métodos
+  `concluirDemanda`, `reabrirDemanda`, `mudarStatusDemanda` e `atualizarProgresso`
+  (`index.html` ~linhas 3761–3803) não são chamados por nenhum botão/evento — só `excluirDemanda`
+  continua em uso. Prováveis sobras de uma versão anterior da UI (ações inline por linha) que foi
+  substituída pelo modal + Kanban.
+- Padrão de atualização de tela inconsistente entre as ações: `salvarDemanda` (modal) é otimista
+  (renderiza antes de aguardar o Supabase); já `excluirDemanda`/`concluirDemanda`/
+  `mudarStatusDemanda` fazem `await salvarDados()` **antes** de re-renderizar — se a rede estiver
+  lenta, a tela demora a refletir a ação. Podia padronizar tudo para o modelo otimista.
+- No Kanban, um drag-and-drop entre colunas dispara `salvarDados()` duas vezes (uma no `drop`,
+  outra no `dragend` logo em seguida) — grava no Supabase duas vezes à toa a cada arraste.
+- Estrutura geral (arquivo único `index.html` de ~5300 linhas, sem build step) é intencional —
+  ver `README.md`: site estático pensado para GitHub Pages sem pipeline. Não é um problema a
+  corrigir, só uma escolha consciente de simplicidade.
+
 ## Pendências
-- Decidir com o usuário como tratar a comparação XLSX × Cockpit (ponto 1 acima) antes de
-  importar/sincronizar qualquer dado.
+
+- Decidir com o usuário como tratar a comparação XLSX × Cockpit (ponto 1 da sessão de 03/08 acima)
+  antes de importar/sincronizar qualquer dado.
+- Decidir se aplica os achados de estrutura acima (remover código morto, padronizar renderização
+  otimista, evitar salvarDados() duplicado no drag do Kanban).
