@@ -115,6 +115,38 @@ demandas) — não mudei essa base pra não alterar o significado dos outros per
 do KPI "Total" em si. Testado no Chrome (Playwright): 4 demandas seed (2 ativas + 2 concluídas) →
 Total mostrou 2, card Concluído continuou mostrando 2 (50% do total geral).
 
+## Sessão de 04/08/2026 — atualização de status/observações do time de TI
+
+Usuário enviou print de planilha ("Status TI 03/08") com observações e status atualizados de 11
+demandas SAP/Melhoria. Atualizado direto no Supabase (`cvale.cockpit_estado`, via MCP com acesso
+de management, que ignora a RLS de escrita — não foi usado o fluxo normal de login do app) porque
+o HTML não guarda dado estático: `SEED_DEMANDAS` em `app.js` está vazio, a tela sempre lê ao vivo
+do banco. Atualizar o banco já é suficiente para refletir no site.
+
+Demandas atualizadas (campo `observacoes`; `status` só quando mudou):
+- `8000072355` (Cálculo de Deslocamento) — obs: "Chamado encerrado em 17/07" (status seguiu Em
+  Andamento, mesmo a obs indicando encerramento — não reinterpretei, só registrei o que a planilha
+  trouxe)
+- `1007058` (BTP Manutenções de Carteiras) — obs longa existente preservada, nova atualização
+  anexada ao final com separador `---` e prefixo `Atualização TI (03/08/2026):`
+- `8000072077` (Estrutura de territórios SAP) — obs preenchida (estava vazia)
+- `8000067078` (Transação de conferência de propriedades SA) — obs preenchida
+- `8000074115` no print ↔ `1318118` no banco (Planejamento e Metas Recebimento de Grãos DICOR) —
+  **terceiro caso de renumeração provável** (mesmo padrão dos 2 já documentados acima: número
+  Central de Serviços novo no print vs. número antigo no Cockpit). Casado por título idêntico, não
+  por número — confirmar com o usuário se quiser que o campo `numero` também seja atualizado para
+  `8000074115`. Status mudou Pendente → Em Andamento; obs longa preservada + atualização anexada.
+- `8000070643` (Transferência de carteira PJ) — obs preenchida
+- `1305004` (Integração Compliance ESG Farm Guard) — status Pendente → Em Análise Inicial; obs
+  longa preservada + atualização anexada
+- `1319452` (Ajustes GROUNDMAN_CONSRELAT) — status Pendente → Em Orçamentação; obs anexada
+- `8000064293` (ZSD0254 Ajuste de Regra Visitas sem Apon) — obs preenchida
+- `8000068428` (Dados propriedades CONSRELAT) — obs preenchida
+- `8000071559` (Planejamento de insumos conglomerado) — obs preenchida
+
+Não mexi no ranking/priorização (`numeroOrdem`, coluna "Prioridade" 1º–11º do print) nem no campo
+`numero` do caso de renumeração — usuário só pediu observações e status.
+
 ## Pendências
 
 - Decidir com o usuário como tratar a comparação XLSX × Cockpit (ponto 1 da sessão de 03/08 acima)
