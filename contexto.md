@@ -131,11 +131,12 @@ Demandas atualizadas (campo `observacoes`; `status` só quando mudou):
   anexada ao final com separador `---` e prefixo `Atualização TI (03/08/2026):`
 - `8000072077` (Estrutura de territórios SAP) — obs preenchida (estava vazia)
 - `8000067078` (Transação de conferência de propriedades SA) — obs preenchida
-- `8000074115` no print ↔ `1318118` no banco (Planejamento e Metas Recebimento de Grãos DICOR) —
-  **terceiro caso de renumeração provável** (mesmo padrão dos 2 já documentados acima: número
-  Central de Serviços novo no print vs. número antigo no Cockpit). Casado por título idêntico, não
-  por número — confirmar com o usuário se quiser que o campo `numero` também seja atualizado para
-  `8000074115`. Status mudou Pendente → Em Andamento; obs longa preservada + atualização anexada.
+- `8000074115` (antigo `1318118` no banco, Planejamento e Metas Recebimento de Grãos DICOR) —
+  **terceiro caso de renumeração confirmado** (mesmo padrão dos 2 já documentados acima: número
+  Central de Serviços novo no print substituindo o número antigo no Cockpit). Usuário confirmou em
+  05/08/2026 e o campo `numero` foi atualizado de `1318118` para `8000074115` — passa a casar
+  direto por número, sem precisar de título. Status mudou Pendente → Em Andamento; obs longa
+  preservada + atualização anexada.
 - `8000070643` (Transferência de carteira PJ) — obs preenchida
 - `1305004` (Integração Compliance ESG Farm Guard) — status Pendente → Em Análise Inicial; obs
   longa preservada + atualização anexada
