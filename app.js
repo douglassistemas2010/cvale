@@ -516,12 +516,16 @@
                     console.error('❌ Erro ao ler SEED_DEMANDAS:', err);
                 }
 
-                // 4. MESCLAR: Usa a fonte com MAIS demandas como base, depois adiciona únicas das outras
+                // 4. MESCLAR: Supabase é sempre a fonte de verdade quando o registro existe
+                // lá — nunca escolher a fonte "com mais itens" (um backup local desatualizado
+                // pode ter mais linhas que o banco atual e "vencer" por tamanho, congelando a
+                // tela num status antigo). LocalStorage/SEED só preenchem registros que o
+                // Supabase não tem (ex.: criados offline, sem estar logado).
                 const fontes = [
                     { nome: 'Servidor', dados: demandasServidor },
                     { nome: 'LocalStorage', dados: demandasLocal },
                     { nome: 'SEED', dados: demandasSeed }
-                ].filter(f => f.dados.length > 0).sort((a, b) => b.dados.length - a.dados.length);
+                ].filter(f => f.dados.length > 0);
 
                 if (fontes.length === 0) {
                     console.warn('⚠️ Nenhuma fonte de dados disponível!');
@@ -529,24 +533,12 @@
                     return;
                 }
 
-                // Base: fonte com mais demandas
-                const base = fontes[0];
                 const mapaDemandas = new Map();
-                
-                // Adiciona base
-                base.dados.forEach(d => {
-                    const chave = d.numero || d.id;
-                    mapaDemandas.set(chave, d);
-                });
-
-                // Mescla demandas únicas das outras fontes
-                let adicionadas = 0;
-                fontes.slice(1).forEach(fonte => {
+                fontes.forEach(fonte => {
                     fonte.dados.forEach(d => {
                         const chave = d.numero || d.id;
                         if (!mapaDemandas.has(chave)) {
                             mapaDemandas.set(chave, d);
-                            adicionadas++;
                         }
                     });
                 });
