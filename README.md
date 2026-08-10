@@ -1,4 +1,4 @@
-# Cockpit Minhas Atividades — C.Vale
+# Minhas Atividades — C.Vale
 
 Site pessoal (estático) para acompanhar minhas demandas do dia a dia na cooperativa.
 Guarda os dados em um banco Supabase (Postgres na nuvem) em vez do antigo arquivo
@@ -76,7 +76,7 @@ normalmente (Nova Demanda, editar, excluir, arrastar no Kanban etc.).
 cd controle_demandas_atividades
 git init
 git add .
-git commit -m "Cockpit Minhas Atividades - versao publica com Supabase"
+git commit -m "Minhas Atividades - versao publica com Supabase"
 git branch -M main
 git remote add origin https://github.com/SEU_USUARIO/cvale.git
 git push -u origin main

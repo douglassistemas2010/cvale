@@ -1,4 +1,4 @@
-# Contexto — Cockpit Minhas Atividades (controle_demandas_atividades)
+# Contexto — Minhas Atividades (controle_demandas_atividades)
 
 Site pessoal estático (GitHub Pages) publicado em https://douglassistemas2010.github.io/cvale/
 Repositório próprio (`origin` = `github.com/douglassistemas2010/cvale.git`), independente do

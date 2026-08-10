@@ -1,5 +1,5 @@
 -- ============================================
--- Cockpit Minhas Atividades - schema Supabase
+-- Minhas Atividades - schema Supabase
 -- ============================================
 -- Rode este script uma vez em: Supabase > SQL Editor > New query
 -- Substitui o antigo arquivo cockpit_dados.json + servidor Python

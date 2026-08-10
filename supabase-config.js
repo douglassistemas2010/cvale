@@ -1,5 +1,5 @@
 // ============================================
-// CONFIGURAÇÃO SUPABASE - Cockpit Minhas Atividades
+// CONFIGURAÇÃO SUPABASE - Minhas Atividades
 // ============================================
 // Preencha SUPABASE_URL e SUPABASE_ANON_KEY com os valores do seu projeto
 // (Supabase > Project Settings > API). A anon key é pública por design
