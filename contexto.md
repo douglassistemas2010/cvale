@@ -165,3 +165,29 @@ Não mexi no ranking/priorização (`numeroOrdem`, coluna "Prioridade" 1º–11�
   `github.com/douglassistemas2010/cvale`) continua sendo a fonte de trabalho ativa; repetir o
   processo manualmente se pedirem para atualizar o espelho do GHE. Detalhe completo do método em
   `ESTRUTURA_PASTAS.md` §14 (raiz do workspace).
+
+## 10/08/2026 — Bug de mesclagem: fonte com mais itens "vencia", congelando status antigos
+
+- Usuário reportou números de demandas diferentes entre o site pessoal (GitHub Pages) e o espelho
+  no GHE. Investigado comparando as fontes item a item (não só contagem):
+  - Supabase (consultado direto via REST): 54 demandas, fonte confiável — 0 registros existem só
+    lá que não apareçam em algum lugar do navegador do usuário.
+  - Backup local (`localStorage`) do navegador usado no site pessoal: 61 itens — 7 só existem ali
+    (trabalho ativo, nenhum concluído) e 22 dos que existem nos dois lados tinham status
+    divergente, quase sempre com o Supabase mais avançado/reaberto que o cache local congelado.
+  - Causa: `carregarDados()` (`app.js`) escolhia como base a fonte com **mais** itens (Servidor vs
+    localStorage vs SEED) em vez de confiar sempre no Supabase. Um backup local desatualizado, por
+    acumular itens/status antigos nunca limpos, ficava maior que o banco atual e "vencia" — e o
+    `salvarDados()` automático no fim da função ainda reescrevia esse estado velho de volta no
+    Supabase quando o usuário estava logado.
+- **Fix** (commit `7a9c712`): Supabase agora sempre vence para qualquer registro que exista nele;
+  localStorage/SEED só contribuem registros que o Supabase não tem. Efeito colateral desejado: os
+  7 órfãos ativos voltam a aparecer mesclados e, no próximo salvamento com login feito nesse mesmo
+  navegador, são persistidos de volta no Supabase — usuário confirmou que é isso que quer (readicionar
+  os 7, não descartar).
+- Publicado no site pessoal (`git push origin main`) e replicado no espelho GHE
+  (`git subtree pull` + `git subtree split` + push dos dois branches, `gh-pages-minhas-atividades`
+  reconstruído do zero).
+- **Pendência:** confirmar com o usuário, depois que ele abrir o site pessoal logado, se os 7
+  órfãos realmente voltaram a salvar no Supabase (não testável remotamente — depende do
+  `localStorage` daquele navegador específico, que só existe do lado do usuário).
