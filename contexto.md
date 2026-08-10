@@ -152,3 +152,16 @@ Não mexi no ranking/priorização (`numeroOrdem`, coluna "Prioridade" 1º–11�
 
 - Decidir com o usuário como tratar a comparação XLSX × Cockpit (ponto 1 da sessão de 03/08 acima)
   antes de importar/sincronizar qualquer dado.
+
+## 10/08/2026 — Rebrand "Cockpit Minhas Atividades" → "Minhas Atividades" + espelho no GHE
+
+- Removida a palavra "Cockpit" do nome exibido: título da aba, cabeçalho, README, comentários de
+  config e o título deste `contexto.md`. Identificadores internos (`CockpitApp`, `CockpitAuth`) não
+  foram tocados — são só nomes de código, sem exposição na UI.
+- Publicado um espelho deste projeto (histórico completo via `git subtree add`) na subpasta
+  `MinhasAtividades/` do repositório `cvale-org/cvale-c4c` no GitHub Enterprise corporativo, com
+  GitHub Pages ativo em `https://cvale-org-cvale-c4c.pages.cvale.ghe.com/` (exige login corporativo,
+  repo privado). É snapshot pontual, não sincronização — este repositório (remoto
+  `github.com/douglassistemas2010/cvale`) continua sendo a fonte de trabalho ativa; repetir o
+  processo manualmente se pedirem para atualizar o espelho do GHE. Detalhe completo do método em
+  `ESTRUTURA_PASTAS.md` §14 (raiz do workspace).
