@@ -1094,6 +1094,8 @@
                 document.getElementById('prioridade').value = 'Média';
                 document.getElementById('status').value = 'Pendente';
                 document.getElementById('dataAbertura').value = new Date().toISOString().split('T')[0];
+                // Excluir só faz sentido numa demanda já existente
+                document.getElementById('btnExcluirDemanda').style.display = 'none';
                 document.getElementById('modalDemanda').classList.add('active');
             }
 
@@ -1207,6 +1209,17 @@
                 document.getElementById('progresso').value = demanda.progresso;
                 document.getElementById('observacoes').value = demanda.observacoes;
 
+                // Botão Excluir do cabeçalho do modal substitui a antiga coluna "Ações" da
+                // tabela — onclick reatribuído (não addEventListener) pra não empilhar
+                // handlers de aberturas anteriores do modal.
+                const btnExcluir = document.getElementById('btnExcluirDemanda');
+                btnExcluir.style.display = '';
+                btnExcluir.onclick = async () => {
+                    if (await this.excluirDemanda(numero)) {
+                        this.fecharModal();
+                    }
+                };
+
                 document.getElementById('modalDemanda').classList.add('active');
             }
 
@@ -1311,8 +1324,8 @@
                     type: 'danger'
                 });
                 
-                if (!confirmado) return;
-                
+                if (!confirmado) return false;
+
                 // PROTEÇÃO: Backup antes de excluir
                 this.criarBackup('antes_excluir_' + numero);
                 
@@ -1327,16 +1340,17 @@
                         this.demandas = backup.demandas.map(d => new Demanda(d));
                         this.mostrarToast('❌ Erro na exclusão - dados restaurados', 'error');
                         this.renderizar();
-                        return;
+                        return false;
                     }
                 }
-                
+
                 // Otimista: atualiza a tela primeiro, grava no Supabase em seguida —
                 // mesmo padrão do salvarDemanda(), pra não deixar a UI "travada"
                 // esperando a rede antes de mostrar a exclusão.
                 this.mostrarToast('🗑️ Demanda excluída');
                 this.renderizar();
                 await this.salvarDados();
+                return true;
             }
 
             // Atualiza indicadores visuais (setas) nos headers da tabela
@@ -1419,7 +1433,7 @@
 
                 // Empty state quando nenhuma demanda
                 if (!demandas || demandas.length === 0) {
-                    tbody.innerHTML = `<tr><td colspan="12" class="text-center" style="padding: 2rem;"><div class="empty-state"><div class="empty-state-icon">📋</div><div class="empty-state-text">Nenhuma demanda encontrada</div></div></td></tr>`;
+                    tbody.innerHTML = `<tr><td colspan="11" class="text-center" style="padding: 2rem;"><div class="empty-state"><div class="empty-state-icon">📋</div><div class="empty-state-text">Nenhuma demanda encontrada</div></div></td></tr>`;
                     return;
                 }
 
@@ -1460,7 +1474,7 @@
                     // Header do grupo (frente) - clicável para expandir/encolher, badge de cor da frente + contagem
                     let html = `
                         <tr class="group-header" data-frente="${escapeHtml(frente)}" onclick="app.toggleFrente('${escapeAttrJs(frente)}')" style="cursor: pointer;">
-                            <td colspan="12" style="padding: 1rem; font-size: 0.9rem; font-weight: 600; letter-spacing: 0.4px;">
+                            <td colspan="11" style="padding: 1rem; font-size: 0.9rem; font-weight: 600; letter-spacing: 0.4px;">
                                 <span style="display: inline-flex; align-items: center; gap: 0.5rem;">
                                     <span class="group-chevron" style="display: inline-flex; transition: transform 0.15s ease; transform: rotate(${frenteExpandida ? '90' : '0'}deg); opacity: 0.6;">
                                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
@@ -1510,7 +1524,7 @@
 
                         return `
                             <tr class="group-item" data-numero="${numEsc}" data-frente="${escapeHtml(frente)}" style="${frenteExpandida ? '' : 'display: none;'} color: var(--text-primary); background: transparent; cursor: pointer;" onclick="app.editarDemanda('${numJsEsc}')">
-                                <td style="text-align: center;" onclick="event.stopPropagation();">
+                                <td style="text-align: center; padding: 1rem 0.5rem;" onclick="event.stopPropagation();">
                                     <button class="btn btn-xs btn-secondary" onclick="app.copiarLinhaDemanda('${numJsEsc}')" title="Copiar número e descrição (Teams, e-mail...)">
                                         <span data-icon="copy"></span>
                                     </button>
@@ -1539,11 +1553,6 @@
                                 </td>
                                 <td style="color: var(--text-secondary);"><small>${d.dataAbertura ? formatarData(d.dataAbertura) : '-'}</small></td>
                                 <td style="color: ${new Date(d.vencimento) < new Date().setHours(0,0,0,0) && d.status !== 'Concluído' ? '#ef4444' : 'var(--text-primary)'};"><small>${new Date(d.vencimento) < new Date().setHours(0,0,0,0) && d.status !== 'Concluído' ? '⚠️ ' : ''}${formatarData(d.vencimento)}</small></td>
-                                <td style="color: var(--text-primary); text-align: center;">
-                                    <button class="btn btn-xs btn-danger" onclick="event.stopPropagation(); app.excluirDemanda('${numJsEsc}')" title="Excluir demanda">
-                                        <span data-icon="trash"></span>
-                                    </button>
-                                </td>
                             </tr>
                         `;
                     }).join('');

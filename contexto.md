@@ -223,3 +223,25 @@ título/descrição na mão.
   em memória (o Supabase real deu 401 nesse ambiente de teste, sem relação com a mudança), cliquei
   no botão e confirmei o texto exato copiado para a área de transferência e o toast de confirmação.
   Print da coluna renderizada também conferido visualmente.
+
+## 11/08/2026 (2) — Três ajustes finos na tabela de Demandas (a partir de print anotado do usuário)
+
+- **Espaço vazio depois do ícone de copiar:** coluna tinha `width: 40px` no `<th>` mas mantinha o
+  padding padrão de 1rem (16px) dos dois lados, sobrando espaço. Reduzido pra `padding: 1rem 0.5rem`
+  no `<th>` e no `<td>` do botão (`index.html` + `app.js`), coluna mais enxuta.
+- **Cabeçalho "Priorização" desalinhado dos dados:** o conteúdo da célula (▲ / nº / ▼ / ícone de
+  status) é centralizado (`justify-content: center`), mas o cabeçalho estava alinhado à esquerda
+  (padrão do `<th>`) — numa coluna mais larga que o texto "Priorização", os dois ficavam em pontos
+  diferentes. Cabeçalho passou a centralizar também (`text-align: center` no `<th>` +
+  `justify-content: center` no `<span>` interno).
+- **Coluna "Ações" (lixeira) removida da tabela.** Ganha espaço horizontal na grid. A exclusão de
+  demanda não sumiu — virou um botão "Excluir" (vermelho) no cabeçalho do modal de editar
+  (`index.html`, ao lado de Cancelar/Salvar/X, empurrado pra esquerda com `margin-right: auto` pra
+  ficar visualmente separado das ações normais). Só aparece editando uma demanda existente — some em
+  "Nova Demanda" (`abrirModalNova()` esconde, `editarDemanda()` mostra e liga o `onclick`).
+  `excluirDemanda()` passou a retornar `true`/`false` (antes não retornava nada) pra o botão do modal
+  saber se deve fechar o modal (só fecha se a exclusão foi confirmada e concluída).
+- `colspan` do cabeçalho de grupo e do empty-state voltou de 12 para 11 (perdeu a coluna Ações).
+- Testado com Playwright: conferido visualmente lado a lado com o print original do usuário (coluna
+  copiar enxuta, cabeçalho Priorização centralizado sobre os dados, coluna Ações ausente) e
+  confirmado por automação que o botão Excluir aparece só no modal de edição, não em Nova Demanda.
