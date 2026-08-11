@@ -188,6 +188,19 @@ Não mexi no ranking/priorização (`numeroOrdem`, coluna "Prioridade" 1º–11�
 - Publicado no site pessoal (`git push origin main`) e replicado no espelho GHE
   (`git subtree pull` + `git subtree split` + push dos dois branches, `gh-pages-minhas-atividades`
   reconstruído do zero).
-- **Pendência:** confirmar com o usuário, depois que ele abrir o site pessoal logado, se os 7
-  órfãos realmente voltaram a salvar no Supabase (não testável remotamente — depende do
-  `localStorage` daquele navegador específico, que só existe do lado do usuário).
+- **Pendência resolvida em 11/08/2026, por outro caminho:** o login do app (Authentication → Users)
+  parou de aceitar a senha do usuário ("Invalid login credentials"), então os 7 órfãos não foram
+  resgatados pelo fluxo normal (login + `salvarDados()` automático). Em vez de depender disso,
+  extraídos os 7 registros completos de um export `.xlsx` feito pelo usuário no navegador com o
+  backup local, comparados item a item contra o Supabase (via REST, chave anon, só leitura) para
+  garantir que nenhum dos 7 já existia lá, e inseridos direto via `UPDATE ... SET dados = dados ||
+  ...` no SQL Editor do Supabase (conta de admin do projeto, separada do login do app — não afetada
+  pelo problema de senha). Confirmado por leitura direta do Supabase: **54 → 61, 0 duplicados**, os
+  7 números presentes. Payload passado em base64 (`convert_from(decode(...,'base64'),'UTF8')`) por
+  segurança — a primeira tentativa colando o JSON puro quebrou porque aspas tipográficas (`" "`,
+  dentro do texto de uma observação copiada de um sistema de chamados) foram alteradas na cópia
+  para o editor.
+- **Pendência real, ainda em aberto:** o login do app (usado para "Modo edição") continua não
+  aceitando a senha do usuário. Resolver em `Authentication → Users` no Supabase (reset de senha ou
+  recriar o usuário) quando o usuário quiser voltar a editar demandas direto pela tela, em vez de
+  precisar do SQL Editor.
