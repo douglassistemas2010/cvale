@@ -96,12 +96,12 @@
         // que substituíram as antigas logos-imagem (SAP/C4C/MKT). Mesmas cores já
         // aplicadas nos cards de "Distribuição por Tipo".
         const CORES_FRENTE = {
-            'C4C': '#3b82f6',          // azul
-            'SAP': '#f59e0b',          // âmbar
-            'ESG': '#10b981',          // verde
-            'MKT': '#8b5cf6',          // roxo
-            'Dev Interno': '#06b6d4',  // ciano
-            'Outro': '#64748b'         // cinza
+            'C4C': 'var(--frente-c4c-branco)',   // branco neon (escurece sozinho no tema claro, ver style.css)
+            'SAP': '#00b3ff',                    // azul neon
+            'ESG': '#39ff14',                    // verde neon
+            'MKT': '#b026ff',                    // roxo neon
+            'Dev Interno': '#ff6a00',            // laranja neon
+            'Outro': 'var(--frente-outro-branco)' // branco neon (escurece sozinho no tema claro, ver style.css)
         };
         // Aliases de origens antigas/variações -> chave canônica de CORES_FRENTE
         const ALIAS_FRENTE = {

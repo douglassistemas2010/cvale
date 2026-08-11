@@ -25,6 +25,13 @@
             --glass: rgba(255, 255, 255, 0.12);
             --glass-strong: rgba(255, 255, 255, 0.18);
             --glass-border: rgba(255, 255, 255, 0.28);
+
+            /* Cor "branco neon" das frentes C4C/Outro (ver CORES_FRENTE em app.js):
+               branco puro sobre fundo escuro (tema padrão) fica com ótimo contraste,
+               mas ficaria quase invisível no tema claro — por isso o valor é sobrescrito
+               em body.theme-light logo abaixo, mantendo cada frente com sua própria cor. */
+            --frente-c4c-branco: #ffffff;
+            --frente-outro-branco: #f1f5f9;
         }
 
         /* Tipografia base: Inter (carregada via Google Fonts no <head>).
@@ -60,6 +67,10 @@
         /* ===== TEMA CLARO - OVERRIDES CSS ===== */
         body.theme-light {
             color: #17212b;
+            /* Branco neon (frentes C4C/Outro) trocado por tons escuros no tema claro,
+               senão o texto do badge fica invisível sobre fundo claro. */
+            --frente-c4c-branco: #0f3d66;
+            --frente-outro-branco: #3f4a5a;
         }
 
         body.theme-light .header {
