@@ -721,6 +721,13 @@
                 document.getElementById('closeModal').addEventListener('click', () => this.fecharModal());
                 document.getElementById('btnCancelar').addEventListener('click', () => this.fecharModal());
                 document.getElementById('formDemanda').addEventListener('submit', (e) => this.salvarDemanda(e));
+                // Ao escolher "Concluído" no modal, progresso já pula pra 100% na hora
+                // (reforçado de novo em salvarDemanda, caso o campo mude por outro caminho).
+                document.getElementById('status').addEventListener('change', (e) => {
+                    if (e.target.value === 'Concluído') {
+                        document.getElementById('progresso').value = 100;
+                    }
+                });
 
                 // Exportar/Importar
                 document.getElementById('btnExportDemandas').addEventListener('click', () => this.exportarDemandas());
@@ -1086,6 +1093,7 @@
                 document.getElementById('numeroOrdem').value = 1;
                 document.getElementById('prioridade').value = 'Média';
                 document.getElementById('status').value = 'Pendente';
+                document.getElementById('dataAbertura').value = new Date().toISOString().split('T')[0];
                 document.getElementById('modalDemanda').classList.add('active');
             }
 
@@ -1129,6 +1137,7 @@
 
                 try {
                     const numeroChamado = document.getElementById('numeroChamado').value.trim();
+                    const statusEscolhido = document.getElementById('status').value;
                     const demandaData = {
                         numero: numeroChamado,
                         titulo,
@@ -1138,8 +1147,10 @@
                         prioridade: document.getElementById('prioridade').value,
                         dataAbertura: document.getElementById('dataAbertura').value,
                         vencimento: document.getElementById('vencimento').value,
-                        status: document.getElementById('status').value,
-                        progresso: parseInt(document.getElementById('progresso').value) || 0,
+                        status: statusEscolhido,
+                        // Status Concluído sempre implica progresso 100%, mesmo que o campo
+                        // não tenha sido ajustado manualmente antes de salvar.
+                        progresso: statusEscolhido === 'Concluído' ? 100 : (parseInt(document.getElementById('progresso').value) || 0),
                         observacoes: document.getElementById('observacoes').value
                     };
 
@@ -2287,6 +2298,10 @@
 
                             // Atualizar status conforme a coluna de destino
                             demanda.status = status;
+                            // Mesma regra do modal: mover pra Concluído no Kanban também zera o progresso pra 100%
+                            if (status === 'Concluído') {
+                                demanda.progresso = 100;
+                            }
 
                             // Sincronizar ordem dos cards com o DOM
                             this.sincronizarOrdemKanban(board);

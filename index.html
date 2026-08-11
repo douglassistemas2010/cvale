@@ -310,12 +310,16 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h2 class="modal-title" id="modalTitle">Nova Demanda</h2>
-                <button class="modal-close" id="closeModal">&times;</button>
+                <div class="modal-header-actions">
+                    <button type="button" class="btn btn-cancel btn-sm" id="btnCancelar">Cancelar</button>
+                    <button type="submit" form="formDemanda" class="btn btn-primary btn-sm" id="btnSalvarDemanda">Salvar</button>
+                    <button class="modal-close" id="closeModal">&times;</button>
+                </div>
             </div>
 
             <form id="formDemanda" novalidate>
                 <input type="hidden" id="numeroChamadoOriginal">
-                <div class="form-row">
+                <div class="form-row form-row-3">
                     <div class="form-group">
                         <label class="form-label">ID (Número Chamado)</label>
                         <input type="text" class="form-input" id="numeroChamado" placeholder="Ex: 8000072831">
@@ -328,14 +332,6 @@
                             <option value="Incidente">Incidente</option>
                         </select>
                     </div>
-                </div>
-
-                <div class="form-group">
-                    <label class="form-label">Título *</label>
-                    <input type="text" class="form-input" id="titulo" placeholder="Descrição breve da demanda" required>
-                </div>
-
-                <div class="form-row">
                     <div class="form-group">
                         <label class="form-label">Frente (Origem)</label>
                         <select class="form-select" id="origem">
@@ -348,13 +344,18 @@
                             <option value="Outro">Outro</option>
                         </select>
                     </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Título *</label>
+                    <input type="text" class="form-input" id="titulo" placeholder="Descrição breve da demanda" required>
+                </div>
+
+                <div class="form-row form-row-3">
                     <div class="form-group">
                         <label class="form-label">Priorização</label>
                         <input type="number" class="form-input" id="numeroOrdem" placeholder="Ex: 0, 1, 2, 3..." min="0" value="0">
                     </div>
-                </div>
-
-                <div class="form-row">
                     <div class="form-group">
                         <label class="form-label">Prioridade</label>
                         <select class="form-select" id="prioridade">
@@ -364,20 +365,6 @@
                             <option value="Baixa">Baixa</option>
                         </select>
                     </div>
-                    <div class="form-group">
-                        <label class="form-label">Abertura</label>
-                        <input type="date" class="form-input" id="dataAbertura">
-                    </div>
-                </div>
-
-                <div class="form-row">
-                    <div class="form-group">
-                        <label class="form-label">Vencimento</label>
-                        <input type="date" class="form-input" id="vencimento">
-                    </div>
-                </div>
-
-                <div class="form-row">
                     <div class="form-group">
                         <label class="form-label">Status</label>
                         <select class="form-select" id="status">
@@ -394,6 +381,17 @@
                             <option value="Testes Com Erros">Testes Com Erros</option>
                         </select>
                     </div>
+                </div>
+
+                <div class="form-row form-row-3">
+                    <div class="form-group">
+                        <label class="form-label">Abertura</label>
+                        <input type="date" class="form-input" id="dataAbertura">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Vencimento</label>
+                        <input type="date" class="form-input" id="vencimento">
+                    </div>
                     <div class="form-group">
                         <label class="form-label">Progresso (%)</label>
                         <input type="number" class="form-input" id="progresso" placeholder="0" min="0" max="100" value="0">
@@ -403,11 +401,6 @@
                 <div class="form-group">
                     <label class="form-label">Observações</label>
                     <textarea class="form-textarea" id="observacoes" placeholder="Anotações adicionais"></textarea>
-                </div>
-
-                <div class="form-actions">
-                    <button type="button" class="btn btn-cancel" id="btnCancelar">Cancelar</button>
-                    <button type="submit" class="btn btn-primary" id="btnSalvarDemanda">Salvar</button>
                 </div>
             </form>
         </div>

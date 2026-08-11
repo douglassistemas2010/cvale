@@ -1109,7 +1109,9 @@
             border-radius: 16px;
             padding: 2rem;
             width: 90%;
-            max-width: 600px;
+            /* Mais largo que o antigo 600px: com 3 colunas por linha o formulário
+               inteiro cabe em ~90vh sem precisar de rolagem vertical na maioria das telas. */
+            max-width: 860px;
             max-height: 90vh;
             overflow-y: auto;
             -webkit-backdrop-filter: blur(30px) saturate(180%);
@@ -1143,6 +1145,19 @@
         .modal-title {
             font-size: 1.5rem;
             font-weight: 700;
+        }
+
+        /* Salvar/Cancelar ficam no cabeçalho do modal (ao lado do X), não mais
+           num rodapé separado — modal fica mais curto e cabe sem rolagem. */
+        .modal-header-actions {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+        }
+
+        .btn-sm {
+            padding: 0.45rem 1rem;
+            font-size: 0.85rem;
         }
 
         .modal-close {
@@ -1211,13 +1226,8 @@
             gap: 1rem;
         }
 
-        .form-actions {
-            display: flex;
-            gap: 1rem;
-            justify-content: flex-end;
-            margin-top: 2rem;
-            padding-top: 1rem;
-            border-top: 1px solid var(--border-color);
+        .form-row-3 {
+            grid-template-columns: 1fr 1fr 1fr;
         }
 
         .btn-cancel {
