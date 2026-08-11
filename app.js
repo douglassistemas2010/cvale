@@ -1269,6 +1269,38 @@
                 setTimeout(() => this.filtrarDemandas(), 300);
             }
 
+            // Copia número + título (e descrição, se houver) da demanda para a área de
+            // transferência, formatado como texto simples pronto pra colar em Teams/e-mail.
+            async copiarLinhaDemanda(numero) {
+                const d = this.demandas.find(d => d.numero === numero);
+                if (!d) return;
+
+                let texto = `${d.numero} - ${d.titulo}`;
+                if (d.descricao && d.descricao.trim()) {
+                    texto += `\n${d.descricao.trim()}`;
+                }
+
+                try {
+                    if (navigator.clipboard && window.isSecureContext) {
+                        await navigator.clipboard.writeText(texto);
+                    } else {
+                        // Fallback para contexto não-seguro (http) ou navegador sem Clipboard API
+                        const textarea = document.createElement('textarea');
+                        textarea.value = texto;
+                        textarea.style.position = 'fixed';
+                        textarea.style.opacity = '0';
+                        document.body.appendChild(textarea);
+                        textarea.select();
+                        document.execCommand('copy');
+                        document.body.removeChild(textarea);
+                    }
+                    this.mostrarToast('📋 Demanda copiada — cole em Teams, e-mail etc.');
+                } catch (err) {
+                    console.error('Erro ao copiar demanda:', err);
+                    this.mostrarToast('❌ Não foi possível copiar', 'error');
+                }
+            }
+
             async excluirDemanda(numero) {
                 const confirmado = await this.mostrarConfirmacao({
                     icon: '🗑️',
@@ -1387,7 +1419,7 @@
 
                 // Empty state quando nenhuma demanda
                 if (!demandas || demandas.length === 0) {
-                    tbody.innerHTML = `<tr><td colspan="11" class="text-center" style="padding: 2rem;"><div class="empty-state"><div class="empty-state-icon">📋</div><div class="empty-state-text">Nenhuma demanda encontrada</div></div></td></tr>`;
+                    tbody.innerHTML = `<tr><td colspan="12" class="text-center" style="padding: 2rem;"><div class="empty-state"><div class="empty-state-icon">📋</div><div class="empty-state-text">Nenhuma demanda encontrada</div></div></td></tr>`;
                     return;
                 }
 
@@ -1428,7 +1460,7 @@
                     // Header do grupo (frente) - clicável para expandir/encolher, badge de cor da frente + contagem
                     let html = `
                         <tr class="group-header" data-frente="${escapeHtml(frente)}" onclick="app.toggleFrente('${escapeAttrJs(frente)}')" style="cursor: pointer;">
-                            <td colspan="11" style="padding: 1rem; font-size: 0.9rem; font-weight: 600; letter-spacing: 0.4px;">
+                            <td colspan="12" style="padding: 1rem; font-size: 0.9rem; font-weight: 600; letter-spacing: 0.4px;">
                                 <span style="display: inline-flex; align-items: center; gap: 0.5rem;">
                                     <span class="group-chevron" style="display: inline-flex; transition: transform 0.15s ease; transform: rotate(${frenteExpandida ? '90' : '0'}deg); opacity: 0.6;">
                                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
@@ -1478,6 +1510,11 @@
 
                         return `
                             <tr class="group-item" data-numero="${numEsc}" data-frente="${escapeHtml(frente)}" style="${frenteExpandida ? '' : 'display: none;'} color: var(--text-primary); background: transparent; cursor: pointer;" onclick="app.editarDemanda('${numJsEsc}')">
+                                <td style="text-align: center;" onclick="event.stopPropagation();">
+                                    <button class="btn btn-xs btn-secondary" onclick="app.copiarLinhaDemanda('${numJsEsc}')" title="Copiar número e descrição (Teams, e-mail...)">
+                                        <span data-icon="copy"></span>
+                                    </button>
+                                </td>
                                 <td style="color: var(--text-primary);"><strong>${numEsc}</strong></td>
                                 <td style="color: var(--text-primary);">${tituloEsc}</td>
                                 <td style="text-align: center;">

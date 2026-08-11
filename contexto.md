@@ -204,3 +204,22 @@ Não mexi no ranking/priorização (`numeroOrdem`, coluna "Prioridade" 1º–11�
   aceitando a senha do usuário. Resolver em `Authentication → Users` no Supabase (reset de senha ou
   recriar o usuário) quando o usuário quiser voltar a editar demandas direto pela tela, em vez de
   precisar do SQL Editor.
+
+## 11/08/2026 — Ícone de copiar linha na tabela de Demandas
+
+Pedido do usuário: um jeito rápido de colar uma demanda em Teams/e-mail sem digitar número e
+título/descrição na mão.
+
+- Nova coluna (primeira, antes de "ID Demanda") em `index.html` só com um botão de ícone por
+  linha (ícone `copy`, já existia em `ICONS` no `app.js` mas não estava em uso em lugar nenhum).
+- Novo método `copiarLinhaDemanda(numero)` em `app.js`: monta texto `numero - título` e, se o
+  campo `descricao` da demanda estiver preenchido, anexa numa segunda linha; copia via
+  `navigator.clipboard.writeText` (com fallback `execCommand('copy')` para contexto não-seguro);
+  mostra toast de confirmação. Botão tem `event.stopPropagation()` pra não abrir o modal de editar
+  ao clicar (a linha inteira já é clicável pra isso).
+- `colspan` das linhas de cabeçalho de grupo (frente) e do empty-state passou de 11 para 12 pra
+  acompanhar a coluna nova.
+- Testado com Playwright (Chrome real, servindo os arquivos localmente): injetei uma demanda fake
+  em memória (o Supabase real deu 401 nesse ambiente de teste, sem relação com a mudança), cliquei
+  no botão e confirmei o texto exato copiado para a área de transferência e o toast de confirmação.
+  Print da coluna renderizada também conferido visualmente.
