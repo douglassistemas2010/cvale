@@ -371,7 +371,7 @@
                 // Frentes com as linhas expandidas na tabela de Demandas (as demais ficam encolhidas, só com o cabeçalho do grupo)
                 this.frentesExpandidas = new Set(JSON.parse(localStorage.getItem('cockpit_frentes_expandidas') || '[]'));
                 // Filtros da aba Reunião Semanal (estado local, independente dos filtros da aba Demandas)
-                this.filtroReuniao = { periodo: 'semana_atual', inicio: '', fim: '', frente: '', status: '', responsavel: '', prioridade: '', sistema: '', tipo: '' };
+                this.filtroReuniao = { periodo: 'semana_anterior', inicio: '', fim: '', frente: '', status: '', responsavel: '', prioridade: '', sistema: '', tipo: '' };
                 // Grupo de status aplicado pela Reunião Semanal ao clicar num KPI (drill-down para a aba Demandas); null = sem filtro de grupo ativo
                 this.filtroGrupoStatus = null;
                 this.inicializar();
@@ -2298,9 +2298,10 @@
                     const f = this.filtroReuniao;
                     const { inicio, fim } = intervaloDoPeriodo(f);
 
-                    // Filtros de estado (frente/status/responsável/prioridade/sistema/tipo) — não
-                    // incluem período: os KPIs de estado atual são sempre a fotografia de agora.
-                    const baseFiltrada = this.demandas.filter(d => {
+                    // Filtros de estado (frente/status/responsável/prioridade/sistema/tipo), sem período —
+                    // usado só pra "Concluídas no período" (que filtra por dataConclusao, não dataAbertura;
+                    // uma demanda concluída neste período pode ter sido aberta em qualquer período anterior).
+                    const baseEstado = this.demandas.filter(d => {
                         const mFrente = !f.frente || (d.origem || '').trim() === f.frente;
                         const mStatus = !f.status || d.status === f.status;
                         const mResp = !f.responsavel || (d.responsavel || '').trim() === f.responsavel;
@@ -2310,22 +2311,21 @@
                         return mFrente && mStatus && mResp && mPrio && mSist && mTipo;
                     });
 
+                    // Mesmos filtros de estado + aberta dentro do período selecionado (dataAbertura) —
+                    // base de KPIs/Visão por Frente, que agora seguem o período escolhido.
+                    const baseFiltrada = baseEstado.filter(d => dataDentroDoPeriodo(d.dataAbertura, inicio, fim));
+
                     const total = baseFiltrada.length;
                     const emAndamento = baseFiltrada.filter(d => STATUS_GRUPO_ANDAMENTO.includes(d.status)).length;
                     const emTeste = baseFiltrada.filter(d => STATUS_GRUPO_TESTE.includes(d.status)).length;
                     const atrasadas = baseFiltrada.filter(d => d.status !== 'Concluído' && d.obterStatusSLA() === 'vencido').length;
-                    const concluidasNoPeriodo = baseFiltrada.filter(d => d.status === 'Concluído' && dataDentroDoPeriodo(d.dataConclusao, inicio, fim)).length;
+                    const concluidasNoPeriodo = baseEstado.filter(d => d.status === 'Concluído' && dataDentroDoPeriodo(d.dataConclusao, inicio, fim)).length;
 
-                    const rotulosPeriodo = { semana_atual: 'Semana atual', semana_anterior: 'Semana anterior', mes_atual: 'Mês atual', personalizado: 'Período personalizado' };
+                    const rotulosPeriodo = { semana_anterior: 'Semana anterior', mes_atual: 'Mês atual' };
                     const fmtData = (d) => d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
-                    // Personalizado sem as duas datas ainda escolhidas cai no fallback de semana atual
-                    // (ver intervaloDoPeriodo) — o rótulo avisa disso em vez de sugerir um intervalo já aplicado
-                    const personalizadoIncompleto = f.periodo === 'personalizado' && (!f.inicio || !f.fim);
-                    const rotuloPeriodo = personalizadoIncompleto
-                        ? 'Período personalizado — selecione as duas datas (mostrando semana atual por enquanto)'
-                        : `${rotulosPeriodo[f.periodo] || 'Semana atual'} (${fmtData(inicio)} a ${fmtData(fim)})`;
+                    const rotuloPeriodo = `${rotulosPeriodo[f.periodo] || 'Semana anterior'} (${fmtData(inicio)} a ${fmtData(fim)})`;
 
-                    // Visão por frente
+                    // Visão por frente — agora segue o período selecionado (mesma base dos KPIs)
                     const frentes = {};
                     baseFiltrada.forEach(d => {
                         const nome = (d.origem || '').trim() || 'Outro';
@@ -2338,16 +2338,35 @@
                         if (d.obterStatusSLA() === 'vencido') fr.atrasada++;
                     });
                     const frentesArr = Object.entries(frentes).sort((a, b) => b[1].total - a[1].total);
+                    const maxFrenteTotal = Math.max(1, ...frentesArr.map(([, v]) => v.total));
+
+                    // Insights curtos derivados só dos números já calculados acima — nada inventado,
+                    // nenhuma comparação com período anterior ainda (isso fica pra Fase 2).
+                    const insights = [];
+                    if (frentesArr.length) {
+                        const [topNome, topV] = frentesArr[0];
+                        const pctTop = total ? Math.round((topV.total / total) * 100) : 0;
+                        if (pctTop >= 30) insights.push(`${pctTop}% das demandas do período estão concentradas na frente ${topNome}.`);
+                    }
+                    if (total > 0) {
+                        insights.push(atrasadas > 0
+                            ? `${atrasadas} demanda${atrasadas > 1 ? 's' : ''} atrasada${atrasadas > 1 ? 's' : ''} no período selecionado.`
+                            : 'Nenhuma demanda atrasada no período selecionado.');
+                        const taxaConclusao = Math.round((baseFiltrada.filter(d => d.status === 'Concluído').length / total) * 100);
+                        insights.push(`${taxaConclusao}% das demandas abertas no período já estão concluídas.`);
+                    }
+                    if (emTeste > 0) insights.push(`${emTeste} demanda${emTeste > 1 ? 's' : ''} em teste/validação aguardando avanço.`);
+                    if (!insights.length) insights.push('Sem demandas no filtro atual para gerar insights.');
 
                     // Valores distintos já usados nos dados (frente/responsável/sistema são texto
                     // livre — sem lista fixa nem normalização, ver contexto.md)
                     const valoresDistintos = (campo) => [...new Set(this.demandas.map(d => (d[campo] || '').trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'pt-BR'));
 
+                    // Só semana anterior / mês (a pedido do usuário) — "semana atual" e "personalizado"
+                    // foram removidos pra manter a tela sempre olhando pra um período fechado.
                     const opcoesPeriodo = [
-                        { v: 'semana_atual', l: 'Semana atual' },
                         { v: 'semana_anterior', l: 'Semana anterior' },
-                        { v: 'mes_atual', l: 'Mês atual' },
-                        { v: 'personalizado', l: 'Personalizado' }
+                        { v: 'mes_atual', l: 'Mês' }
                     ];
                     const htmlSelectPeriodo = () => {
                         const atual = opcoesPeriodo.find(o => o.v === f.periodo) || opcoesPeriodo[0];
@@ -2392,15 +2411,24 @@
                             /* Badge na coluna 1, barra + estatísticas empilhadas na coluna 2 — evita
                                que os 5 números da coluna de estatísticas fiquem espremidos ao lado da
                                barra (já aconteceu com 3 colunas lado a lado: número invadia a barra). */
-                            .reu-frente-row { display: grid; grid-template-columns: 130px 1fr; align-items: center; column-gap: 0.9rem; row-gap: 0.4rem; padding: 0.7rem 0; border-top: 1px solid var(--glass-border); }
-                            .reu-frente-row:first-child { border-top: none; }
-                            .reu-frente-track { height: 10px; background: rgba(148,163,184,0.12); border-radius: 6px; overflow: hidden; display: flex; }
-                            .reu-frente-stats { grid-column: 2; display: flex; flex-wrap: wrap; gap: 0.25rem 0.9rem; font-size: 0.72rem; color: var(--text-tertiary); }
-                            .reu-frente-stats b { color: var(--text-secondary); font-variant-numeric: tabular-nums; }
                             .reu-empty { padding: 2rem; text-align: center; color: var(--text-tertiary); }
-                            .reu-periodo-custom { display: flex; gap: 0.5rem; align-items: center; }
-                            .reu-periodo-custom input[type="date"] { background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 8px; padding: 0.5rem 0.7rem; color: var(--text-primary); font-family: var(--font-sans); font-size: 0.85rem; }
-                            @media (max-width: 1100px) { .reu-kpis { grid-template-columns: repeat(2, 1fr); } .reu-frente-row { grid-template-columns: 1fr; } .reu-frente-stats { grid-column: 1; } }
+                            /* Torres (gráfico de colunas empilhadas) — a barra fica numa zona de altura
+                               fixa (.reu-torre-barwrap) pra que o rótulo/frente de todas as colunas
+                               alinhe na mesma linha, mesmo com alturas de torre diferentes. */
+                            .reu-torres { display: flex; align-items: flex-start; gap: 1.25rem; overflow-x: auto; padding-bottom: 0.25rem; }
+                            .reu-torre-col { flex: 1; min-width: 76px; max-width: 130px; display: flex; flex-direction: column; align-items: center; }
+                            .reu-torre-barwrap { height: 180px; width: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; }
+                            .reu-torre-valor { font-size: 0.85rem; font-weight: 700; color: var(--text-primary); margin-bottom: 0.35rem; font-variant-numeric: tabular-nums; }
+                            .reu-torre-bar { width: 100%; max-width: 58px; border-radius: 8px 8px 3px 3px; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 0 0 1px var(--glass-border) inset; }
+                            .reu-torre-label { margin-top: 0.7rem; }
+                            .reu-torre-atraso { margin-top: 0.3rem; font-size: 0.68rem; color: #ef4444; font-weight: 600; min-height: 1em; }
+                            .reu-torres-legenda { display: flex; gap: 1.2rem; flex-wrap: wrap; margin-top: 1.2rem; padding-top: 1rem; border-top: 1px solid var(--glass-border); font-size: 0.72rem; color: var(--text-tertiary); }
+                            .reu-torres-legenda span { display: inline-flex; align-items: center; gap: 0.4rem; }
+                            .reu-torres-legenda i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+                            .reu-insights { display: flex; flex-direction: column; gap: 0.6rem; }
+                            .reu-insight { display: flex; align-items: flex-start; gap: 0.6rem; padding: 0.6rem 0.75rem; border-radius: 10px; background: rgba(148,163,184,0.06); font-size: 0.85rem; color: var(--text-secondary); line-height: 1.4; }
+                            .reu-insight span { flex-shrink: 0; }
+                            @media (max-width: 1100px) { .reu-kpis { grid-template-columns: repeat(2, 1fr); } }
                         </style>
 
                         <div class="reu">
@@ -2411,12 +2439,6 @@
 
                             <div class="filters-bar">
                                 ${htmlSelectPeriodo()}
-                                ${f.periodo === 'personalizado' ? `
-                                    <div class="reu-periodo-custom">
-                                        <input type="date" id="reuDataInicio" value="${escapeHtml(f.inicio)}">
-                                        <span style="color: var(--text-tertiary);">até</span>
-                                        <input type="date" id="reuDataFim" value="${escapeHtml(f.fim)}">
-                                    </div>` : ''}
                                 ${htmlSelect('frente', 'Todas as Frentes', valoresDistintos('origem'))}
                                 ${htmlSelect('status', 'Todos os Status', STATUS)}
                                 ${htmlSelect('responsavel', 'Todos os Responsáveis', valoresDistintos('responsavel'))}
@@ -2444,7 +2466,7 @@
                                 <div class="reu-kpi clickable" style="--kc:#16a34a;" onclick="app.filtrarPorStatus('Concluído')">
                                     <div class="v">${concluidasNoPeriodo}</div>
                                     <div class="l">Concluídas no período</div>
-                                    <div class="s">${escapeHtml(rotulosPeriodo[f.periodo] || 'Semana atual')}</div>
+                                    <div class="s">${escapeHtml(rotulosPeriodo[f.periodo] || 'Semana anterior')}</div>
                                 </div>
                                 <div class="reu-kpi clickable" style="--kc:#dc2626;" onclick="app.filtrarPorSLA('vencido')">
                                     <div class="v">${atrasadas}</div>
@@ -2455,24 +2477,41 @@
 
                             <div class="reu-panel">
                                 <div class="reu-panel-title">Visão por Frente</div>
-                                ${frentesArr.length ? frentesArr.map(([nome, v]) => {
-                                    const pctConcluida = v.total ? Math.round(v.concluida / v.total * 100) : 0;
-                                    const pctAtivo = v.total ? Math.round(((v.andamento + v.teste) / v.total) * 100) : 0;
-                                    return `<div class="reu-frente-row">
-                                        ${getBadgeFrente(nome)}
-                                        <div class="reu-frente-track">
-                                            <div style="width:${pctConcluida}%; background:#16a34a;"></div>
-                                            <div style="width:${pctAtivo}%; background:${corDaFrente(nome)};"></div>
-                                        </div>
-                                        <div class="reu-frente-stats">
-                                            <span><b>${v.total}</b> total</span>
-                                            <span><b>${v.andamento}</b> andam.</span>
-                                            <span><b>${v.teste}</b> teste</span>
-                                            <span><b>${v.concluida}</b> concl.</span>
-                                            <span style="color:${v.atrasada ? '#ef4444' : 'var(--text-tertiary)'};"><b>${v.atrasada}</b> atras.</span>
-                                        </div>
-                                    </div>`;
-                                }).join('') : '<div class="reu-empty">Nenhuma demanda no filtro atual</div>'}
+                                ${frentesArr.length ? `
+                                    <div class="reu-torres">
+                                        ${frentesArr.map(([nome, v]) => {
+                                            const alturaTotal = Math.round((v.total / maxFrenteTotal) * 85); // 85% deixa espaço pro número acima da torre
+                                            const segConcl = v.total ? Math.round((v.concluida / v.total) * 100) : 0;
+                                            const segAndam = v.total ? Math.round((v.andamento / v.total) * 100) : 0;
+                                            const segTeste = Math.max(0, 100 - segConcl - segAndam);
+                                            return `<div class="reu-torre-col">
+                                                <div class="reu-torre-barwrap">
+                                                    <div class="reu-torre-valor">${v.total}</div>
+                                                    <div class="reu-torre-bar" style="height:${alturaTotal}%;">
+                                                        <div style="height:${segTeste}%; background:#1d4ed8;"></div>
+                                                        <div style="height:${segAndam}%; background:${corDaFrente(nome)};"></div>
+                                                        <div style="height:${segConcl}%; background:#16a34a;"></div>
+                                                    </div>
+                                                </div>
+                                                <div class="reu-torre-label">${getBadgeFrente(nome)}</div>
+                                                <div class="reu-torre-atraso">${v.atrasada ? v.atrasada + ' atras.' : ''}</div>
+                                            </div>`;
+                                        }).join('')}
+                                    </div>
+                                    <div class="reu-torres-legenda">
+                                        <span><i style="background:#1d4ed8;"></i> Em teste/validação</span>
+                                        <span><i style="background:var(--text-tertiary);"></i> Em andamento (cor da frente)</span>
+                                        <span><i style="background:#16a34a;"></i> Concluída</span>
+                                        <span style="color:#ef4444;"><i style="background:#ef4444;"></i> Atrasadas (subconjunto, não somam na altura)</span>
+                                    </div>
+                                ` : '<div class="reu-empty">Nenhuma demanda no filtro atual</div>'}
+                            </div>
+
+                            <div class="reu-panel">
+                                <div class="reu-panel-title">Insights</div>
+                                <div class="reu-insights">
+                                    ${insights.map(texto => `<div class="reu-insight"><span>💡</span>${escapeHtml(texto)}</div>`).join('')}
+                                </div>
                             </div>
                         </div>
                     `;
@@ -2507,11 +2546,6 @@
                         });
                     });
                 });
-
-                const inicioInput = container.querySelector('#reuDataInicio');
-                const fimInput = container.querySelector('#reuDataFim');
-                if (inicioInput) inicioInput.addEventListener('change', () => { this.filtroReuniao.inicio = inicioInput.value; this.renderizarReuniaoSemanal(); });
-                if (fimInput) fimInput.addEventListener('change', () => { this.filtroReuniao.fim = fimInput.value; this.renderizarReuniaoSemanal(); });
             }
 
             // Drill-down da Reunião Semanal: "Em andamento"/"Em teste/validação" cobrem vários

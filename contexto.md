@@ -391,3 +391,53 @@ título/descrição na mão.
   real a trazer de volta pra discussão nessa fase: não existe histórico de mudança
   de status (sem tabela de auditoria) — "está em teste há X dias" só pode ser
   aproximado por `dataAbertura` (idade total), não pelo tempo real na etapa atual.
+
+## 13/08/2026 (3) — Ajustes na Reunião Semanal a partir de print do usuário
+
+A pedido do usuário, em cima do que foi entregue no item anterior (mesmo dia):
+
+- **Filtro de período simplificado**: dropdown "Semana atual/Semana anterior/Mês
+  atual/Personalizado" virou só **Semana anterior / Mês** (removidos "Semana
+  atual" e "Personalizado" — junto foram os campos de data e o código de
+  wiring deles). Padrão passou de `semana_atual` pra `semana_anterior`
+  (`this.filtroReuniao` no construtor). Confirmado com o usuário antes de
+  mexer: os outros 6 filtros (Frente/Status/Responsável/Prioridade/Sistema/
+  Tipo) **não** foram removidos, só o de período.
+- **KPIs agora seguem o período selecionado** — isso inverte a decisão de
+  design registrada na entrega anterior (que deixava Total/Em andamento/Em
+  teste/Atrasadas sempre como "fotografia de agora", independente do
+  período). Agora esses 4 KPIs filtram por `dataAbertura` dentro do período
+  escolhido, junto com os outros 6 filtros. **"Concluídas no período"
+  continua com regra própria** (filtra por `dataConclusao`, não
+  `dataAbertura` — uma demanda concluída essa semana pode ter sido aberta
+  há meses, e isso precisa continuar contando). Por isso o cálculo interno
+  passou a ter duas bases: `baseEstado` (só os 6 filtros, sem período — usada
+  só por "Concluídas") e `baseFiltrada` (`baseEstado` + `dataAbertura` dentro
+  do período — usada pelos outros 4 KPIs e pela Visão por Frente).
+- **Visão por Frente virou gráfico de colunas verticais ("torres")**, no
+  lugar das barras horizontais. Cada torre = altura proporcional ao total de
+  demandas da frente (dentro do período selecionado), empilhada em 3
+  segmentos (teste azul-escuro, andamento na cor da frente, concluída
+  verde — mutuamente exclusivos, então a soma bate com a altura); atrasadas
+  é um subconjunto de "andamento"/"teste" e por isso **não** entra como
+  segmento empilhado (dobraria a contagem) — aparece como legenda em
+  vermelho abaixo da torre. Layout usa uma "zona de altura fixa" por coluna
+  (`.reu-torre-barwrap`, 180px) pra que os rótulos de frente de todas as
+  colunas fiquem alinhados na mesma linha embaixo, independente da altura de
+  cada torre.
+- **Painel "Insights" novo**, adicionado abaixo da Visão por Frente — frases
+  curtas derivadas só dos números já calculados (concentração na frente
+  principal se ≥30%, contagem de atrasadas, % de conclusão do período,
+  demandas em teste aguardando avanço). **Não é** o "Insights automáticos"
+  completo da Fase 3 do pedido original (que envolve comparação com período
+  anterior, tendências, gargalos) — é uma versão simples só com o que já
+  estava calculado nesta tela, sem inventar dado novo nem fazer comparação
+  histórica ainda.
+- Testado de novo com Playwright: dropdown de período só com as 2 opções
+  esperadas, KPIs mudam de fato entre "Semana anterior" (5 demandas) e "Mês"
+  (6 demandas) nos dados reais do Supabase, torres renderizam (1 frente — só
+  C4C teve demanda aberta na semana anterior no momento do teste), insights
+  batem com os números mostrados, drill-down continua funcionando, tema
+  claro conferido visualmente (torre escurece sozinha em C4C, igual ao badge
+  já fazia). Único console error continua sendo o 401 do Supabase já
+  documentado (ambiente de teste sem login).
