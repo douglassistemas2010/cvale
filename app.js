@@ -152,6 +152,59 @@
         // (cvale.cockpit_estado) e não devem ficar embutidos neste repositório público.
         const SEED_DEMANDAS = [];
 
+        // ====== REUNIÃO SEMANAL — agrupamento de status e período ======
+        // Os 11 status reais das demandas não mapeiam 1:1 com "em andamento"/"em teste"
+        // da aba Reunião Semanal — agrupados aqui numa fonte única (combinado com o usuário).
+        const STATUS_GRUPO_ANDAMENTO = ['Pendente', 'Em Análise Inicial', 'Em Orçamentação', 'Em Andamento', 'Aguardando CSS', 'Aguardando Retorno TI', 'Pausado'];
+        const STATUS_GRUPO_TESTE = ['Em Testes Integrados', 'Testes Com Erros', 'Enviar a Produção'];
+
+        // Segunda-feira 00:00 da semana de calendário (seg-dom) que contém `data`
+        function inicioDaSemana(data) {
+            const d = new Date(data);
+            d.setHours(0, 0, 0, 0);
+            const diaSemana = d.getDay(); // 0=domingo...6=sábado
+            const deslocamento = diaSemana === 0 ? -6 : 1 - diaSemana; // volta pra segunda-feira
+            d.setDate(d.getDate() + deslocamento);
+            return d;
+        }
+
+        // Domingo 23:59:59 da mesma semana de `inicioSemana` (já normalizado por inicioDaSemana)
+        function fimDaSemana(inicioSemana) {
+            const d = new Date(inicioSemana);
+            d.setDate(d.getDate() + 6);
+            d.setHours(23, 59, 59, 999);
+            return d;
+        }
+
+        // Resolve { inicio, fim } (Date) a partir do preset escolhido no filtro da Reunião Semanal
+        function intervaloDoPeriodo(filtro) {
+            const hoje = new Date();
+            if (filtro.periodo === 'personalizado' && filtro.inicio && filtro.fim) {
+                return { inicio: new Date(filtro.inicio + 'T00:00:00'), fim: new Date(filtro.fim + 'T23:59:59') };
+            }
+            if (filtro.periodo === 'mes_atual') {
+                return {
+                    inicio: new Date(hoje.getFullYear(), hoje.getMonth(), 1, 0, 0, 0, 0),
+                    fim: new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0, 23, 59, 59, 999)
+                };
+            }
+            const inicioSemanaAtual = inicioDaSemana(hoje);
+            if (filtro.periodo === 'semana_anterior') {
+                const inicio = new Date(inicioSemanaAtual);
+                inicio.setDate(inicio.getDate() - 7);
+                return { inicio, fim: fimDaSemana(inicio) };
+            }
+            return { inicio: inicioSemanaAtual, fim: fimDaSemana(inicioSemanaAtual) }; // padrão: semana_atual
+        }
+
+        // True se a data (string 'AAAA-MM-DD') cai dentro de [inicio, fim]. Meio-dia evita
+        // que fuso horário empurre a data pro dia anterior/seguinte na borda do intervalo.
+        function dataDentroDoPeriodo(dataStr, inicio, fim) {
+            if (!dataStr) return false;
+            const d = new Date(dataStr + 'T12:00:00');
+            return d >= inicio && d <= fim;
+        }
+
         // ====== CLASSE DEMANDA ======
         // Representa uma demanda individual com métodos para cálculo de SLA e status
         class Demanda {
@@ -317,6 +370,10 @@
                 this.kanbanOrderSalva = null;
                 // Frentes com as linhas expandidas na tabela de Demandas (as demais ficam encolhidas, só com o cabeçalho do grupo)
                 this.frentesExpandidas = new Set(JSON.parse(localStorage.getItem('cockpit_frentes_expandidas') || '[]'));
+                // Filtros da aba Reunião Semanal (estado local, independente dos filtros da aba Demandas)
+                this.filtroReuniao = { periodo: 'semana_atual', inicio: '', fim: '', frente: '', status: '', responsavel: '', prioridade: '', sistema: '', tipo: '' };
+                // Grupo de status aplicado pela Reunião Semanal ao clicar num KPI (drill-down para a aba Demandas); null = sem filtro de grupo ativo
+                this.filtroGrupoStatus = null;
                 this.inicializar();
             }
 
@@ -741,12 +798,14 @@
                     }
                 });
 
-                // Filtros
-                document.getElementById('searchDemand').addEventListener('input', () => this.filtrarDemandas());
-                document.getElementById('filterTipo').addEventListener('change', () => this.filtrarDemandas());
-                document.getElementById('filterStatus').addEventListener('change', () => this.filtrarDemandas());
-                document.getElementById('filterPrioridade').addEventListener('change', () => this.filtrarDemandas());
-                document.getElementById('filterSLA').addEventListener('change', () => this.filtrarDemandas());
+                // Filtros — interação manual aqui sempre limpa um eventual grupo de status
+                // vindo do drill-down da Reunião Semanal (this.filtroGrupoStatus)
+                const limparGrupoStatusEFiltrar = () => { this.filtroGrupoStatus = null; this.filtrarDemandas(); };
+                document.getElementById('searchDemand').addEventListener('input', limparGrupoStatusEFiltrar);
+                document.getElementById('filterTipo').addEventListener('change', limparGrupoStatusEFiltrar);
+                document.getElementById('filterStatus').addEventListener('change', limparGrupoStatusEFiltrar);
+                document.getElementById('filterPrioridade').addEventListener('change', limparGrupoStatusEFiltrar);
+                document.getElementById('filterSLA').addEventListener('change', limparGrupoStatusEFiltrar);
 
                 // Flag "Mostrar concluídos" no cabeçalho da coluna Status — oculta por padrão
                 const toggleConcluidos = document.getElementById('toggleConcluidos');
@@ -886,8 +945,8 @@
                     return;
                 }
 
-                if (abaAtiva === 'kanban') {
-                    this.renderizarKanban();
+                if (abaAtiva === 'reuniao') {
+                    this.renderizarReuniaoSemanal();
                     return;
                 }
 
@@ -907,6 +966,16 @@
                 if (typeof lucide !== 'undefined') {
                     lucide.createIcons();
                 }
+            }
+
+            // Ativa uma aba no DOM sem passar por renderizarConteudoAba/limparFiltrosDemandas —
+            // usado pelo drill-down (clicar num KPI e abrir a aba Demandas JÁ filtrada). Chamar
+            // trocarAba() aqui resetaria os filtros que estamos prestes a aplicar.
+            ativarAbaSemResetarFiltros(aba) {
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
+                document.querySelector(`.tab[data-tab="${aba}"]`)?.classList.add('active');
+                document.getElementById(`tab-${aba}`)?.classList.remove('hidden');
             }
 
             trocarAba(abaAtiva) {
@@ -1400,7 +1469,11 @@
                     if (sla === 'vencendo') matchSLA = ['vencendo', 'hoje', 'amanha'].includes(d.obterStatusSLA());
                     if (sla === 'vencido') matchSLA = d.obterStatusSLA() === 'vencido';
 
-                    return matchBusca && matchTipo && matchStatus && matchPrioridade && matchSLA && matchConcluido;
+                    // Grupo de status vindo do drill-down da Reunião Semanal (ex.: "Em andamento" cobre vários status).
+                    // Só se aplica quando setado; fica limpo assim que o usuário mexe manualmente nos filtros de Demandas.
+                    const matchGrupoStatus = !this.filtroGrupoStatus || this.filtroGrupoStatus.includes(d.status);
+
+                    return matchBusca && matchTipo && matchStatus && matchPrioridade && matchSLA && matchConcluido && matchGrupoStatus;
                 });
 
                 // Aplica ordenação se coluna foi selecionada
@@ -1677,11 +1750,9 @@
             // Filtra demandas por status e navega para a aba de demandas
             filtrarPorStatus(status) {
                 // Primeiro, ativa a aba de demandas sem resetar filtros
-                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-                document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
-                document.querySelector('.tab[data-tab="demandas"]')?.classList.add('active');
-                document.getElementById('tab-demandas')?.classList.remove('hidden');
-                
+                this.ativarAbaSemResetarFiltros('demandas');
+                this.filtroGrupoStatus = null; // um filtro de status único substitui qualquer grupo vindo da Reunião Semanal
+
                 // Agora atualiza o input hidden do filtro de status
                 const hiddenInput = document.getElementById('filterStatus');
                 if (hiddenInput) {
@@ -2214,226 +2285,281 @@
                 return mapa[nomeIcone] || '●';
             }
 
-            // Renderiza board Kanban dinâmico com colunas para cada status existente
-            // Cada coluna contém cards arrastáveis com demandas e permite drag-drop com reordenação em tempo real
-            renderizarKanban() {
-                const board = document.getElementById('kanbanBoard');
-                if (!board) return;
+            // ====== REUNIÃO SEMANAL ======
+            // Visão executiva pra reunião semanal: KPIs de estado atual (fotografia de agora,
+            // independem do período) + entregas do período selecionado + visão por frente.
+            // Nada de dado novo — tudo derivado de this.demandas. Ver contexto.md pra
+            // detalhes do agrupamento de status e das decisões de período.
+            renderizarReuniaoSemanal() {
+                const container = document.getElementById('reuniaoContainer');
+                if (!container) return;
+
                 try {
-                    board.innerHTML = '';
+                    const f = this.filtroReuniao;
+                    const { inicio, fim } = intervaloDoPeriodo(f);
 
-                    // Extrai status únicos
-                    const statusUnicos = [...new Set(this.demandas.map(d => d.status))];
+                    // Filtros de estado (frente/status/responsável/prioridade/sistema/tipo) — não
+                    // incluem período: os KPIs de estado atual são sempre a fotografia de agora.
+                    const baseFiltrada = this.demandas.filter(d => {
+                        const mFrente = !f.frente || (d.origem || '').trim() === f.frente;
+                        const mStatus = !f.status || d.status === f.status;
+                        const mResp = !f.responsavel || (d.responsavel || '').trim() === f.responsavel;
+                        const mPrio = !f.prioridade || d.prioridade === f.prioridade;
+                        const mSist = !f.sistema || (d.sistema || '').trim() === f.sistema;
+                        const mTipo = !f.tipo || d.tipo === f.tipo;
+                        return mFrente && mStatus && mResp && mPrio && mSist && mTipo;
+                    });
 
-                    // Obtém a ordem salva ou usa a ordem padrão
-                    const statusOrdenados = this.obterOrdemKanban(statusUnicos);
+                    const total = baseFiltrada.length;
+                    const emAndamento = baseFiltrada.filter(d => STATUS_GRUPO_ANDAMENTO.includes(d.status)).length;
+                    const emTeste = baseFiltrada.filter(d => STATUS_GRUPO_TESTE.includes(d.status)).length;
+                    const atrasadas = baseFiltrada.filter(d => d.status !== 'Concluído' && d.obterStatusSLA() === 'vencido').length;
+                    const concluidasNoPeriodo = baseFiltrada.filter(d => d.status === 'Concluído' && dataDentroDoPeriodo(d.dataConclusao, inicio, fim)).length;
 
-                    // Cria coluna para cada status
-                    statusOrdenados.forEach(status => {
-                        // Filtrar e ordenar demandas por ordemKanban
-                        const demandasPorStatus = this.demandas
-                            .filter(d => d.status === status)
-                            .sort((a, b) => (a.ordemKanban || 0) - (b.ordemKanban || 0));
+                    const rotulosPeriodo = { semana_atual: 'Semana atual', semana_anterior: 'Semana anterior', mes_atual: 'Mês atual', personalizado: 'Período personalizado' };
+                    const fmtData = (d) => d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+                    // Personalizado sem as duas datas ainda escolhidas cai no fallback de semana atual
+                    // (ver intervaloDoPeriodo) — o rótulo avisa disso em vez de sugerir um intervalo já aplicado
+                    const personalizadoIncompleto = f.periodo === 'personalizado' && (!f.inicio || !f.fim);
+                    const rotuloPeriodo = personalizadoIncompleto
+                        ? 'Período personalizado — selecione as duas datas (mostrando semana atual por enquanto)'
+                        : `${rotulosPeriodo[f.periodo] || 'Semana atual'} (${fmtData(inicio)} a ${fmtData(fim)})`;
 
-                        const col = document.createElement('div');
-                        col.className = 'kanban-column';
-                        col.draggable = false;
-                        col.dataset.status = status;
+                    // Visão por frente
+                    const frentes = {};
+                    baseFiltrada.forEach(d => {
+                        const nome = (d.origem || '').trim() || 'Outro';
+                        if (!frentes[nome]) frentes[nome] = { total: 0, andamento: 0, teste: 0, concluida: 0, atrasada: 0 };
+                        const fr = frentes[nome];
+                        fr.total++;
+                        if (d.status === 'Concluído') { fr.concluida++; return; }
+                        if (STATUS_GRUPO_ANDAMENTO.includes(d.status)) fr.andamento++;
+                        if (STATUS_GRUPO_TESTE.includes(d.status)) fr.teste++;
+                        if (d.obterStatusSLA() === 'vencido') fr.atrasada++;
+                    });
+                    const frentesArr = Object.entries(frentes).sort((a, b) => b[1].total - a[1].total);
 
-                        // Calcula percentual desta coluna em relação ao total
-                        const totalDemandas = this.demandas.length;
-                        const percentual = totalDemandas > 0 ? Math.round((demandasPorStatus.length / totalDemandas) * 100) : 0;
-                        const corBarra = CORES_STATUS[status] || '#3b82f6';
-                        
-                        col.innerHTML = `
-                            <div class="kanban-header">
-                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-                                    <span>${escapeHtml(status)}</span>
-                                    <span style="font-size: 0.85rem; opacity: 0.8;">${demandasPorStatus.length} <small style="opacity: 0.6;">(${percentual}%)</small></span>
+                    // Valores distintos já usados nos dados (frente/responsável/sistema são texto
+                    // livre — sem lista fixa nem normalização, ver contexto.md)
+                    const valoresDistintos = (campo) => [...new Set(this.demandas.map(d => (d[campo] || '').trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'pt-BR'));
+
+                    const opcoesPeriodo = [
+                        { v: 'semana_atual', l: 'Semana atual' },
+                        { v: 'semana_anterior', l: 'Semana anterior' },
+                        { v: 'mes_atual', l: 'Mês atual' },
+                        { v: 'personalizado', l: 'Personalizado' }
+                    ];
+                    const htmlSelectPeriodo = () => {
+                        const atual = opcoesPeriodo.find(o => o.v === f.periodo) || opcoesPeriodo[0];
+                        const botoes = opcoesPeriodo.map(o => `<button type="button" class="custom-select-option${o.v === atual.v ? ' active' : ''}" data-value="${o.v}">${o.l}</button>`).join('');
+                        return `<div class="custom-select" data-reu-filter="periodo">
+                            <button class="custom-select-trigger" type="button"><span>${atual.l}</span><span class="custom-select-icon">▼</span></button>
+                            <div class="custom-select-menu">${botoes}</div>
+                            <input type="hidden" value="${atual.v}">
+                        </div>`;
+                    };
+                    const htmlSelect = (chave, labelTodos, valores) => {
+                        const valorAtual = f[chave] || '';
+                        const labelAtual = valorAtual ? escapeHtml(valorAtual) : labelTodos;
+                        const itens = [{ v: '', l: labelTodos }, ...valores.map(v => ({ v, l: v }))];
+                        const botoes = itens.map(it => `<button type="button" class="custom-select-option${it.v === valorAtual ? ' active' : ''}" data-value="${escapeHtml(it.v)}">${escapeHtml(it.l)}</button>`).join('');
+                        return `<div class="custom-select" data-reu-filter="${chave}">
+                            <button class="custom-select-trigger" type="button"><span>${labelAtual}</span><span class="custom-select-icon">▼</span></button>
+                            <div class="custom-select-menu">${botoes}</div>
+                            <input type="hidden" value="${escapeHtml(valorAtual)}">
+                        </div>`;
+                    };
+
+                    container.innerHTML = `
+                        <style>
+                            .reu { display: grid; gap: 1.5rem; }
+                            /* A barra tem 7 filtros (mais que os 5 da aba Demandas) e quebra linha em
+                               telas menores — sem isto, um dropdown aberto fica coberto pelo filtro da
+                               linha seguinte, porque style.css dá o mesmo z-index pra todo .custom-select
+                               independente de estar aberto ou fechado. */
+                            .reu .custom-select.open { z-index: 60; }
+                            .reu-head h2 { font-size: 1.35rem; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 0.2rem; }
+                            .reu-head p { color: var(--text-tertiary); font-size: 0.85rem; }
+                            .reu-kpis { display: grid; grid-template-columns: repeat(5, 1fr); gap: 1rem; }
+                            .reu-kpi { background: var(--glass); border: 1px solid var(--glass-border); border-radius: 16px; padding: 1.1rem 1.2rem; border-left: 4px solid var(--kc, #3b82f6); }
+                            .reu-kpi.clickable { cursor: pointer; transition: transform 0.15s ease, background 0.15s ease; }
+                            .reu-kpi.clickable:hover { transform: translateY(-2px); background: rgba(148,163,184,0.08); }
+                            .reu-kpi .v { font-size: 2rem; font-weight: 700; line-height: 1; color: var(--kc); font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+                            .reu-kpi .l { font-size: 0.78rem; color: var(--text-secondary); margin-top: 0.35rem; font-weight: 500; }
+                            .reu-kpi .s { font-size: 0.7rem; color: var(--text-tertiary); margin-top: 0.1rem; }
+                            .reu-panel { background: var(--glass); border: 1px solid var(--glass-border); border-radius: 16px; padding: 1.3rem; }
+                            .reu-panel-title { font-size: 0.95rem; font-weight: 600; margin-bottom: 1rem; }
+                            /* Badge na coluna 1, barra + estatísticas empilhadas na coluna 2 — evita
+                               que os 5 números da coluna de estatísticas fiquem espremidos ao lado da
+                               barra (já aconteceu com 3 colunas lado a lado: número invadia a barra). */
+                            .reu-frente-row { display: grid; grid-template-columns: 130px 1fr; align-items: center; column-gap: 0.9rem; row-gap: 0.4rem; padding: 0.7rem 0; border-top: 1px solid var(--glass-border); }
+                            .reu-frente-row:first-child { border-top: none; }
+                            .reu-frente-track { height: 10px; background: rgba(148,163,184,0.12); border-radius: 6px; overflow: hidden; display: flex; }
+                            .reu-frente-stats { grid-column: 2; display: flex; flex-wrap: wrap; gap: 0.25rem 0.9rem; font-size: 0.72rem; color: var(--text-tertiary); }
+                            .reu-frente-stats b { color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+                            .reu-empty { padding: 2rem; text-align: center; color: var(--text-tertiary); }
+                            .reu-periodo-custom { display: flex; gap: 0.5rem; align-items: center; }
+                            .reu-periodo-custom input[type="date"] { background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 8px; padding: 0.5rem 0.7rem; color: var(--text-primary); font-family: var(--font-sans); font-size: 0.85rem; }
+                            @media (max-width: 1100px) { .reu-kpis { grid-template-columns: repeat(2, 1fr); } .reu-frente-row { grid-template-columns: 1fr; } .reu-frente-stats { grid-column: 1; } }
+                        </style>
+
+                        <div class="reu">
+                            <div class="reu-head">
+                                <h2>Reunião Semanal</h2>
+                                <p>${escapeHtml(rotuloPeriodo)} · ${total} demanda(s) no filtro atual</p>
+                            </div>
+
+                            <div class="filters-bar">
+                                ${htmlSelectPeriodo()}
+                                ${f.periodo === 'personalizado' ? `
+                                    <div class="reu-periodo-custom">
+                                        <input type="date" id="reuDataInicio" value="${escapeHtml(f.inicio)}">
+                                        <span style="color: var(--text-tertiary);">até</span>
+                                        <input type="date" id="reuDataFim" value="${escapeHtml(f.fim)}">
+                                    </div>` : ''}
+                                ${htmlSelect('frente', 'Todas as Frentes', valoresDistintos('origem'))}
+                                ${htmlSelect('status', 'Todos os Status', STATUS)}
+                                ${htmlSelect('responsavel', 'Todos os Responsáveis', valoresDistintos('responsavel'))}
+                                ${htmlSelect('prioridade', 'Todas as Prioridades', PRIORIDADES)}
+                                ${htmlSelect('sistema', 'Todos os Sistemas', valoresDistintos('sistema'))}
+                                ${htmlSelect('tipo', 'Todos os Tipos', TIPOS)}
+                            </div>
+
+                            <div class="reu-kpis">
+                                <div class="reu-kpi" style="--kc:#8b5cf6;">
+                                    <div class="v">${total}</div>
+                                    <div class="l">Total de demandas</div>
+                                    <div class="s">no filtro atual</div>
                                 </div>
-                                <div style="height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; overflow: hidden;">
-                                    <div style="height: 100%; width: ${percentual}%; background: ${corBarra}; border-radius: 2px; transition: width 0.5s ease;"></div>
+                                <div class="reu-kpi clickable" style="--kc:#3b82f6;" onclick="app.filtrarPorGrupoStatus('andamento')">
+                                    <div class="v">${emAndamento}</div>
+                                    <div class="l">Em andamento</div>
+                                    <div class="s">clique para ver a lista</div>
+                                </div>
+                                <div class="reu-kpi clickable" style="--kc:#1d4ed8;" onclick="app.filtrarPorGrupoStatus('teste')">
+                                    <div class="v">${emTeste}</div>
+                                    <div class="l">Em teste/validação</div>
+                                    <div class="s">clique para ver a lista</div>
+                                </div>
+                                <div class="reu-kpi clickable" style="--kc:#16a34a;" onclick="app.filtrarPorStatus('Concluído')">
+                                    <div class="v">${concluidasNoPeriodo}</div>
+                                    <div class="l">Concluídas no período</div>
+                                    <div class="s">${escapeHtml(rotulosPeriodo[f.periodo] || 'Semana atual')}</div>
+                                </div>
+                                <div class="reu-kpi clickable" style="--kc:#dc2626;" onclick="app.filtrarPorSLA('vencido')">
+                                    <div class="v">${atrasadas}</div>
+                                    <div class="l">Atrasadas</div>
+                                    <div class="s">vencimento passado, não concluídas</div>
                                 </div>
                             </div>
-                            <div class="kanban-cards" data-status="${escapeHtml(status)}"></div>
-                        `;
 
-                        const cardsContainer = col.querySelector('.kanban-cards');
+                            <div class="reu-panel">
+                                <div class="reu-panel-title">Visão por Frente</div>
+                                ${frentesArr.length ? frentesArr.map(([nome, v]) => {
+                                    const pctConcluida = v.total ? Math.round(v.concluida / v.total * 100) : 0;
+                                    const pctAtivo = v.total ? Math.round(((v.andamento + v.teste) / v.total) * 100) : 0;
+                                    return `<div class="reu-frente-row">
+                                        ${getBadgeFrente(nome)}
+                                        <div class="reu-frente-track">
+                                            <div style="width:${pctConcluida}%; background:#16a34a;"></div>
+                                            <div style="width:${pctAtivo}%; background:${corDaFrente(nome)};"></div>
+                                        </div>
+                                        <div class="reu-frente-stats">
+                                            <span><b>${v.total}</b> total</span>
+                                            <span><b>${v.andamento}</b> andam.</span>
+                                            <span><b>${v.teste}</b> teste</span>
+                                            <span><b>${v.concluida}</b> concl.</span>
+                                            <span style="color:${v.atrasada ? '#ef4444' : 'var(--text-tertiary)'};"><b>${v.atrasada}</b> atras.</span>
+                                        </div>
+                                    </div>`;
+                                }).join('') : '<div class="reu-empty">Nenhuma demanda no filtro atual</div>'}
+                            </div>
+                        </div>
+                    `;
 
-                        // Adicionar cada card com dataset.numero
-                        demandasPorStatus.forEach((d, idx) => {
-                            const card = document.createElement('div');
-                            card.className = 'kanban-card';
-                            card.draggable = true;
-                            card.dataset.numero = d.numero;
-                            card.innerHTML = `
-                                <div class="kanban-card-title">${escapeHtml(d.numero)}: ${escapeHtml(d.titulo)}</div>
-                                <div class="kanban-card-meta">
-                                    <span class="badge" style="background: ${CORES_TIPO[d.tipo]}33; color: ${CORES_TIPO[d.tipo]};">${escapeHtml(d.tipo)}</span>
-                                    ${templateBadgePrioridade(d.prioridade)}
-                                </div>
-                                <div style="margin-top: 0.75rem; font-size: 0.8rem; color: var(--text-tertiary);">
-                                    ${escapeHtml(d.responsavel) || 'Sem responsável'}
-                                </div>
-                                <div class="progress-bar" style="margin-top: 0.5rem;">
-                                    <div class="progress-fill" style="width: ${progressoExibido(d)}%"></div>
-                                </div>
-                            `;
+                    this.wireFiltrosReuniao(container);
+                    setTimeout(() => { if (typeof lucide !== 'undefined') lucide.createIcons(); }, 50);
+                } catch (err) {
+                    console.error('Erro ao renderizar Reunião Semanal:', err);
+                    container.innerHTML = '<div style="padding: 2rem; text-align: center; color: var(--text-secondary);">Erro ao carregar Reunião Semanal</div>';
+                }
+            }
 
-                            // DRAGSTART: Card começa a ser arrastado
-                            card.addEventListener('dragstart', (e) => {
-                                e.stopPropagation();
-                                e.dataTransfer.effectAllowed = 'move';
-                                e.dataTransfer.setData('text/plain', d.numero);
-                                e.dataTransfer.setData('application/x-kanban-card', d.numero);
-                                this.cardArrastadoNumero = d.numero;
-                                requestAnimationFrame(() => {
-                                    card.classList.add('dragging');
-                                });
-                            });
+            // Liga os dropdowns .custom-select[data-reu-filter] da Reunião Semanal — recriados a
+            // cada render, então são religados aqui (não reaproveita inicializarCustomSelects()
+            // pra não duplicar listener nos dropdowns globais da aba Demandas, que continuam no
+            // DOM mesmo com a aba escondida). O "fechar ao clicar fora" já é coberto pelo
+            // listener global de .custom-select cadastrado em inicializarCustomSelects().
+            wireFiltrosReuniao(container) {
+                container.querySelectorAll('.custom-select[data-reu-filter]').forEach(select => {
+                    const chave = select.dataset.reuFilter;
+                    const trigger = select.querySelector('.custom-select-trigger');
 
-                            // DRAGEND: Card deixa de ser arrastado
-                            card.addEventListener('dragend', (e) => {
-                                card.classList.remove('dragging');
-                                this.cardArrastadoNumero = null;
-                                document.querySelectorAll('.kanban-cards').forEach(c => {
-                                    c.style.backgroundColor = '';
-                                    c.style.borderColor = '';
-                                });
-                                this.sincronizarOrdemKanban(board);
-                                this.atualizarDashboard();
-                                this.salvarDados();
-                            });
-
-                            cardsContainer.appendChild(card);
-                        });
-
-                        // DRAGOVER: Reposicionar card em tempo real enquanto arrasta
-                        cardsContainer.addEventListener('dragover', (e) => {
-                            e.preventDefault();
-                            e.dataTransfer.dropEffect = 'move';
-
-                            const draggingCard = document.querySelector('.kanban-card.dragging');
-                            if (!draggingCard) return;
-
-                            cardsContainer.style.backgroundColor = 'rgba(45, 90, 140, 0.15)';
-                            cardsContainer.style.borderColor = 'rgba(45, 90, 140, 0.5)';
-
-                            // Encontrar card que deve vir depois (baseado no mouseY)
-                            const afterElement = this.getKanbanCardAfterElement(cardsContainer, e.clientY);
-
-                            if (afterElement == null) {
-                                // Se não houver elemento após, adicionar no final
-                                cardsContainer.appendChild(draggingCard);
-                            } else {
-                                // Inserir antes do elemento encontrado
-                                cardsContainer.insertBefore(draggingCard, afterElement);
-                            }
-                        });
-
-                        // DRAGLEAVE: Limpar feedback visual quando sai da coluna
-                        cardsContainer.addEventListener('dragleave', (e) => {
-                            if (e.target === cardsContainer) {
-                                cardsContainer.style.backgroundColor = '';
-                                cardsContainer.style.borderColor = '';
-                            }
-                        });
-
-                        // DROP: Confirmar reordenação e salvar
-                        cardsContainer.addEventListener('drop', (e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-
-                            cardsContainer.style.backgroundColor = '';
-                            cardsContainer.style.borderColor = '';
-
-                            const numero = e.dataTransfer.getData('application/x-kanban-card') || e.dataTransfer.getData('text/plain');
-                            if (!numero) return;
-
-                            // Encontrar demanda
-                            const demanda = this.demandas.find(d => d.numero === numero);
-                            if (!demanda) return;
-
-                            // Atualizar status conforme a coluna de destino
-                            demanda.status = status;
-                            // Mesma regra do modal: mover pra Concluído no Kanban também zera o progresso pra 100%
-                            if (status === 'Concluído') {
-                                demanda.progresso = 100;
-                            }
-
-                            // Sincronizar ordem dos cards com o DOM
-                            this.sincronizarOrdemKanban(board);
-
-                            // Atualiza o Dashboard (cards de status, gráficos, SLA) imediatamente,
-                            // já que mudar o status no Kanban não passa por renderizar() como as
-                            // outras ações (salvarDemanda, excluirDemanda etc.) — sem isso o
-                            // Dashboard só refletia a mudança depois de trocar de aba manualmente.
-                            this.atualizarDashboard();
-
-                            this.salvarDados();
-                            this.mostrarToast(`✅ ${numero} movido para ${status}`);
-                        });
-
-                        board.appendChild(col);
+                    trigger.addEventListener('click', () => {
+                        container.querySelectorAll('.custom-select').forEach(s => { if (s !== select) s.classList.remove('open'); });
+                        select.classList.toggle('open');
                     });
 
+                    select.querySelectorAll('.custom-select-option').forEach(option => {
+                        option.addEventListener('click', () => {
+                            this.filtroReuniao[chave] = option.dataset.value;
+                            this.renderizarReuniaoSemanal();
+                        });
+                    });
+                });
 
-                } catch (err) {
-                    console.error('Erro ao renderizar Kanban:', err);
-                    if (board) {
-                        board.innerHTML = '<div style="padding: 2rem; text-align: center; color: var(--text-secondary);">Erro ao carregar Kanban</div>';
-                    }
+                const inicioInput = container.querySelector('#reuDataInicio');
+                const fimInput = container.querySelector('#reuDataFim');
+                if (inicioInput) inicioInput.addEventListener('change', () => { this.filtroReuniao.inicio = inicioInput.value; this.renderizarReuniaoSemanal(); });
+                if (fimInput) fimInput.addEventListener('change', () => { this.filtroReuniao.fim = fimInput.value; this.renderizarReuniaoSemanal(); });
+            }
+
+            // Drill-down da Reunião Semanal: "Em andamento"/"Em teste/validação" cobrem vários
+            // status ao mesmo tempo — não dá pra usar o dropdown de Status (valor único) da aba
+            // Demandas, por isso o grupo fica num estado à parte (this.filtroGrupoStatus),
+            // consumido por filtrarDemandas(). `grupo` é 'andamento' ou 'teste'.
+            filtrarPorGrupoStatus(grupo) {
+                const mapa = {
+                    andamento: { lista: STATUS_GRUPO_ANDAMENTO, rotulo: 'Em andamento' },
+                    teste: { lista: STATUS_GRUPO_TESTE, rotulo: 'Em teste/validação' }
+                };
+                const cfg = mapa[grupo];
+                if (!cfg) return;
+
+                this.ativarAbaSemResetarFiltros('demandas');
+                this.filtroGrupoStatus = cfg.lista;
+
+                // O dropdown de Status único fica em "Todos" pra não conflitar visualmente com o grupo
+                const hiddenStatus = document.getElementById('filterStatus');
+                if (hiddenStatus) hiddenStatus.value = '';
+                const selectStatus = document.querySelector('.custom-select[data-filter="status"]');
+                if (selectStatus) {
+                    const label = selectStatus.querySelector('.custom-select-trigger span:first-child');
+                    if (label) label.textContent = 'Todos os Status';
+                    selectStatus.querySelectorAll('.custom-select-option').forEach(opt => opt.classList.toggle('active', opt.dataset.value === ''));
                 }
 
-                // Reafirmar overflow e renderizar ícones
-                requestAnimationFrame(() => {
-                    const contentArea = document.getElementById('contentArea');
-                    if (contentArea) {
-                        contentArea.style.overflowY = 'auto';
-                        contentArea.style.overflowX = 'hidden';
-                    }
-                    if (typeof lucide !== 'undefined') {
-                        lucide.createIcons();
-                    }
-                });
+                this.filtrarDemandas();
+                this.mostrarToast(`📋 ${cfg.rotulo}`);
             }
 
-            // Helper: Encontra o card que deve vir depois baseado na posição do mouse
-            // Retorna o elemento que deve vir ANTES (para usar com insertBefore)
-            getKanbanCardAfterElement(container, mouseY) {
-                const draggableElements = Array.from(container.querySelectorAll('.kanban-card:not(.dragging)'));
+            // Drill-down do KPI "Atrasadas" da Reunião Semanal — reaproveita o dropdown de SLA
+            // que já existe na aba Demandas (#filterSLA), não precisa de estado novo.
+            filtrarPorSLA(valor) {
+                this.ativarAbaSemResetarFiltros('demandas');
+                this.filtroGrupoStatus = null;
 
-                return draggableElements.reduce((closest, child) => {
-                    const box = child.getBoundingClientRect();
-                    const offset = mouseY - box.top - box.height / 2;
+                const hidden = document.getElementById('filterSLA');
+                if (hidden) hidden.value = valor;
+                const select = document.querySelector('.custom-select[data-filter="sla"]');
+                if (select) {
+                    const opt = select.querySelector(`.custom-select-option[data-value="${valor}"]`);
+                    const label = select.querySelector('.custom-select-trigger span:first-child');
+                    if (label && opt) label.textContent = opt.textContent;
+                    select.querySelectorAll('.custom-select-option').forEach(o => o.classList.toggle('active', o.dataset.value === valor));
+                }
 
-                    if (offset < 0 && offset > closest.offset) {
-                        return { offset: offset, element: child };
-                    } else {
-                        return closest;
-                    }
-                }, { offset: Number.NEGATIVE_INFINITY }).element;
-            }
-
-            // Sincroniza a ordem dos cards no DOM com a array de demandas
-            // Percorre cada coluna e atualiza o status + salva a nova ordem
-            sincronizarOrdemKanban(board) {
-                const columns = Array.from(board.querySelectorAll('.kanban-column'));
-
-                columns.forEach(col => {
-                    const status = col.dataset.status;
-                    const cards = Array.from(col.querySelectorAll('.kanban-card'));
-
-                    cards.forEach((card, idx) => {
-                        const numero = card.dataset.numero;
-                        const demanda = this.demandas.find(d => d.numero === numero);
-
-                        if (demanda) {
-                            demanda.status = status;
-                            demanda.ordemKanban = idx;
-                        }
-                    });
-                });
+                this.filtrarDemandas();
             }
 
             // Insights = análise de gestão (não repete o Dashboard). Combina um bloco

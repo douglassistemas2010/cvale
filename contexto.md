@@ -306,3 +306,88 @@ título/descrição na mão.
 - Referências textuais internas atualizadas: título deste `contexto.md` e o exemplo `cd` no
   `README.md`. `ESTRUTURA_PASTAS.md` (mapa, registro mestre e histórico de decisões) atualizado na
   mesma sessão.
+
+## 13/08/2026 (2) — Aba "Kanban" removida, entra "Reunião Semanal" (Fase 1)
+
+- A pedido do usuário: aba Kanban (não usada) removida e substituída por **Reunião
+  Semanal** — visão executiva das demandas pra apresentar na reunião semanal, sem
+  cadastro paralelo (deriva tudo de `this.demandas`). Pedido veio como spec grande
+  dividida em 3 fases pelo próprio usuário; **esta entrega é só a Fase 1
+  (essencial)** — Fases 2 (evolução semanal, backlog, aging, pontos de atenção) e 3
+  (insights automáticos, gargalos) ficam pra depois, como o pedido original já previa
+  ("construir base confiável antes de evoluir").
+- **Antes de codar**, análise do código existente (via plan mode) mapeou: mecanismo de
+  troca de aba (`trocarAba()`/`renderizarConteudoAba()`), o padrão de aba 100%
+  JS-renderizada já usado pela aba Insights (`renderizarInsights()` injeta seu próprio
+  `<style>` + HTML a cada render), o padrão de drill-down já existente
+  (`filtrarPorStatus()`, clique num card do Dashboard abre a aba Demandas já
+  filtrada) e confirmou que não há lib de gráfico no projeto — tudo é CSS/HTML na mão.
+  Duas decisões de negócio foram confirmadas com o usuário antes de implementar: (1)
+  agrupamento dos 11 status reais em 3 baldes pros KPIs — **Em andamento** = Pendente,
+  Em Análise Inicial, Em Orçamentação, Em Andamento, Aguardando CSS, Aguardando
+  Retorno TI, Pausado; **Em teste/validação** = Em Testes Integrados, Testes Com Erros,
+  Enviar a Produção; **Atrasada** = não concluída com `obterStatusSLA() === 'vencido'`
+  (não depende do status); (2) semana de calendário segunda a domingo.
+- **Implementado:**
+  - `renderizarKanban()`/`getKanbanCardAfterElement()`/`sincronizarOrdemKanban()`
+    removidos de `app.js`; botão e `#tab-kanban`/`#kanbanBoard` removidos do
+    `index.html`. Cruft órfão **não removido de propósito** (risco desnecessário
+    mexer em schema/payload do Supabase por limpeza cosmética):
+    `KANBAN_ORDER_KEY`/`obterOrdemKanban`/`salvarOrdemKanban` (localStorage),
+    `kanbanOrderSalva`/coluna `kanban_order` no Supabase, campo
+    `Demanda.ordemKanban`. Candidato a limpeza futura, não agora.
+  - Nova `renderizarReuniaoSemanal()` (padrão idêntico ao da Insights: container
+    próprio `#reuniaoContainer`, `<style>` scoped com prefixo `.reu-*` pra nunca
+    depender da aba Insights já ter sido visitada antes). KPIs: Total, Em andamento,
+    Em teste/validação, Concluídas no período, Atrasadas. **Os KPIs de estado atual
+    (Total/Em andamento/Em teste/Atrasadas) são sempre a fotografia de agora,
+    independente do filtro de período** — só "Concluídas" e a seção de entregas são
+    de fato filtradas por período. Isso não estava 100% explícito no pedido original
+    (que pedia "os filtros atualizam todos os indicadores") — decisão de engenharia
+    registrada no plano, revisão bem-vinda depois de usar a tela de verdade.
+  - Filtro de período com presets (Semana atual/Semana anterior/Mês atual/
+    Personalizado com 2 campos de data) + filtros por Frente, Status, Responsável,
+    Prioridade, Sistema e Tipo — dropdowns próprios (`data-reu-filter`, religados a
+    cada render via `wireFiltrosReuniao()`), **não reaproveita
+    `inicializarCustomSelects()` global** pra não duplicar listener nos dropdowns da
+    aba Demandas (que continuam no DOM mesmo com a aba escondida).
+  - Visão por Frente: barra por frente (`d.origem`) com % concluída/ativa +
+    contagem total/andamento/teste/concluída/atrasada.
+  - Drill-down: clicar em "Em andamento"/"Em teste/validação" abre a aba Demandas
+    filtrada por um **grupo** de status — como o dropdown de Status da aba Demandas
+    só aceita um valor único, foi criado um filtro à parte
+    (`this.filtroGrupoStatus`, consumido em `filtrarDemandas()`), limpo
+    automaticamente assim que o usuário mexe manualmente em qualquer filtro da aba
+    Demandas. "Concluídas" e "Atrasadas" reaproveitam os filtros de Status/SLA que
+    já existiam. `filtrarPorStatus()` (usado pelo Dashboard) ganhou um pequeno
+    helper novo (`ativarAbaSemResetarFiltros()`) em vez de duplicar a troca de aba
+    inline — **não** foi trocado para chamar `trocarAba()` porque essa função reseta
+    os filtros de Demandas ao entrar na aba, o que apagaria o filtro que acabou de
+    ser aplicado.
+  - `responsavel`/`origem`/`sistema` são texto livre sem normalização (confirmado:
+    nem existe campo de `responsavel` no modal de cadastro, só chega via importação
+    Excel/JSON) — os dropdowns desses filtros são construídos a partir dos valores
+    distintos que já existem nos dados, sem lista fixa.
+- **Bug real achado e corrigido durante o teste**: com 7 filtros (a aba Demandas só
+  tem 5), a barra quebra linha em telas menores e um dropdown aberto ficava coberto
+  por um filtro da linha seguinte — `style.css` dá o mesmo `z-index: 30` pra
+  `.custom-select` aberto ou fechado. Corrigido com `.reu .custom-select.open {
+  z-index: 60; }` escopado só pra esta aba (não mexe no `style.css` global). Também
+  corrigido um layout onde os 5 números de estatística por frente (total/andamento/
+  teste/concluída/atrasada) invadiam visualmente a barra por falta de espaço numa
+  coluna de largura fixa — números movidos pra uma linha própria abaixo da barra.
+- **Testado com Playwright** (Chromium headless, dados reais do Supabase — sem
+  login, modo leitura): as 4 abas corretas (Kanban sumiu), KPIs plausíveis (62
+  total / 43 andamento / 1 teste / 33 atrasadas no momento do teste), campos de
+  data do período personalizado aparecem, clique em "Em andamento" abre Demandas
+  já filtrado (confirmado calculando o total de demandas do grupo direto no DOM),
+  clique em "Atrasadas" aplica `#filterSLA = vencido` corretamente, Dashboard/
+  Demandas/Insights continuam funcionando sem erro, tema claro conferido
+  visualmente (contraste ok). Único erro de console foi um 401 do Supabase — já
+  documentado em sessão anterior como comportamento esperado neste ambiente de
+  teste sem login, sem relação com esta mudança.
+- **Pendente pra próxima sessão (Fase 2)**: evolução semanal, comparação com
+  semana anterior, backlog, aging, pontos de atenção, próximos passos. Limitação
+  real a trazer de volta pra discussão nessa fase: não existe histórico de mudança
+  de status (sem tabela de auditoria) — "está em teste há X dias" só pode ser
+  aproximado por `dataAbertura` (idade total), não pelo tempo real na etapa atual.
