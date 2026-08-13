@@ -1192,6 +1192,11 @@
             }
 
             editarDemanda(numero) {
+                // Se o usuário estava selecionando texto (clique+arrastar+soltar), o mouseup
+                // dispara um "click" nativo mesmo sem intenção de abrir o modal. Ignora nesse caso.
+                const selecao = window.getSelection();
+                if (selecao && selecao.toString().length > 0) return;
+
                 const demanda = this.demandas.find(d => d.numero === numero);
                 if (!demanda) return;
 

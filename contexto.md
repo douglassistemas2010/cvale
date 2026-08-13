@@ -148,6 +148,24 @@ Demandas atualizadas (campo `observacoes`; `status` só quando mudou):
 Não mexi no ranking/priorização (`numeroOrdem`, coluna "Prioridade" 1º–11º do print) nem no campo
 `numero` do caso de renumeração — usuário só pediu observações e status.
 
+## 13/08/2026 — Fix: seleção de texto (drag) abria o modal de edição sem querer
+
+Usuário reportou (com print): ao clicar, arrastar e soltar pra selecionar/copiar texto de uma
+célula da tabela de Demandas (ex.: título "1273034 - Cálculo de Deslocamento"), o mouseup no fim
+do arraste era interpretado como clique na linha e o modal de editar demanda abria sozinho, mesmo
+sem intenção de abrir nada.
+
+**Causa:** a `<tr class="group-item">` usa `onclick="app.editarDemanda(...)"` (`app.js` ~linha
+1526) — o evento `click` nativo do navegador dispara no `mouseup` independente de ter havido
+seleção de texto no meio do gesto (mousedown → arrastar → mouseup no mesmo elemento conta como
+clique).
+
+**Fix:** no início de `editarDemanda(numero)` (`app.js` linha 1194), checa
+`window.getSelection().toString()` — se houver texto selecionado no momento do clique, a função
+retorna sem abrir o modal. Um clique normal (sem arrastar) já limpa qualquer seleção anterior no
+próprio `mousedown`, então essa checagem só pega o caso real de "acabei de selecionar texto".
+Mudança de 4 linhas, sem tocar em mais nada.
+
 ## Pendências
 
 - Decidir com o usuário como tratar a comparação XLSX × Cockpit (ponto 1 da sessão de 03/08 acima)
