@@ -244,6 +244,27 @@
                 inset 0 1px 2px rgba(255, 255, 255, 0.2);
         }
 
+        /* Verde neon — mesma paleta do ícone de status Concluído (#10b981/#059669),
+           usado nas ações positivas "Nova Demanda" e "Salvar" no modal. */
+        .btn-neon-green {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+            box-shadow:
+                0 12px 32px rgba(16, 185, 129, 0.45),
+                0 4px 12px rgba(16, 185, 129, 0.3),
+                0 0 20px rgba(16, 185, 129, 0.35),
+                inset 0 1px 2px rgba(255, 255, 255, 0.2);
+        }
+
+        .btn-neon-green:hover {
+            transform: translateY(-4px);
+            box-shadow:
+                0 16px 40px rgba(16, 185, 129, 0.65),
+                0 6px 16px rgba(16, 185, 129, 0.4),
+                0 0 28px rgba(16, 185, 129, 0.5),
+                inset 0 1px 2px rgba(255, 255, 255, 0.2);
+        }
+
         /* Botão Atualizar - Design Premium */
         .btn-refresh {
             display: inline-flex;

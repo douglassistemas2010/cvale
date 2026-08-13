@@ -166,6 +166,27 @@ retorna sem abrir o modal. Um clique normal (sem arrastar) já limpa qualquer se
 próprio `mousedown`, então essa checagem só pega o caso real de "acabei de selecionar texto".
 Mudança de 4 linhas, sem tocar em mais nada.
 
+## 13/08/2026 (2) — Verde neon: demanda Concluída (tabela) + botões "Salvar" e "Nova Demanda"
+
+Pedido do usuário, a partir do mesmo print da tabela de Demandas.
+
+- **Tabela de Demandas:** quando `status === 'Concluído'`, o número (ID) e o título da demanda
+  passam a ser renderizados em verde neon (`#10b981` + `text-shadow` de glow), reaproveitando a
+  mesma paleta já usada no ícone de status Concluído da linha. Implementado em
+  `app.js` (`renderizarTabelaDemandas`, variável `corNumeroTitulo` calculada a partir de
+  `isConcluido` — antes só controlava o ícone, agora também controla a cor das duas células).
+- **Botões "Nova Demanda" (topo) e "Salvar" (rodapé do modal):** nova classe `.btn-neon-green` em
+  `style.css` (mesmo gradiente/glow `#10b981`→`#059669`), aplicada nos dois botões em `index.html`
+  no lugar de `btn-primary`. O botão "OK" genérico do modal de confirmação (`mostrarConfirmacao`,
+  usado por outras ações não relacionadas a salvar/criar) continua com `btn-primary` — não foi
+  tocado, para não mudar a cor de confirmações genéricas (ex.: excluir) que não pediram o destaque.
+- Testado com Playwright (Chrome real, servindo os 3 arquivos localmente, API real do Supabase
+  bloqueada por rota pra manter dados determinísticos — cuidado: bloquear qualquer URL contendo
+  "supabase" também derruba a lib `supabase-js` do CDN e quebra a inicialização do app; o bloqueio
+  certo é só no host do projeto, `chnebivdbwabitgvmkat.supabase.co`). Confirmado visualmente: linha
+  Concluída com número/título em verde neon e ícone de check já existente, botão "Nova Demanda" e
+  botão "Salvar" do modal ambos verde neon.
+
 ## Pendências
 
 - Decidir com o usuário como tratar a comparação XLSX × Cockpit (ponto 1 da sessão de 03/08 acima)

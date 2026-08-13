@@ -1516,10 +1516,17 @@
                             return `${parseInt(dia)} ${meses[parseInt(mes) - 1]} ${ano}`;
                         };
 
+                        // Verde neon (mesma paleta do ícone de status abaixo) para número e título
+                        // quando a demanda está Concluída — destaque visual imediato na tabela.
+                        const isConcluido = d.status === 'Concluído';
+                        const corNumeroTitulo = isConcluido
+                            ? 'color: #10b981; text-shadow: 0 0 8px rgba(16, 185, 129, 0.6);'
+                            : 'color: var(--text-primary);';
+
                         // Ícone de status especial: Concluído (verde) ou Top 3 C4C (vermelho)
                         // Sempre tem um espaço de 28px para manter alinhamento
                         let iconeStatus = '<span style="display: inline-block; width: 28px; height: 28px;"></span>'; // placeholder invisível
-                        if (d.status === 'Concluído') {
+                        if (isConcluido) {
                             // Ícone OK verde para demandas concluídas
                             iconeStatus = '<span title="Concluído" style="display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; background: linear-gradient(135deg, #10b981, #059669); border-radius: 6px; box-shadow: 0 0 12px rgba(16, 185, 129, 0.5), 0 0 20px rgba(16, 185, 129, 0.3);"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>';
                         } else if (frente === 'C4C' && idx < 3) {
@@ -1534,8 +1541,8 @@
                                         <span data-icon="copy"></span>
                                     </button>
                                 </td>
-                                <td style="color: var(--text-primary);"><strong>${numEsc}</strong></td>
-                                <td style="color: var(--text-primary);">${tituloEsc}</td>
+                                <td style="${corNumeroTitulo}"><strong>${numEsc}</strong></td>
+                                <td style="${corNumeroTitulo}">${tituloEsc}</td>
                                 <td style="text-align: center;">
                                     <div class="order-controls" onclick="event.stopPropagation();" style="display: flex; align-items: center; justify-content: center; gap: 0.4rem;">
                                         <button class="order-btn" onclick="app.moverDemanda('${numJsEsc}', '${frenteJsEsc}', 'up')" title="Subir prioridade">▲</button>
