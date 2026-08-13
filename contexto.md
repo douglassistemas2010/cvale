@@ -1,4 +1,4 @@
-# Contexto — Minhas Atividades (controle_demandas_atividades)
+# Contexto — Minhas Atividades (Controle de Minhas Atividades)
 
 Site pessoal estático (GitHub Pages) publicado em https://douglassistemas2010.github.io/cvale/
 Repositório próprio (`origin` = `github.com/douglassistemas2010/cvale.git`), independente do
@@ -284,3 +284,25 @@ título/descrição na mão.
 - Testado com Playwright: conferido visualmente lado a lado com o print original do usuário (coluna
   copiar enxuta, cabeçalho Priorização centralizado sobre os dados, coluna Ações ausente) e
   confirmado por automação que o botão Excluir aparece só no modal de edição, não em Nova Demanda.
+
+## 13/08/2026 — Pasta renomeada: `controle_demandas_atividades` → `Controle de Minhas Atividades`
+
+- A pedido do usuário, a pasta física deste projeto foi renomeada para
+  `Controle de Minhas Atividades`, alinhando o nome da pasta ao nome exibido do produto ("Minhas
+  Atividades", já rebatizado em 10/08/2026 — ver histórico em `ESTRUTURA_PASTAS.md` §14). Nome
+  funcional, técnico e exibido não mudaram, só a pasta no disco.
+- **Execução não foi trivial:** a pasta original estava com um handle aberto por algum processo
+  (provavelmente indexação/antivírus do Windows, não uma janela do VSCode — o usuário já tinha
+  fechado o que estava usando), e nem `Move-Item`/`mv`/`ren` conseguiram renomear diretamente
+  (erro consistente "processo não pode acessar o arquivo"). Contorno: `robocopy /E /COPYALL` para
+  copiar todo o conteúdo (incluindo `.git`, histórico e remote preservados — 108 diretórios, 160
+  arquivos, 0 falhas) para a pasta com o nome novo. Verificado `git status`/`git log`/`git remote -v`
+  na cópia: tudo íntegro.
+- **Pendência:** a pasta antiga `controle_demandas_atividades/` continua no disco (não foi possível
+  apagar, mesmo bloqueio de handle). Precisa ser removida manualmente depois que o processo que
+  está com o handle aberto for identificado/fechado (reiniciar a máquina resolve com certeza, se
+  nada mais funcionar). Até lá, **usar sempre a pasta nova** (`Controle de Minhas Atividades/`) como
+  fonte de trabalho — a antiga é um resquício órfão, sem git remoto ativo sendo usado a partir dela.
+- Referências textuais internas atualizadas: título deste `contexto.md` e o exemplo `cd` no
+  `README.md`. `ESTRUTURA_PASTAS.md` (mapa, registro mestre e histórico de decisões) atualizado na
+  mesma sessão.

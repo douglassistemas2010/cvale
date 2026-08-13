@@ -73,7 +73,7 @@ normalmente (Nova Demanda, editar, excluir, arrastar no Kanban etc.).
 ## 4. Publicar no GitHub Pages
 
 ```bash
-cd controle_demandas_atividades
+cd "Controle de Minhas Atividades"
 git init
 git add .
 git commit -m "Minhas Atividades - versao publica com Supabase"
