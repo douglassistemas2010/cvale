@@ -374,6 +374,10 @@
                 this.filtroReuniao = { periodo: 'semana_anterior', inicio: '', fim: '', frente: '', status: '', responsavel: '', prioridade: '', sistema: '', tipo: '' };
                 // Grupo de status aplicado pela Reunião Semanal ao clicar num KPI (drill-down para a aba Demandas); null = sem filtro de grupo ativo
                 this.filtroGrupoStatus = null;
+                // Pontos importantes anotados na Reunião Semanal (bloco ao lado das torres) — só localStorage, não vai pro Supabase
+                this.pontosReuniao = JSON.parse(localStorage.getItem('cockpit_pontos_reuniao') || '[]');
+                // Demandas por frente do último render da Reunião Semanal (base pro modal ao clicar numa torre)
+                this.reuniaoFrentesDemandas = {};
                 this.inicializar();
             }
 
@@ -795,6 +799,14 @@
                 document.getElementById('modalDemanda').addEventListener('click', (e) => {
                     if (e.target.id === 'modalDemanda') {
                         this.fecharModal();
+                    }
+                });
+
+                // Modal de demandas da torre (Reunião Semanal → Visão por Frente)
+                document.getElementById('closeModalTorre').addEventListener('click', () => this.fecharModalTorreDemandas());
+                document.getElementById('modalTorreDemandas').addEventListener('click', (e) => {
+                    if (e.target.id === 'modalTorreDemandas') {
+                        this.fecharModalTorreDemandas();
                     }
                 });
 
@@ -2325,11 +2337,16 @@
                     const fmtData = (d) => d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
                     const rotuloPeriodo = `${rotulosPeriodo[f.periodo] || 'Semana anterior'} (${fmtData(inicio)} a ${fmtData(fim)})`;
 
-                    // Visão por frente — agora segue o período selecionado (mesma base dos KPIs)
+                    // Visão por frente — agora segue o período selecionado (mesma base dos KPIs).
+                    // frentesDemandas guarda as demandas de cada coluna (mesmo conjunto que soma o
+                    // total da torre) pra alimentar o modal ao clicar numa torre, sem duplicar a
+                    // lógica de filtro.
                     const frentes = {};
+                    const frentesDemandas = {};
                     baseFiltrada.forEach(d => {
                         const nome = (d.origem || '').trim() || 'Outro';
                         if (!frentes[nome]) frentes[nome] = { total: 0, andamento: 0, teste: 0, concluida: 0, atrasada: 0 };
+                        (frentesDemandas[nome] || (frentesDemandas[nome] = [])).push(d);
                         const fr = frentes[nome];
                         fr.total++;
                         if (d.status === 'Concluído') { fr.concluida++; return; }
@@ -2339,6 +2356,7 @@
                     });
                     const frentesArr = Object.entries(frentes).sort((a, b) => b[1].total - a[1].total);
                     const maxFrenteTotal = Math.max(1, ...frentesArr.map(([, v]) => v.total));
+                    this.reuniaoFrentesDemandas = frentesDemandas;
 
                     // Insights curtos derivados só dos números já calculados acima — nada inventado,
                     // nenhuma comparação com período anterior ainda (isso fica pra Fase 2).
@@ -2412,11 +2430,17 @@
                                que os 5 números da coluna de estatísticas fiquem espremidos ao lado da
                                barra (já aconteceu com 3 colunas lado a lado: número invadia a barra). */
                             .reu-empty { padding: 2rem; text-align: center; color: var(--text-tertiary); }
+                            /* Divide a tela entre a Visão por Frente (torres) e o bloco de pontos da
+                               reunião — colapsa pra 1 coluna em telas menores. */
+                            .reu-split { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(260px, 1fr); gap: 1.5rem; align-items: start; }
+                            @media (max-width: 900px) { .reu-split { grid-template-columns: 1fr; } }
                             /* Torres (gráfico de colunas empilhadas) — a barra fica numa zona de altura
                                fixa (.reu-torre-barwrap) pra que o rótulo/frente de todas as colunas
                                alinhe na mesma linha, mesmo com alturas de torre diferentes. */
                             .reu-torres { display: flex; align-items: flex-start; gap: 1.25rem; overflow-x: auto; padding-bottom: 0.25rem; }
-                            .reu-torre-col { flex: 1; min-width: 76px; max-width: 130px; display: flex; flex-direction: column; align-items: center; }
+                            .reu-torre-col { flex: 1; min-width: 76px; max-width: 130px; display: flex; flex-direction: column; align-items: center; cursor: pointer; transition: transform 0.15s ease; }
+                            .reu-torre-col:hover { transform: translateY(-2px); }
+                            .reu-torre-col:hover .reu-torre-bar { box-shadow: 0 0 0 1px var(--glass-border) inset, 0 0 14px rgba(139,92,246,0.4); }
                             .reu-torre-barwrap { height: 180px; width: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; }
                             .reu-torre-valor { font-size: 0.85rem; font-weight: 700; color: var(--text-primary); margin-bottom: 0.35rem; font-variant-numeric: tabular-nums; }
                             .reu-torre-bar { width: 100%; max-width: 58px; border-radius: 8px 8px 3px 3px; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 0 0 1px var(--glass-border) inset; }
@@ -2428,6 +2452,17 @@
                             .reu-insights { display: flex; flex-direction: column; gap: 0.6rem; }
                             .reu-insight { display: flex; align-items: flex-start; gap: 0.6rem; padding: 0.6rem 0.75rem; border-radius: 10px; background: rgba(148,163,184,0.06); font-size: 0.85rem; color: var(--text-secondary); line-height: 1.4; }
                             .reu-insight span { flex-shrink: 0; }
+                            /* Pontos para a reunião — lista curta em tópicos, ao lado da Visão por
+                               Frente (.reu-split). Só localStorage, sem sincronizar com Supabase. */
+                            .reu-pontos { display: flex; flex-direction: column; min-height: 100%; }
+                            .reu-pontos-form { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
+                            .reu-pontos-form input { flex: 1; }
+                            .reu-pontos-lista { display: flex; flex-direction: column; gap: 0.5rem; list-style: none; margin: 0; padding: 0; max-height: 320px; overflow-y: auto; }
+                            .reu-ponto-item { display: flex; align-items: flex-start; gap: 0.6rem; padding: 0.55rem 0.7rem; border-radius: 10px; background: rgba(148,163,184,0.06); font-size: 0.85rem; color: var(--text-secondary); line-height: 1.4; }
+                            .reu-ponto-num { flex-shrink: 0; font-weight: 700; color: var(--text-tertiary); font-variant-numeric: tabular-nums; }
+                            .reu-ponto-texto { flex: 1; word-break: break-word; white-space: pre-wrap; }
+                            .reu-ponto-remover { flex-shrink: 0; background: none; border: none; color: var(--text-tertiary); font-size: 1.1rem; line-height: 1; cursor: pointer; padding: 0 0.15rem; transition: color 0.15s ease; }
+                            .reu-ponto-remover:hover { color: #ef4444; }
                             @media (max-width: 1100px) { .reu-kpis { grid-template-columns: repeat(2, 1fr); } }
                         </style>
 
@@ -2475,36 +2510,57 @@
                                 </div>
                             </div>
 
-                            <div class="reu-panel">
-                                <div class="reu-panel-title">Visão por Frente</div>
-                                ${frentesArr.length ? `
-                                    <div class="reu-torres">
-                                        ${frentesArr.map(([nome, v]) => {
-                                            const alturaTotal = Math.round((v.total / maxFrenteTotal) * 85); // 85% deixa espaço pro número acima da torre
-                                            const segConcl = v.total ? Math.round((v.concluida / v.total) * 100) : 0;
-                                            const segAndam = v.total ? Math.round((v.andamento / v.total) * 100) : 0;
-                                            const segTeste = Math.max(0, 100 - segConcl - segAndam);
-                                            return `<div class="reu-torre-col">
-                                                <div class="reu-torre-barwrap">
-                                                    <div class="reu-torre-valor">${v.total}</div>
-                                                    <div class="reu-torre-bar" style="height:${alturaTotal}%;">
-                                                        <div style="height:${segTeste}%; background:#1d4ed8;"></div>
-                                                        <div style="height:${segAndam}%; background:${corDaFrente(nome)};"></div>
-                                                        <div style="height:${segConcl}%; background:#16a34a;"></div>
+                            <div class="reu-split">
+                                <div class="reu-panel">
+                                    <div class="reu-panel-title">Visão por Frente</div>
+                                    ${frentesArr.length ? `
+                                        <div class="reu-torres">
+                                            ${frentesArr.map(([nome, v]) => {
+                                                const alturaTotal = Math.round((v.total / maxFrenteTotal) * 85); // 85% deixa espaço pro número acima da torre
+                                                const segConcl = v.total ? Math.round((v.concluida / v.total) * 100) : 0;
+                                                const segAndam = v.total ? Math.round((v.andamento / v.total) * 100) : 0;
+                                                const segTeste = Math.max(0, 100 - segConcl - segAndam);
+                                                return `<div class="reu-torre-col" onclick="app.abrirModalTorreDemandas('${escapeAttrJs(nome)}')" title="Ver as ${v.total} demanda(s) desta frente">
+                                                    <div class="reu-torre-barwrap">
+                                                        <div class="reu-torre-valor">${v.total}</div>
+                                                        <div class="reu-torre-bar" style="height:${alturaTotal}%;">
+                                                            <div style="height:${segTeste}%; background:#1d4ed8;"></div>
+                                                            <div style="height:${segAndam}%; background:${corDaFrente(nome)};"></div>
+                                                            <div style="height:${segConcl}%; background:#16a34a;"></div>
+                                                        </div>
                                                     </div>
-                                                </div>
-                                                <div class="reu-torre-label">${getBadgeFrente(nome)}</div>
-                                                <div class="reu-torre-atraso">${v.atrasada ? v.atrasada + ' atras.' : ''}</div>
-                                            </div>`;
-                                        }).join('')}
-                                    </div>
-                                    <div class="reu-torres-legenda">
-                                        <span><i style="background:#1d4ed8;"></i> Em teste/validação</span>
-                                        <span><i style="background:var(--text-tertiary);"></i> Em andamento (cor da frente)</span>
-                                        <span><i style="background:#16a34a;"></i> Concluída</span>
-                                        <span style="color:#ef4444;"><i style="background:#ef4444;"></i> Atrasadas (subconjunto, não somam na altura)</span>
-                                    </div>
-                                ` : '<div class="reu-empty">Nenhuma demanda no filtro atual</div>'}
+                                                    <div class="reu-torre-label">${getBadgeFrente(nome)}</div>
+                                                    <div class="reu-torre-atraso">${v.atrasada ? v.atrasada + ' atras.' : ''}</div>
+                                                </div>`;
+                                            }).join('')}
+                                        </div>
+                                        <div class="reu-torres-legenda">
+                                            <span><i style="background:#1d4ed8;"></i> Em teste/validação</span>
+                                            <span><i style="background:var(--text-tertiary);"></i> Em andamento (cor da frente)</span>
+                                            <span><i style="background:#16a34a;"></i> Concluída</span>
+                                            <span style="color:#ef4444;"><i style="background:#ef4444;"></i> Atrasadas (subconjunto, não somam na altura)</span>
+                                        </div>
+                                    ` : '<div class="reu-empty">Nenhuma demanda no filtro atual</div>'}
+                                </div>
+
+                                <div class="reu-panel reu-pontos">
+                                    <div class="reu-panel-title">Pontos para a Reunião</div>
+                                    <form class="reu-pontos-form" onsubmit="app.submeterPontoReuniao(event)">
+                                        <input type="text" id="inputNovoPontoReuniao" class="form-input" placeholder="Adicionar ponto..." maxlength="300" autocomplete="off">
+                                        <button type="submit" class="btn btn-neon-green btn-sm">Adicionar</button>
+                                    </form>
+                                    ${this.pontosReuniao.length ? `
+                                        <ul class="reu-pontos-lista">
+                                            ${this.pontosReuniao.map((p, i) => `
+                                                <li class="reu-ponto-item">
+                                                    <span class="reu-ponto-num">${i + 1}.</span>
+                                                    <span class="reu-ponto-texto">${escapeHtml(p.texto)}</span>
+                                                    <button type="button" class="reu-ponto-remover" onclick="app.removerPontoReuniao(${p.id})" title="Remover">&times;</button>
+                                                </li>
+                                            `).join('')}
+                                        </ul>
+                                    ` : '<div class="reu-empty">Nenhum ponto adicionado ainda.</div>'}
+                                </div>
                             </div>
 
                             <div class="reu-panel">
@@ -2594,6 +2650,78 @@
                 }
 
                 this.filtrarDemandas();
+            }
+
+            // ===== PONTOS PARA A REUNIÃO =====
+            // Lista curta de tópicos anotados na Reunião Semanal (ao lado da Visão por Frente),
+            // só pra apoiar a apresentação — não é uma demanda, não vai pro Supabase, fica só no
+            // localStorage deste navegador.
+            submeterPontoReuniao(e) {
+                e.preventDefault();
+                const input = document.getElementById('inputNovoPontoReuniao');
+                this.adicionarPontoReuniao(input ? input.value : '');
+            }
+
+            adicionarPontoReuniao(texto) {
+                const t = (texto || '').trim();
+                if (!t) return;
+                this.pontosReuniao.push({ id: Date.now(), texto: t });
+                localStorage.setItem('cockpit_pontos_reuniao', JSON.stringify(this.pontosReuniao));
+                this.renderizarReuniaoSemanal();
+                document.getElementById('inputNovoPontoReuniao')?.focus();
+            }
+
+            removerPontoReuniao(id) {
+                this.pontosReuniao = this.pontosReuniao.filter(p => p.id !== id);
+                localStorage.setItem('cockpit_pontos_reuniao', JSON.stringify(this.pontosReuniao));
+                this.renderizarReuniaoSemanal();
+            }
+
+            // ===== MODAL DE DEMANDAS DA TORRE =====
+            // Clique numa torre da Visão por Frente abre as demandas que compõem exatamente
+            // aquela coluna (this.reuniaoFrentesDemandas, calculado no último render de
+            // renderizarReuniaoSemanal — mesmo conjunto que soma o total da torre, sem duplicar
+            // a lógica de filtro/período aqui).
+            abrirModalTorreDemandas(nome) {
+                const lista = this.reuniaoFrentesDemandas[nome] || [];
+                const modal = document.getElementById('modalTorreDemandas');
+                const titulo = document.getElementById('modalTorreDemandasTitulo');
+                const corpo = document.getElementById('modalTorreDemandasCorpo');
+                if (!modal || !titulo || !corpo) return;
+
+                titulo.innerHTML = `${getBadgeFrente(nome)} <span style="font-weight: 400; color: var(--text-tertiary); font-size: 0.9rem;">${lista.length} demanda${lista.length !== 1 ? 's' : ''} no filtro atual</span>`;
+
+                const ordenadas = [...lista].sort((a, b) => (a.status === 'Concluído') - (b.status === 'Concluído') || normalizarTexto(a.titulo).localeCompare(normalizarTexto(b.titulo)));
+                corpo.innerHTML = ordenadas.length ? ordenadas.map(d => {
+                    const isConcluido = d.status === 'Concluído';
+                    const vencido = !isConcluido && d.obterStatusSLA() === 'vencido';
+                    const corTexto = isConcluido ? 'color:#10b981;text-shadow:0 0 8px rgba(16,185,129,0.5);' : '';
+                    return `<div class="modal-torre-item" onclick="app.abrirDemandaDaTorre('${escapeAttrJs(d.numero)}')">
+                        <div class="modal-torre-item-topo">
+                            <span class="modal-torre-item-numero" style="${corTexto}">${escapeHtml(d.numero)}</span>
+                            ${templateBadgePrioridade(d.prioridade)}
+                        </div>
+                        <div class="modal-torre-item-titulo" style="${corTexto}">${escapeHtml(d.titulo)}</div>
+                        <div class="modal-torre-item-rodape">
+                            <span class="modal-torre-item-status${vencido ? ' vencido' : ''}">${escapeHtml(d.status)}</span>
+                            ${d.responsavel ? `<span class="modal-torre-item-resp">${escapeHtml(d.responsavel)}</span>` : ''}
+                        </div>
+                    </div>`;
+                }).join('') : '<div class="reu-empty">Nenhuma demanda nesta frente para o filtro atual.</div>';
+
+                modal.classList.add('active');
+            }
+
+            fecharModalTorreDemandas() {
+                document.getElementById('modalTorreDemandas')?.classList.remove('active');
+            }
+
+            // Item clicado dentro do modal da torre: fecha o modal e abre a demanda pra
+            // edição/consulta, reaproveitando editarDemanda() (não depende da aba Demandas
+            // estar ativa).
+            abrirDemandaDaTorre(numero) {
+                this.fecharModalTorreDemandas();
+                this.editarDemanda(numero);
             }
 
             // Insights = análise de gestão (não repete o Dashboard). Combina um bloco

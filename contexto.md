@@ -441,3 +441,45 @@ A pedido do usuário, em cima do que foi entregue no item anterior (mesmo dia):
   claro conferido visualmente (torre escurece sozinha em C4C, igual ao badge
   já fazia). Único console error continua sendo o 401 do Supabase já
   documentado (ambiente de teste sem login).
+
+## 13/08/2026 (4) — Pontos para a Reunião + torres clicáveis (modal de demandas)
+
+A pedido do usuário, dois itens adicionados na Reunião Semanal em cima do que já existia:
+
+- **Bloco "Pontos para a Reunião"**: painel novo ao lado da Visão por Frente
+  (`.reu-split`, grid 2 colunas — `1.4fr / 1fr`, colapsa pra 1 coluna em
+  telas ≤900px), pra anotar tópicos rápidos antes/durante a reunião em
+  formato de lista numerada (adicionar + remover, sem edição inline). Só
+  `localStorage` (`cockpit_pontos_reuniao`), **não** vai pro Supabase — é
+  anotação pessoal do navegador, não dado de negócio. `app.pontosReuniao`
+  (array `{id, texto}`), métodos `adicionarPontoReuniao`/
+  `removerPontoReuniao`/`submeterPontoReuniao` (`app.js`). Texto escapado
+  com `escapeHtml` (mesma disciplina de XSS do resto do app, já que a
+  leitura do site é pública).
+- **Torres da Visão por Frente ficaram clicáveis**: clicar numa coluna abre
+  um modal listando exatamente as demandas que compõem aquela torre (mesmo
+  conjunto — filtros de estado + período — que soma o `total` exibido em
+  cima da barra). Implementado guardando `this.reuniaoFrentesDemandas`
+  (mapa `frente → Demanda[]`) no mesmo loop que já calculava os totais por
+  frente em `renderizarReuniaoSemanal()`, pra não duplicar a lógica de
+  filtro. Modal novo (`#modalTorreDemandas`, `index.html`), CSS estático em
+  `style.css` (`.modal-torre-*`, reaproveita `.modal`/`.modal-content`/
+  `.modal-header` globais — funciona nos dois temas sem CSS extra). Clicar
+  num item do modal fecha o modal da torre e abre `editarDemanda()`
+  diretamente (não depende da aba Demandas estar ativa) — dá pra ver/editar
+  a demanda sem sair da Reunião Semanal.
+  - **Decisão consciente**: não foi criado um drill-down alternativo
+    "navegar até a aba Demandas filtrando por frente" (a aba Demandas não
+    tem filtro de Frente nem de período hoje — só tipo/status/prioridade/
+    SLA/busca). O modal sozinho já cobre "ver as demandas que contam na
+    torre" com 100% de fidelidade ao filtro/período da tela; abrir a
+    demanda direto do modal cobre o caso de precisar editar. Considerado
+    escopo suficiente pro pedido.
+- Testado com Playwright (Chrome real, dados injetados em memória — rede do
+  Supabase bloqueada só no host do projeto, igual às sessões anteriores):
+  adicionar/remover pontos funciona e persiste após reload (`localStorage`
+  confirmado diretamente), clique na torre C4C abriu o modal com as 3
+  demandas certas (`1000000001/02/03`), clique num item fechou o modal da
+  torre e abriu "Editar 1000000001" corretamente, layout em split conferido
+  visualmente nos dois temas (claro e escuro), demanda Concluída dentro do
+  modal manteve o verde neon já usado na tabela.

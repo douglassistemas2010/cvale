@@ -1195,6 +1195,74 @@
             transform: scale(1.1);
         }
 
+        /* MODAL DEMANDAS DA TORRE (Reunião Semanal → Visão por Frente) */
+        .modal-torre-content {
+            max-width: 620px;
+        }
+
+        .modal-torre-corpo {
+            display: flex;
+            flex-direction: column;
+            gap: 0.6rem;
+            max-height: 65vh;
+            overflow-y: auto;
+        }
+
+        .modal-torre-item {
+            background: var(--glass);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            padding: 0.8rem 1rem;
+            cursor: pointer;
+            transition: transform 0.15s ease, background 0.15s ease;
+        }
+
+        .modal-torre-item:hover {
+            transform: translateY(-1px);
+            background: rgba(148, 163, 184, 0.08);
+        }
+
+        .modal-torre-item-topo {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.6rem;
+            margin-bottom: 0.3rem;
+        }
+
+        .modal-torre-item-numero {
+            font-weight: 700;
+            font-size: 0.85rem;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .modal-torre-item-titulo {
+            font-size: 0.9rem;
+            color: var(--text-primary);
+            line-height: 1.35;
+        }
+
+        .modal-torre-item-rodape {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            margin-top: 0.5rem;
+            font-size: 0.75rem;
+            color: var(--text-tertiary);
+        }
+
+        .modal-torre-item-status {
+            font-weight: 600;
+        }
+
+        .modal-torre-item-status.vencido {
+            color: #ef4444;
+        }
+
+        .modal-torre-item-resp::before {
+            content: '· ';
+        }
+
         .form-group {
             margin-bottom: 1.5rem;
         }
