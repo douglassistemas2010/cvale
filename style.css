@@ -2392,9 +2392,9 @@
             position: relative;
         }
 
-        /* Container das linhas de demanda — padding-left compensa o label fixo de 380px */
+        /* Container das linhas de demanda — padding-left compensa o label fixo de 520px */
         .timeline-rows-container {
-            padding-left: 380px;
+            padding-left: 520px;
             position: relative;
         }
 
@@ -2409,8 +2409,8 @@
         }
 
         .timeline-header-labels {
-            min-width: 380px;
-            max-width: 380px;
+            min-width: 520px;
+            max-width: 520px;
             flex-shrink: 0;
             padding: 0.6rem 1rem;
             font-size: 0.75rem;
@@ -2542,8 +2542,8 @@
         }
 
         .timeline-row-label {
-            min-width: 380px;
-            max-width: 380px;
+            min-width: 520px;
+            max-width: 520px;
             flex-shrink: 0;
             padding: 0.35rem 1rem;
             display: flex;
@@ -2551,7 +2551,6 @@
             gap: 0.4rem;
             font-size: 0.78rem;
             color: var(--text-secondary);
-            overflow: hidden;
         }
 
         .timeline-row-label .demanda-titulo {
@@ -2845,8 +2844,8 @@
             }
             .timeline-header-labels,
             .timeline-row-label {
-                min-width: 200px;
-                max-width: 200px;
+                min-width: 240px;
+                max-width: 240px;
             }
             .timeline-detail-panel {
                 width: 100vw;
