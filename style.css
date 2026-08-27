@@ -2844,8 +2844,16 @@
             }
             .timeline-header-labels,
             .timeline-row-label {
-                min-width: 200px;
-                max-width: 200px;
+                min-width: 280px;
+                max-width: 280px;
+            }
+            .timeline-rows-container {
+                padding-left: 280px;
+            }
+            .timeline-row-label .demanda-titulo {
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
             }
             .timeline-detail-panel {
                 width: 100vw;
