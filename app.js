@@ -965,6 +965,10 @@
                 if (abaAtiva === 'insights') {
                     this.renderizarInsights();
                 }
+
+                if (abaAtiva === 'timeline') {
+                    this.renderizarTimeline();
+                }
             }
 
             atualizarIcones() {
@@ -2992,6 +2996,586 @@
                 }
             }
 
+            // ================================================================
+            // TIMELINE — Visão gerencial de demandas no tempo
+            // ================================================================
+
+            // Estado interno da Timeline
+            _timelineState = {
+                periodo: 'mes',        // 'semana' | 'mes' | 'trimestre'
+                offset: 0,            // deslocamento em relação ao período atual (0 = atual)
+                filtroFrente: '',     // '' = Todas
+                filtroStatus: '',
+                filtroPrioridade: '',
+                filtroBusca: '',
+                mostrarConcluidas: true,
+                frentesColapsadas: {} // { 'C4C': true, ... }
+            };
+
+            // Retorna { inicio, fim } (Date) para o período atual da timeline
+            _timelineIntervalo() {
+                const hoje = new Date();
+                hoje.setHours(0, 0, 0, 0);
+                const s = this._timelineState;
+
+                if (s.periodo === 'semana') {
+                    const diaSemana = hoje.getDay();
+                    const seg = new Date(hoje);
+                    seg.setDate(hoje.getDate() - (diaSemana === 0 ? 6 : diaSemana - 1) + (s.offset * 7));
+                    const dom = new Date(seg);
+                    dom.setDate(seg.getDate() + 6);
+                    dom.setHours(23, 59, 59, 999);
+                    return { inicio: seg, fim: dom };
+                }
+
+                if (s.periodo === 'trimestre') {
+                    const mesAtual = hoje.getMonth() + (s.offset * 3);
+                    const ano = hoje.getFullYear() + Math.floor(mesAtual / 12);
+                    const mes = ((mesAtual % 12) + 12) % 12;
+                    const trimInicio = Math.floor(mes / 3) * 3;
+                    const inicio = new Date(ano, trimInicio, 1);
+                    const fim = new Date(ano, trimInicio + 3, 0, 23, 59, 59, 999);
+                    return { inicio, fim };
+                }
+
+                // padrão: mês
+                const mesAtual = hoje.getMonth() + s.offset;
+                const ano = hoje.getFullYear() + Math.floor(mesAtual / 12);
+                const mes = ((mesAtual % 12) + 12) % 12;
+                const inicio = new Date(ano, mes, 1);
+                const fim = new Date(ano, mes + 1, 0, 23, 59, 59, 999);
+                return { inicio, fim };
+            }
+
+            // Gera array de semanas (cada uma com { inicio, fim, rotulo }) dentro do intervalo
+            _timelineSemanas(intervalo) {
+                const semanas = [];
+                const cursor = new Date(intervalo.inicio);
+                // Ajusta para segunda-feira
+                const diaSemana = cursor.getDay();
+                if (diaSemana !== 1) {
+                    cursor.setDate(cursor.getDate() + (diaSemana === 0 ? 1 : 1 - diaSemana + (diaSemana === 0 ? 0 : 0)));
+                    // Simples: volta para segunda
+                    const ds = cursor.getDay();
+                    cursor.setDate(cursor.getDate() - (ds === 0 ? 6 : ds - 1));
+                }
+
+                while (cursor <= intervalo.fim) {
+                    const fimSemana = new Date(cursor);
+                    fimSemana.setDate(cursor.getDate() + 6);
+                    fimSemana.setHours(23, 59, 59, 999);
+
+                    const mesAbrev = ['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ'][cursor.getMonth()];
+                    semanas.push({
+                        inicio: new Date(cursor),
+                        fim: new Date(Math.min(fimSemana.getTime(), intervalo.fim.getTime())),
+                        rotulo: `${cursor.getDate()}/${cursor.getMonth()+1}`,
+                        mes: mesAbrev
+                    });
+
+                    cursor.setDate(cursor.getDate() + 7);
+                }
+                return semanas;
+            }
+
+            // Filtra demandas conforme estado atual da timeline
+            _timelineFiltrarDemandas() {
+                const s = this._timelineState;
+                let demandas = [...this.demandas];
+
+                // Filtro de frente (origem)
+                if (s.filtroFrente) {
+                    demandas = demandas.filter(d => {
+                        const frente = (d.origem && String(d.origem).trim()) || 'Outro';
+                        const canonica = ALIAS_FRENTE[frente] || frente;
+                        // Agrupa Linhas/Dev Interno como "Linhas"
+                        if (s.filtroFrente === 'Linhas') return canonica === 'Dev Interno' || frente === 'Linhas';
+                        return canonica === s.filtroFrente;
+                    });
+                }
+
+                // Filtro de status
+                if (s.filtroStatus) {
+                    demandas = demandas.filter(d => d.status === s.filtroStatus);
+                }
+
+                // Filtro de prioridade
+                if (s.filtroPrioridade) {
+                    demandas = demandas.filter(d => d.prioridade === s.filtroPrioridade);
+                }
+
+                // Filtro de busca
+                if (s.filtroBusca) {
+                    const busca = normalizarTexto(s.filtroBusca);
+                    demandas = demandas.filter(d =>
+                        normalizarTexto(d.titulo).includes(busca) ||
+                        normalizarTexto(d.numero).includes(busca) ||
+                        normalizarTexto(d.descricao).includes(busca)
+                    );
+                }
+
+                // Mostrar/ocultar concluídas
+                if (!s.mostrarConcluidas) {
+                    demandas = demandas.filter(d => d.status !== 'Concluído');
+                }
+
+                return demandas;
+            }
+
+            // Agrupa demandas por frente
+            _timelineAgruparPorFrente(demandas) {
+                const grupos = {};
+                const ordemFrentes = ['C4C', 'SAP', 'MKT', 'ESG', 'Linhas', 'Outro'];
+
+                demandas.forEach(d => {
+                    const frenteRaw = (d.origem && String(d.origem).trim()) || 'Outro';
+                    const canonica = ALIAS_FRENTE[frenteRaw] || frenteRaw;
+                    // Mapeia Dev Interno -> Linhas
+                    let grupo = canonica;
+                    if (grupo === 'Dev Interno') grupo = 'Linhas';
+
+                    if (!grupos[grupo]) grupos[grupo] = [];
+                    grupos[grupo].push(d);
+                });
+
+                // Ordena grupos conforme ordemFrentes
+                const resultado = [];
+                ordemFrentes.forEach(f => {
+                    if (grupos[f] && grupos[f].length > 0) {
+                        resultado.push({ frente: f, demandas: grupos[f] });
+                    }
+                });
+                // Adiciona frentes não listadas
+                Object.keys(grupos).forEach(f => {
+                    if (!ordemFrentes.includes(f)) {
+                        resultado.push({ frente: f, demandas: grupos[f] });
+                    }
+                });
+
+                return resultado;
+            }
+
+            // Calcula posição percentual de uma data dentro do intervalo da timeline
+            _timelinePosicaoData(dataStr, intervalo) {
+                if (!dataStr) return null;
+                const data = new Date(dataStr + 'T12:00:00');
+                const total = intervalo.fim.getTime() - intervalo.inicio.getTime();
+                if (total <= 0) return null;
+                const pos = (data.getTime() - intervalo.inicio.getTime()) / total;
+                return Math.max(0, Math.min(1, pos));
+            }
+
+            // Retorna classe CSS de status para a barra
+            _timelineClasseStatus(status) {
+                const s = (status || '').toLowerCase();
+                if (s.includes('pendente')) return 'status-pendente';
+                if (s.includes('andamento') || s.includes('análise') || s.includes('teste') || s.includes('produção') || s.includes('orçamentação') || s.includes('aguardando')) return 'status-em-andamento';
+                if (s.includes('concluído')) return 'status-concluido';
+                if (s.includes('pausado')) return 'status-pausado';
+                return 'status-default';
+            }
+
+            // Verifica se a demanda está atrasada
+            _timelineEstaAtrasada(d) {
+                if (!d.vencimento) return false;
+                if (d.status === 'Concluído') return false;
+                const hoje = new Date();
+                hoje.setHours(0, 0, 0, 0);
+                const venc = new Date(d.vencimento + 'T00:00:00');
+                return venc < hoje;
+            }
+
+            // Renderiza a timeline completa
+            renderizarTimeline() {
+                const container = document.getElementById('timelineContainer');
+                if (!container) return;
+
+                const s = this._timelineState;
+                const intervalo = this._timelineIntervalo();
+                const semanas = this._timelineSemanas(intervalo);
+                const hoje = new Date();
+                hoje.setHours(12, 0, 0, 0);
+
+                // Filtra e agrupa
+                const demandasFiltradas = this._timelineFiltrarDemandas();
+                const grupos = this._timelineAgruparPorFrente(demandasFiltradas);
+
+                // KPIs
+                const total = demandasFiltradas.length;
+                const emAndamento = demandasFiltradas.filter(d => d.status !== 'Concluído' && d.status !== 'Pausado').length;
+                const atrasadas = demandasFiltradas.filter(d => this._timelineEstaAtrasada(d)).length;
+                const vencendo7dias = demandasFiltradas.filter(d => {
+                    if (!d.vencimento || d.status === 'Concluído') return false;
+                    const venc = new Date(d.vencimento + 'T00:00:00');
+                    const diff = Math.ceil((venc - hoje) / (1000 * 60 * 60 * 24));
+                    return diff >= 0 && diff <= 7;
+                }).length;
+                const concluidas = demandasFiltradas.filter(d => d.status === 'Concluído').length;
+
+                // Monta HTML
+                let html = '<div class="timeline-wrapper">';
+
+                // === Resumo superior ===
+                html += '<div class="timeline-summary">';
+                html += `<div class="timeline-kpi total"><div class="timeline-kpi-value">${total}</div><div class="timeline-kpi-label">Total</div></div>`;
+                html += `<div class="timeline-kpi andamento"><div class="timeline-kpi-value">${emAndamento}</div><div class="timeline-kpi-label">Em andamento</div></div>`;
+                html += `<div class="timeline-kpi atrasadas"><div class="timeline-kpi-value">${atrasadas}</div><div class="timeline-kpi-label">Atrasadas</div></div>`;
+                html += `<div class="timeline-kpi vencendo"><div class="timeline-kpi-value">${vencendo7dias}</div><div class="timeline-kpi-label">Vencendo 7d</div></div>`;
+                html += `<div class="timeline-kpi concluidas"><div class="timeline-kpi-value">${concluidas}</div><div class="timeline-kpi-label">Concluídas</div></div>`;
+                html += '</div>';
+
+                // === Filtros ===
+                html += '<div class="timeline-filters">';
+                // Busca
+                html += `<div class="search-box"><input type="text" id="timelineSearch" placeholder="Buscar demandas..." value="${escapeHtml(s.filtroBusca)}"></div>`;
+                // Frente
+                html += '<select id="timelineFiltroFrente">';
+                html += `<option value="" ${s.filtroFrente === '' ? 'selected' : ''}>Todas as Frentes</option>`;
+                ['C4C','SAP','MKT','ESG','Linhas'].forEach(f => {
+                    html += `<option value="${f}" ${s.filtroFrente === f ? 'selected' : ''}>${f}</option>`;
+                });
+                html += '</select>';
+                // Status
+                html += '<select id="timelineFiltroStatus">';
+                html += `<option value="" ${s.filtroStatus === '' ? 'selected' : ''}>Todos os Status</option>`;
+                STATUS.forEach(st => {
+                    html += `<option value="${st}" ${s.filtroStatus === st ? 'selected' : ''}>${st}</option>`;
+                });
+                html += '</select>';
+                // Prioridade
+                html += '<select id="timelineFiltroPrioridade">';
+                html += `<option value="" ${s.filtroPrioridade === '' ? 'selected' : ''}>Todas as Prioridades</option>`;
+                PRIORIDADES.forEach(p => {
+                    html += `<option value="${p}" ${s.filtroPrioridade === p ? 'selected' : ''}>${p}</option>`;
+                });
+                html += '</select>';
+                // Mostrar concluídas
+                html += `<label class="timeline-toggle-concluidas"><input type="checkbox" id="timelineToggleConcluidas" ${s.mostrarConcluidas ? 'checked' : ''}> Concluídas</label>`;
+                html += '</div>';
+
+                // === Navegação de período ===
+                const rotuloPeriodo = (() => {
+                    const meses = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+                    if (s.periodo === 'semana') {
+                        const ini = intervalo.inicio;
+                        const fim = intervalo.fim;
+                        return `Semana ${ini.getDate()}/${ini.getMonth()+1} – ${fim.getDate()}/${fim.getMonth()+1}/${fim.getFullYear()}`;
+                    }
+                    if (s.periodo === 'trimestre') {
+                        const tri = Math.floor(intervalo.inicio.getMonth() / 3) + 1;
+                        return `${tri}º Trimestre ${intervalo.inicio.getFullYear()}`;
+                    }
+                    return `${meses[intervalo.inicio.getMonth()]} ${intervalo.inicio.getFullYear()}`;
+                })();
+
+                html += '<div class="timeline-period-nav">';
+                html += `<button class="timeline-period-btn ${s.periodo === 'semana' ? 'active' : ''}" data-periodo="semana">Semana</button>`;
+                html += `<button class="timeline-period-btn ${s.periodo === 'mes' ? 'active' : ''}" data-periodo="mes">Mês</button>`;
+                html += `<button class="timeline-period-btn ${s.periodo === 'trimestre' ? 'active' : ''}" data-periodo="trimestre">Trimestre</button>`;
+                html += '<div class="timeline-nav-arrows">';
+                html += '<button id="timelinePrev" title="Anterior">◀</button>';
+                html += `<button id="timelineHoje" title="Hoje" style="font-weight:600;">Hoje</button>`;
+                html += '<button id="timelineNext" title="Próximo">▶</button>';
+                html += '</div>';
+                html += `<span class="timeline-period-label">${rotuloPeriodo}</span>`;
+                html += '</div>';
+
+                // === Gantt ===
+                html += '<div class="timeline-gantt" id="timelineGantt">';
+                html += '<div class="timeline-gantt-inner">';
+
+                // Cabeçalho de semanas
+                html += '<div class="timeline-header">';
+                html += '<div class="timeline-header-labels">Frente / Demanda</div>';
+                html += '<div class="timeline-header-weeks">';
+                semanas.forEach(sem => {
+                    html += `<div class="timeline-week-header"><span class="month-label">${sem.mes}</span><span class="week-label">${sem.rotulo}</span></div>`;
+                });
+                html += '</div></div>';
+
+                // Container das linhas (com padding-left para compensar o label fixo)
+                // A linha HOJE e as barras usam % relativa a este container
+                html += '<div class="timeline-rows-container">';
+
+                // Linha HOJE
+                const hojePos = this._timelinePosicaoData(hoje.toISOString().split('T')[0], intervalo);
+                if (hojePos !== null && hojePos >= 0 && hojePos <= 1) {
+                    html += `<div class="timeline-today-line" style="left:${(hojePos * 100).toFixed(2)}%;">`;
+                    html += '<div class="timeline-today-label">HOJE</div>';
+                    html += '</div>';
+                }
+
+                // Grupos de frente
+                grupos.forEach(grupo => {
+                    const colapsado = s.frentesColapsadas[grupo.frente] || false;
+                    const corFrente = corDaFrente(grupo.frente);
+
+                    html += `<div class="timeline-frente-group ${colapsado ? 'collapsed' : ''}" data-frente="${escapeHtml(grupo.frente)}">`;
+                    html += '<div class="timeline-frente-header">';
+                    html += `<span class="timeline-frente-caret">▼</span>`;
+                    html += `<span class="frente-badge" style="--fc:${corFrente};">${escapeHtml(grupo.frente)}</span>`;
+                    html += `<span class="timeline-frente-nome" style="color:${corFrente};">${escapeHtml(grupo.frente)}</span>`;
+                    html += `<span class="timeline-frente-count">— ${grupo.demandas.length} demanda${grupo.demandas.length !== 1 ? 's' : ''}</span>`;
+                    html += '</div>';
+
+                    if (!colapsado) {
+                        grupo.demandas.forEach(d => {
+                            const atrasada = this._timelineEstaAtrasada(d);
+                            const statusCls = this._timelineClasseStatus(d.status);
+                            const prog = progressoExibido(d);
+                            const prioCls = (d.prioridade || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+                            // Posições
+                            const posAbertura = this._timelinePosicaoData(d.dataAbertura, intervalo);
+                            const posVencimento = this._timelinePosicaoData(d.vencimento, intervalo);
+                            const posConclusao = this._timelinePosicaoData(d.dataConclusao, intervalo);
+
+                            // Se não tem datas, usa fallback
+                            const barLeft = posAbertura !== null ? posAbertura : 0;
+                            const barRight = posVencimento !== null ? posVencimento : (posAbertura !== null ? Math.min(1, posAbertura + 0.1) : 0.1);
+                            const barWidth = Math.max(0.01, barRight - barLeft);
+
+                            html += '<div class="timeline-row" data-demanda-id="' + d.id + '">';
+                            // Label
+                            html += '<div class="timeline-row-label">';
+                            html += `<span class="timeline-priority-dot ${prioCls}" title="Prioridade: ${escapeHtml(d.prioridade)}"></span>`;
+                            html += `<span class="demanda-titulo" title="${escapeHtml(d.titulo)}">${escapeHtml(d.titulo)}</span>`;
+                            html += '</div>';
+                            // Barras
+                            html += '<div class="timeline-row-bars">';
+                            html += `<div class="timeline-bar ${statusCls} ${atrasada ? 'atrasada' : ''}" style="left:${barLeft * 100}%; width:${barWidth * 100}%;" data-demanda-id="${d.id}">`;
+                            html += `<div class="timeline-bar-fill" style="width:${prog}%;"></div>`;
+                            html += `<span class="timeline-bar-text">${prog}%</span>`;
+                            html += '</div>';
+                            // Marcos
+                            if (posAbertura !== null) {
+                                html += `<div class="timeline-milestone abertura" style="left:${posAbertura * 100}%;" title="Abertura: ${d.dataAbertura}"></div>`;
+                            }
+                            if (posVencimento !== null) {
+                                html += `<div class="timeline-milestone vencimento" style="left:${posVencimento * 100}%;" title="Vencimento: ${d.vencimento}"></div>`;
+                            }
+                            if (posConclusao !== null && d.status === 'Concluído') {
+                                html += `<div class="timeline-milestone conclusao" style="left:${posConclusao * 100}%;" title="Conclusão: ${d.dataConclusao}"></div>`;
+                            }
+                            html += '</div></div>';
+                        });
+                    }
+
+                    html += '</div>'; // fim timeline-frente-group
+                });
+
+                if (grupos.length === 0) {
+                    html += '<div style="padding: 3rem; text-align: center; color: var(--text-tertiary);">Nenhuma demanda encontrada para os filtros atuais.</div>';
+                }
+
+                html += '</div>'; // fim timeline-rows-container
+                html += '</div></div>'; // fim gantt-inner / gantt
+
+                html += '</div>'; // fim timeline-wrapper
+
+                container.innerHTML = html;
+
+                // === Event listeners ===
+                this._timelineBindEvents();
+
+                // Atualiza ícones Lucide
+                setTimeout(() => this.atualizarIcones(), 50);
+            }
+
+            // Vincula eventos da timeline
+            _timelineBindEvents() {
+                const self = this;
+
+                // Filtro de busca
+                const searchEl = document.getElementById('timelineSearch');
+                if (searchEl) {
+                    searchEl.addEventListener('input', () => {
+                        self._timelineState.filtroBusca = searchEl.value.trim();
+                        self.renderizarTimeline();
+                    });
+                }
+
+                // Filtro de frente
+                const filtroFrente = document.getElementById('timelineFiltroFrente');
+                if (filtroFrente) {
+                    filtroFrente.addEventListener('change', () => {
+                        self._timelineState.filtroFrente = filtroFrente.value;
+                        self.renderizarTimeline();
+                    });
+                }
+
+                // Filtro de status
+                const filtroStatus = document.getElementById('timelineFiltroStatus');
+                if (filtroStatus) {
+                    filtroStatus.addEventListener('change', () => {
+                        self._timelineState.filtroStatus = filtroStatus.value;
+                        self.renderizarTimeline();
+                    });
+                }
+
+                // Filtro de prioridade
+                const filtroPrioridade = document.getElementById('timelineFiltroPrioridade');
+                if (filtroPrioridade) {
+                    filtroPrioridade.addEventListener('change', () => {
+                        self._timelineState.filtroPrioridade = filtroPrioridade.value;
+                        self.renderizarTimeline();
+                    });
+                }
+
+                // Toggle concluídas
+                const toggleConc = document.getElementById('timelineToggleConcluidas');
+                if (toggleConc) {
+                    toggleConc.addEventListener('change', () => {
+                        self._timelineState.mostrarConcluidas = toggleConc.checked;
+                        self.renderizarTimeline();
+                    });
+                }
+
+                // Botões de período
+                document.querySelectorAll('.timeline-period-btn[data-periodo]').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        self._timelineState.periodo = btn.dataset.periodo;
+                        self._timelineState.offset = 0;
+                        self.renderizarTimeline();
+                    });
+                });
+
+                // Navegação anterior/próximo
+                const btnPrev = document.getElementById('timelinePrev');
+                const btnNext = document.getElementById('timelineNext');
+                const btnHoje = document.getElementById('timelineHoje');
+                if (btnPrev) btnPrev.addEventListener('click', () => { self._timelineState.offset--; self.renderizarTimeline(); });
+                if (btnNext) btnNext.addEventListener('click', () => { self._timelineState.offset++; self.renderizarTimeline(); });
+                if (btnHoje) btnHoje.addEventListener('click', () => { self._timelineState.offset = 0; self.renderizarTimeline(); });
+
+                // Collapse/expand grupos de frente
+                document.querySelectorAll('.timeline-frente-header').forEach(header => {
+                    header.addEventListener('click', () => {
+                        const group = header.closest('.timeline-frente-group');
+                        const frente = group.dataset.frente;
+                        self._timelineState.frentesColapsadas[frente] = !self._timelineState.frentesColapsadas[frente];
+                        self.renderizarTimeline();
+                    });
+                });
+
+                // Clique na barra ou título -> painel de detalhes
+                document.querySelectorAll('.timeline-bar, .timeline-row-label .demanda-titulo').forEach(el => {
+                    el.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        const row = el.closest('.timeline-row');
+                        const demandaId = parseInt(row.dataset.demandaId);
+                        const demanda = self.demandas.find(d => d.id === demandaId);
+                        if (demanda) self._timelineMostrarDetalhes(demanda);
+                    });
+                });
+
+                // Clique na linha toda também abre detalhes
+                document.querySelectorAll('.timeline-row').forEach(row => {
+                    row.addEventListener('click', (e) => {
+                        // Não dispara se clicou no header do grupo
+                        if (e.target.closest('.timeline-frente-header')) return;
+                        const demandaId = parseInt(row.dataset.demandaId);
+                        const demanda = self.demandas.find(d => d.id === demandaId);
+                        if (demanda) self._timelineMostrarDetalhes(demanda);
+                    });
+                });
+            }
+
+            // Exibe painel lateral com detalhes da demanda
+            _timelineMostrarDetalhes(demanda) {
+                // Remove painel anterior se existir
+                const existente = document.querySelector('.timeline-detail-panel');
+                if (existente) existente.remove();
+                const overlayExistente = document.querySelector('.timeline-overlay');
+                if (overlayExistente) overlayExistente.remove();
+
+                const prog = progressoExibido(demanda);
+                const atrasada = this._timelineEstaAtrasada(demanda);
+                const corFrente = corDaFrente(demanda.origem);
+
+                const panel = document.createElement('div');
+                panel.className = 'timeline-detail-panel open';
+                panel.innerHTML = `
+                    <div class="timeline-detail-header">
+                        <h3>${escapeHtml(demanda.numero)}</h3>
+                        <button class="timeline-detail-close" id="timelineDetailClose">&times;</button>
+                    </div>
+                    <div class="timeline-detail-body">
+                        <div class="timeline-detail-field">
+                            <span class="timeline-detail-field-label">Título</span>
+                            <span class="timeline-detail-field-value" style="font-weight:600;">${escapeHtml(demanda.titulo)}</span>
+                        </div>
+                        <div class="timeline-detail-field">
+                            <span class="timeline-detail-field-label">Frente</span>
+                            <span class="timeline-detail-field-value">${getBadgeFrente(demanda.origem)}</span>
+                        </div>
+                        <div class="timeline-detail-field">
+                            <span class="timeline-detail-field-label">Categoria / Tipo</span>
+                            <span class="timeline-detail-field-value">${escapeHtml(demanda.tipo || '-')}</span>
+                        </div>
+                        <div class="timeline-detail-field">
+                            <span class="timeline-detail-field-label">Status</span>
+                            <span class="timeline-detail-field-value">${escapeHtml(demanda.status)}${atrasada ? ' <span style="color:#ef4444;font-size:0.75rem;">(ATRASADA)</span>' : ''}</span>
+                        </div>
+                        <div class="timeline-detail-field">
+                            <span class="timeline-detail-field-label">Prioridade</span>
+                            <span class="timeline-detail-field-value">${templateBadgePrioridade(demanda.prioridade)}</span>
+                        </div>
+                        <div class="timeline-detail-field">
+                            <span class="timeline-detail-field-label">Progresso</span>
+                            <div class="timeline-detail-progress">
+                                <div class="progress-bar"><div class="progress-fill" style="width:${prog}%;"></div></div>
+                                <span style="font-size:0.8rem;color:var(--text-tertiary);margin-top:0.25rem;display:inline-block;">${prog}%</span>
+                            </div>
+                        </div>
+                        <div class="timeline-detail-field">
+                            <span class="timeline-detail-field-label">Data de Abertura</span>
+                            <span class="timeline-detail-field-value">${demanda.dataAbertura || '-'}</span>
+                        </div>
+                        <div class="timeline-detail-field">
+                            <span class="timeline-detail-field-label">Vencimento</span>
+                            <span class="timeline-detail-field-value" style="${atrasada ? 'color:#ef4444;' : ''}">${demanda.vencimento || '-'}${atrasada ? ' (vencido)' : ''}</span>
+                        </div>
+                        ${demanda.dataConclusao ? `
+                        <div class="timeline-detail-field">
+                            <span class="timeline-detail-field-label">Data de Conclusão</span>
+                            <span class="timeline-detail-field-value">${demanda.dataConclusao}</span>
+                        </div>` : ''}
+                        ${demanda.solicitante ? `
+                        <div class="timeline-detail-field">
+                            <span class="timeline-detail-field-label">Solicitante</span>
+                            <span class="timeline-detail-field-value">${escapeHtml(demanda.solicitante)}</span>
+                        </div>` : ''}
+                        ${demanda.descricao ? `
+                        <div class="timeline-detail-field">
+                            <span class="timeline-detail-field-label">Descrição</span>
+                            <span class="timeline-detail-field-value" style="font-size:0.82rem;color:var(--text-secondary);">${escapeHtml(demanda.descricao)}</span>
+                        </div>` : ''}
+                    </div>
+                `;
+
+                const overlay = document.createElement('div');
+                overlay.className = 'timeline-overlay active';
+
+                const fechar = () => {
+                    panel.classList.remove('open');
+                    overlay.classList.remove('active');
+                    setTimeout(() => { panel.remove(); overlay.remove(); }, 300);
+                };
+
+                overlay.addEventListener('click', fechar);
+                panel.querySelector('#timelineDetailClose').addEventListener('click', fechar);
+
+                document.body.appendChild(overlay);
+                document.body.appendChild(panel);
+
+                // Anima entrada
+                requestAnimationFrame(() => {
+                    panel.classList.add('open');
+                    overlay.classList.add('active');
+                });
+            }
+
             getDemandas() {
                 return this.demandas;
             }
@@ -3140,6 +3724,7 @@
             refresh: '<svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36M20.49 15a9 9 0 0 1-14.85 3.36"></path></svg>',
             'refresh-cw': '<svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L20.49 4"></path><path d="M20.49 15a9 9 0 0 1-14.85 3.36L3.51 20"></path></svg>',
             chart: '<svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="12" y1="2" x2="12" y2="22"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>',
+            clock: '<svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>',
         };
 
         function renderIcon(iconName) {
