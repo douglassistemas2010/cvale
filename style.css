@@ -2385,23 +2385,17 @@
             border-radius: 10px;
             backdrop-filter: blur(12px);
             position: relative;
-            min-height: 0;
         }
 
         .timeline-gantt-inner {
-            display: flex;
-            flex-direction: column;
-            min-width: max-content;
-            width: 100%;
+            min-width: 100%;
             position: relative;
         }
 
-        /* Container das linhas de demanda — padding-left compensa o label fixo de 240px */
+        /* Container das linhas de demanda — padding-left compensa o label fixo de 340px */
         .timeline-rows-container {
-            padding-left: 240px;
+            padding-left: 340px;
             position: relative;
-            width: 100%;
-            min-width: max-content;
         }
 
         /* --- Cabeçalho de semanas --- */
@@ -2412,12 +2406,11 @@
             z-index: 10;
             background: var(--bg-secondary);
             border-bottom: 1px solid var(--border-color);
-            min-width: max-content;
         }
 
         .timeline-header-labels {
-            min-width: 240px;
-            max-width: 240px;
+            min-width: 340px;
+            max-width: 340px;
             flex-shrink: 0;
             padding: 0.6rem 1rem;
             font-size: 0.75rem;
@@ -2430,16 +2423,16 @@
         }
 
         .timeline-header-weeks {
-            display: flex;
             flex: 1;
-            min-width: max-content;
+            display: flex;
+            position: relative;
         }
 
         .timeline-week-header {
-            flex: 1 0 90px;
-            min-width: 90px;
+            flex: 1;
+            min-width: 80px;
             text-align: center;
-            padding: 0.5rem 0.3rem;
+            padding: 0.5rem 0.2rem;
             font-size: 0.7rem;
             color: var(--text-tertiary);
             border-left: 1px solid var(--border-color);
@@ -2539,10 +2532,9 @@
         .timeline-row {
             display: flex;
             align-items: stretch;
-            min-height: 42px;
+            min-height: 52px;
             border-top: 1px solid rgba(148, 163, 184, 0.05);
             transition: background 0.15s;
-            min-width: max-content;
         }
 
         .timeline-row:hover {
@@ -2550,12 +2542,12 @@
         }
 
         .timeline-row-label {
-            min-width: 240px;
-            max-width: 240px;
+            min-width: 340px;
+            max-width: 340px;
             flex-shrink: 0;
             padding: 0.35rem 1rem;
             display: flex;
-            align-items: center;
+            align-items: flex-start;
             gap: 0.4rem;
             font-size: 0.78rem;
             color: var(--text-secondary);
@@ -2563,10 +2555,13 @@
         }
 
         .timeline-row-label .demanda-titulo {
-            white-space: nowrap;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
             overflow: hidden;
-            text-overflow: ellipsis;
+            line-height: 1.35;
             cursor: pointer;
+            word-break: break-word;
         }
 
         .timeline-row-label .demanda-titulo:hover {
@@ -2592,7 +2587,6 @@
             display: flex;
             align-items: center;
             padding: 0.25rem 0;
-            min-width: 200px;
         }
 
         /* --- Barra Gantt --- */
@@ -2657,41 +2651,6 @@
                 rgba(239,68,68,0.3) 3px,
                 rgba(239,68,68,0.3) 6px
             );
-        }
-
-        /* Indicadores de continuação (barra se estende além do intervalo visível) */
-        .timeline-bar.continua-esquerda {
-            border-left: none;
-            border-radius: 0 4px 4px 0;
-        }
-
-        .timeline-bar.continua-esquerda::before {
-            content: '◀';
-            position: absolute;
-            left: 2px;
-            top: 50%;
-            transform: translateY(-50%);
-            font-size: 0.5rem;
-            color: rgba(255,255,255,0.7);
-            pointer-events: none;
-            z-index: 2;
-        }
-
-        .timeline-bar.continua-direita {
-            border-right: none;
-            border-radius: 4px 0 0 4px;
-        }
-
-        .timeline-bar.continua-direita::after {
-            content: '▶';
-            position: absolute;
-            right: 2px;
-            top: 50%;
-            transform: translateY(-50%);
-            font-size: 0.5rem;
-            color: rgba(255,255,255,0.7);
-            pointer-events: none;
-            z-index: 2;
         }
 
         /* --- Marcos (abertura/vencimento) --- */
@@ -2888,8 +2847,11 @@
             }
             .timeline-header-labels,
             .timeline-row-label {
-                min-width: 160px;
-                max-width: 160px;
+                min-width: 200px;
+                max-width: 200px;
+            }
+            .timeline-rows-container {
+                padding-left: 200px;
             }
             .timeline-detail-panel {
                 width: 100vw;
