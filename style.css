@@ -2532,7 +2532,7 @@
         .timeline-row {
             display: flex;
             align-items: stretch;
-            min-height: 52px;
+            min-height: 42px;
             border-top: 1px solid rgba(148, 163, 184, 0.05);
             transition: background 0.15s;
         }
@@ -2547,20 +2547,15 @@
             flex-shrink: 0;
             padding: 0.35rem 1rem;
             display: flex;
-            align-items: flex-start;
+            align-items: center;
             gap: 0.4rem;
             font-size: 0.78rem;
             color: var(--text-secondary);
-            overflow: hidden;
         }
 
         .timeline-row-label .demanda-titulo {
-            display: -webkit-box;
-            -webkit-line-clamp: 2;
-            -webkit-box-orient: vertical;
-            overflow: hidden;
-            line-height: 1.35;
             cursor: pointer;
+            line-height: 1.3;
             word-break: break-word;
         }
 
@@ -2849,9 +2844,6 @@
             .timeline-row-label {
                 min-width: 200px;
                 max-width: 200px;
-            }
-            .timeline-rows-container {
-                padding-left: 200px;
             }
             .timeline-detail-panel {
                 width: 100vw;
