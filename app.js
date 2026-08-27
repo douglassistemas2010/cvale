@@ -3156,13 +3156,13 @@
             }
 
             // Calcula posição percentual de uma data dentro do intervalo da timeline
+            // Retorna null se não há data. Valores podem ser <0 (antes do intervalo) ou >1 (depois).
             _timelinePosicaoData(dataStr, intervalo) {
                 if (!dataStr) return null;
                 const data = new Date(dataStr + 'T12:00:00');
                 const total = intervalo.fim.getTime() - intervalo.inicio.getTime();
                 if (total <= 0) return null;
-                const pos = (data.getTime() - intervalo.inicio.getTime()) / total;
-                return Math.max(0, Math.min(1, pos));
+                return (data.getTime() - intervalo.inicio.getTime()) / total;
             }
 
             // Retorna classe CSS de status para a barra
@@ -3325,15 +3325,71 @@
                             const prog = progressoExibido(d);
                             const prioCls = (d.prioridade || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 
-                            // Posições
+                            // Posições (podem ser <0 ou >1 — fora do intervalo visível)
                             const posAbertura = this._timelinePosicaoData(d.dataAbertura, intervalo);
                             const posVencimento = this._timelinePosicaoData(d.vencimento, intervalo);
                             const posConclusao = this._timelinePosicaoData(d.dataConclusao, intervalo);
 
-                            // Se não tem datas, usa fallback
-                            const barLeft = posAbertura !== null ? posAbertura : 0;
-                            const barRight = posVencimento !== null ? posVencimento : (posAbertura !== null ? Math.min(1, posAbertura + 0.1) : 0.1);
-                            const barWidth = Math.max(0.01, barRight - barLeft);
+                            // Calcula left e width da barra, clampando no intervalo [0, 1]
+                            let barLeft = 0;
+                            let barRight = 0.01;
+                            let continuaEsquerda = false;
+                            let continuaDireita = false;
+
+                            if (posAbertura !== null && posVencimento !== null) {
+                                // Tem ambas as datas
+                                if (posVencimento < 0) {
+                                    // Tudo antes do intervalo — barra mínima no canto esquerdo
+                                    barLeft = 0;
+                                    barRight = 0.015;
+                                    continuaEsquerda = true;
+                                    continuaDireita = true;
+                                } else if (posAbertura > 1) {
+                                    // Tudo depois do intervalo — barra mínima no canto direito
+                                    barLeft = 0.985;
+                                    barRight = 1;
+                                    continuaEsquerda = true;
+                                    continuaDireita = true;
+                                } else {
+                                    // Pelo menos parte da barra está visível
+                                    barLeft = Math.max(0, posAbertura);
+                                    barRight = Math.min(1, posVencimento);
+                                    if (posAbertura < 0) continuaEsquerda = true;
+                                    if (posVencimento > 1) continuaDireita = true;
+                                }
+                            } else if (posAbertura !== null) {
+                                // Só tem abertura
+                                if (posAbertura < 0) {
+                                    barLeft = 0;
+                                    barRight = 0.015;
+                                    continuaEsquerda = true;
+                                } else if (posAbertura > 1) {
+                                    barLeft = 0.985;
+                                    barRight = 1;
+                                } else {
+                                    barLeft = posAbertura;
+                                    barRight = Math.min(1, posAbertura + 0.08);
+                                    if (posAbertura + 0.08 > 1) continuaDireita = true;
+                                }
+                            } else if (posVencimento !== null) {
+                                // Só tem vencimento
+                                if (posVencimento < 0) {
+                                    barLeft = 0;
+                                    barRight = 0.015;
+                                } else if (posVencimento > 1) {
+                                    barLeft = 0.985;
+                                    barRight = 1;
+                                    continuaDireita = true;
+                                } else {
+                                    barLeft = Math.max(0, posVencimento - 0.08);
+                                    barRight = posVencimento;
+                                    if (posVencimento - 0.08 < 0) continuaEsquerda = true;
+                                }
+                            }
+                            // Garante largura mínima
+                            if (barRight - barLeft < 0.01) barRight = barLeft + 0.01;
+
+                            const barWidth = barRight - barLeft;
 
                             html += '<div class="timeline-row" data-demanda-id="' + d.id + '">';
                             // Label
@@ -3343,19 +3399,19 @@
                             html += '</div>';
                             // Barras
                             html += '<div class="timeline-row-bars">';
-                            html += `<div class="timeline-bar ${statusCls} ${atrasada ? 'atrasada' : ''}" style="left:${barLeft * 100}%; width:${barWidth * 100}%;" data-demanda-id="${d.id}">`;
+                            html += `<div class="timeline-bar ${statusCls} ${atrasada ? 'atrasada' : ''} ${continuaEsquerda ? 'continua-esquerda' : ''} ${continuaDireita ? 'continua-direita' : ''}" style="left:${(barLeft * 100).toFixed(2)}%; width:${(barWidth * 100).toFixed(2)}%;" data-demanda-id="${d.id}">`;
                             html += `<div class="timeline-bar-fill" style="width:${prog}%;"></div>`;
                             html += `<span class="timeline-bar-text">${prog}%</span>`;
                             html += '</div>';
-                            // Marcos
-                            if (posAbertura !== null) {
-                                html += `<div class="timeline-milestone abertura" style="left:${posAbertura * 100}%;" title="Abertura: ${d.dataAbertura}"></div>`;
+                            // Marcos (só mostra se dentro do intervalo visível)
+                            if (posAbertura !== null && posAbertura >= 0 && posAbertura <= 1) {
+                                html += `<div class="timeline-milestone abertura" style="left:${(posAbertura * 100).toFixed(2)}%;" title="Abertura: ${d.dataAbertura}"></div>`;
                             }
-                            if (posVencimento !== null) {
-                                html += `<div class="timeline-milestone vencimento" style="left:${posVencimento * 100}%;" title="Vencimento: ${d.vencimento}"></div>`;
+                            if (posVencimento !== null && posVencimento >= 0 && posVencimento <= 1) {
+                                html += `<div class="timeline-milestone vencimento" style="left:${(posVencimento * 100).toFixed(2)}%;" title="Vencimento: ${d.vencimento}"></div>`;
                             }
-                            if (posConclusao !== null && d.status === 'Concluído') {
-                                html += `<div class="timeline-milestone conclusao" style="left:${posConclusao * 100}%;" title="Conclusão: ${d.dataConclusao}"></div>`;
+                            if (posConclusao !== null && posConclusao >= 0 && posConclusao <= 1 && d.status === 'Concluído') {
+                                html += `<div class="timeline-milestone conclusao" style="left:${(posConclusao * 100).toFixed(2)}%;" title="Conclusão: ${d.dataConclusao}"></div>`;
                             }
                             html += '</div></div>';
                         });
