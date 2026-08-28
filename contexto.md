@@ -517,3 +517,12 @@ A pedido do usuário, dois ajustes na aba **Timeline**:
   - Não testado em navegador real nesta sessão (sem acesso a browser/Playwright disponível) — a
     lógica foi validada replicando o algoritmo em PowerShell contra o dado real do Supabase (leitura),
     conferindo contagens e distribuição por dia antes de aplicar no `app.js`.
+- **Publicado nos três lugares:** `git push origin main` (site pessoal), `git push ghe
+  HEAD:gh-pages-minhas-atividades` (Pages corporativo, fast-forward direto — esse branch espelha o
+  histórico deste repositório 1:1) e sync da subpasta `MinhasAtividades/` em `cvale-org/cvale-c4c`
+  (`main`) via clone de staging temporário fora do workspace + `git subtree pull --prefix=MinhasAtividades
+  ... --squash`. Esse último estava **5 commits atrasado** (não recebia sync desde a Fase 1 da
+  Reunião Semanal, 13/08) — o merge teve conflito mecânico em `index.html`/`contexto.md` (lado GHE
+  simplesmente não tinha o conteúdo novo, sem edição paralela real), resolvido aceitando sempre o
+  lado recebido (`git checkout --theirs`) e conferido arquivo a arquivo (`Compare-Object`) que ficou
+  idêntico ao repositório pessoal antes do push. Staging apagado ao final.
