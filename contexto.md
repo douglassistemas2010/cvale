@@ -483,3 +483,37 @@ A pedido do usuário, dois itens adicionados na Reunião Semanal em cima do que 
   torre e abriu "Editar 1000000001" corretamente, layout em split conferido
   visualmente nos dois temas (claro e escuro), demanda Concluída dentro do
   modal manteve o verde neon já usado na tabela.
+
+## 28/08/2026 — Linha "hoje" amarelo neon na Timeline + migração de vencimentos atrasados
+
+A pedido do usuário, dois ajustes na aba **Timeline**:
+
+- **Linha vertical do dia atual em amarelo neon.** A timeline já tinha a linha (`.timeline-today-line`,
+  `renderizarTimeline()` em `app.js`), mas em vermelho (`#ef4444`) — trocada para amarelo neon
+  (`#eeff00`) com `box-shadow` de glow, tanto na linha quanto no rótulo "HOJE" (`style.css`).
+- **Vencimentos atrasados reagendados para a última semana de setembro/2026.** Novo método
+  `ajustarVencimentosAtrasados()` (`app.js`), chamado uma vez em `inicializar()` logo depois do
+  primeiro `renderizar()`. Encontra demandas com `vencimento` no passado e `status !== 'Concluído'`
+  e reatribui `vencimento` para um dia entre 21/09 e 25/09/2026 (seg a sex).
+  - **Achado importante antes de implementar:** conferido ao vivo no Supabase (leitura pública,
+    anon key) que o critério pedido pelo usuário — "complexidade" — está com **quase 100% das
+    demandas atrasadas em `complexidade = "Média"`** (37 de 37 vencidas). Usar só esse campo faria
+    quase todas caírem exatamente no mesmo dia, sem a variação pedida. Solução: complexidade
+    continua sendo o critério primário (peso maior), mas `prioridade` (que tem variação real —
+    Baixa/Média/Alta/Crítica) entra como desempate — score = peso(complexidade)×10 + peso(prioridade),
+    ordenado e distribuído nos 5 dias úteis da última semana de setembro. Simulado localmente contra
+    o dado real das 37 demandas atrasadas: distribuição ficou 8/7/8/7/7 entre os 5 dias — variação
+    real conseguida.
+  - **Só roda em modo edição (usuário logado)**, porque a escrita no Supabase exige autenticação
+    (RLS — ver `supabase/schema.sql`). Não tenho como logar como o dono do site nem acesso a um MCP
+    de Supabase neste ambiente, então não apliquei a migração diretamente no banco — ela dispara
+    sozinha (client-side) na próxima vez que o usuário abrir o site já autenticado em "Modo edição".
+    Depois de corrigidas, as datas deixam de estar no passado, então a checagem para de encontrar
+    candidatos sozinha (sem precisar de flag de controle extra).
+  - **Atenção**: `contexto.md` de 11/08/2026 registra que o login do app ("Modo edição") estava com
+    problema ("Invalid login credentials"). Se ainda estiver quebrado, a migração automática não vai
+    disparar — nesse caso avisar para resolver o login primeiro (Supabase → Authentication → Users)
+    ou pedir ajuda para aplicar via SQL Editor (conta admin do projeto, fora do RLS do app).
+  - Não testado em navegador real nesta sessão (sem acesso a browser/Playwright disponível) — a
+    lógica foi validada replicando o algoritmo em PowerShell contra o dado real do Supabase (leitura),
+    conferindo contagens e distribuição por dia antes de aplicar no `app.js`.

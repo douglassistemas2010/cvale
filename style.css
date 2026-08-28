@@ -2392,8 +2392,9 @@
             position: relative;
         }
 
-        /* Container do corpo da timeline — posição relativa para linha HOJE */
-        .timeline-body {
+        /* Container das linhas de demanda — padding-left compensa o label fixo de 520px */
+        .timeline-rows-container {
+            padding-left: 520px;
             position: relative;
         }
 
@@ -2454,17 +2455,16 @@
             letter-spacing: 0.3px;
         }
 
-        /* --- Linha HOJE --- */
+        /* --- Linha HOJE (amarelo neon — referência visual de onde estamos no tempo) --- */
         .timeline-today-line {
             position: absolute;
             top: 0;
             bottom: 0;
             width: 2px;
-            background: #ef4444;
-            z-index: 5;
+            background: #eeff00;
+            box-shadow: 0 0 6px 1px #eeff00, 0 0 14px 3px rgba(238, 255, 0, 0.55);
+            z-index: 6;
             pointer-events: none;
-            /* left é calculado como % da área de barras (após coluna de labels) */
-            margin-left: 520px;
         }
 
         .timeline-today-label {
@@ -2472,14 +2472,15 @@
             top: -2px;
             left: 50%;
             transform: translateX(-50%);
-            background: #ef4444;
-            color: #fff;
+            background: #eeff00;
+            color: #1a1f00;
             font-size: 0.6rem;
             font-weight: 700;
             padding: 0.15rem 0.4rem;
             border-radius: 3px;
             white-space: nowrap;
             letter-spacing: 0.3px;
+            box-shadow: 0 0 8px 1px rgba(238, 255, 0, 0.7);
         }
 
         /* --- Grupo de frente --- */
@@ -2489,30 +2490,16 @@
 
         .timeline-frente-header {
             display: flex;
-            align-items: stretch;
+            align-items: center;
+            padding: 0.5rem 1rem;
             cursor: pointer;
             user-select: none;
             transition: background 0.15s;
-            min-height: 38px;
+            gap: 0.5rem;
         }
 
         .timeline-frente-header:hover {
             background: rgba(255,255,255,0.03);
-        }
-
-        .timeline-frente-label {
-            min-width: 520px;
-            max-width: 520px;
-            flex-shrink: 0;
-            padding: 0.5rem 1rem;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        .timeline-frente-bars {
-            flex: 1;
-            position: relative;
         }
 
         .timeline-frente-caret {
@@ -2858,13 +2845,12 @@
                 font-size: 1.2rem;
             }
             .timeline-header-labels,
-            .timeline-row-label,
-            .timeline-frente-label {
+            .timeline-row-label {
                 min-width: 280px;
                 max-width: 280px;
             }
-            .timeline-today-line {
-                margin-left: 280px;
+            .timeline-rows-container {
+                padding-left: 280px;
             }
             .timeline-row-label .demanda-titulo {
                 white-space: nowrap;

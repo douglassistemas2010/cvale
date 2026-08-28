@@ -393,9 +393,64 @@
                     this.vincularEventos();
 
                     this.renderizar();
+
+                    this.ajustarVencimentosAtrasados();
                 } catch (err) {
                     console.error('❌ Erro na inicialização:', err);
                 }
+            }
+
+            // ===== Migração pontual (28/08/2026) =====
+            // Demandas com vencimento no passado e status diferente de "Concluído" ganham
+            // uma nova data dentro da última semana de setembro/2026 (seg 21/09 a sex 25/09).
+            // Critério pedido foi "complexidade", mas no dado real quase 100% das demandas
+            // atrasadas estão com complexidade = "Média" (campo pouco preenchido/diferenciado
+            // até hoje) — usar só ele faria quase todas caírem exatamente no mesmo dia, sem a
+            // variação que foi pedida. Por isso a prioridade entra como critério de desempate
+            // dentro da complexidade: quanto maior o peso (mais complexa e/ou mais prioritária),
+            // mais tarde na semana ela cai — reflete a ideia de "precisa de mais prazo".
+            // Só roda em modo edição (usuário logado), pois a gravação exige autenticação (RLS).
+            // Depois de corrigidas, as datas deixam de estar no passado e a checagem naturalmente
+            // para de encontrar novos candidatos, sem precisar de flag de controle.
+            ajustarVencimentosAtrasados() {
+                if (typeof CockpitAuth === 'undefined' || !CockpitAuth.estaLogado()) return;
+
+                const DIAS_ULTIMA_SEMANA_SETEMBRO = ['2026-09-21', '2026-09-22', '2026-09-23', '2026-09-24', '2026-09-25']; // seg a sex
+                const PESO_COMPLEXIDADE = { 'baixa': 1, 'media': 2, 'alta': 3, 'muito alta': 4, 'critica': 4 };
+                const PESO_PRIORIDADE = { 'baixa': 1, 'media': 2, 'alta': 3, 'critica': 4 };
+                const normalizar = (s) => String(s || '').trim().toLowerCase()
+                    .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+                const hoje = new Date();
+                hoje.setHours(0, 0, 0, 0);
+
+                const atrasadas = this.demandas.filter(d => {
+                    if (!d.vencimento || d.status === 'Concluído') return false;
+                    const venc = new Date(d.vencimento + 'T00:00:00');
+                    return !isNaN(venc.getTime()) && venc < hoje;
+                });
+                if (atrasadas.length === 0) return;
+
+                // Ordena por peso (complexidade em primeiro lugar, prioridade desempata)
+                // e distribui em ordem crescente pelos dias da última semana de setembro.
+                const pontuada = atrasadas.map(d => ({
+                    demanda: d,
+                    peso: (PESO_COMPLEXIDADE[normalizar(d.complexidade)] || 2) * 10
+                        + (PESO_PRIORIDADE[normalizar(d.prioridade)] || 2)
+                }));
+                pontuada.sort((a, b) => a.peso - b.peso);
+
+                pontuada.forEach((item, i) => {
+                    const indiceDia = Math.min(
+                        DIAS_ULTIMA_SEMANA_SETEMBRO.length - 1,
+                        Math.floor((i / pontuada.length) * DIAS_ULTIMA_SEMANA_SETEMBRO.length)
+                    );
+                    item.demanda.vencimento = DIAS_ULTIMA_SEMANA_SETEMBRO[indiceDia];
+                });
+
+                this.salvarDados();
+                this.renderizar();
+                this.mostrarToast(`📅 ${pontuada.length} demanda(s) atrasada(s) reagendada(s) para a última semana de setembro`, 'info');
             }
 
             carregarTema() {
@@ -3295,7 +3350,7 @@
 
                 // Container das linhas (com padding-left para compensar o label fixo)
                 // A linha HOJE e as barras usam % relativa a este container
-                html += '<div class="timeline-body">';
+                html += '<div class="timeline-rows-container">';
 
                 // Linha HOJE
                 const hojePos = this._timelinePosicaoData(hoje.toISOString().split('T')[0], intervalo);
@@ -3311,16 +3366,11 @@
                     const corFrente = corDaFrente(grupo.frente);
 
                     html += `<div class="timeline-frente-group ${colapsado ? 'collapsed' : ''}" data-frente="${escapeHtml(grupo.frente)}">`;
-
-                    // Header da frente como linha completa: label + área vazia de barras
                     html += '<div class="timeline-frente-header">';
-                    html += '<div class="timeline-frente-label">';
                     html += `<span class="timeline-frente-caret">▼</span>`;
                     html += `<span class="frente-badge" style="--fc:${corFrente};">${escapeHtml(grupo.frente)}</span>`;
                     html += `<span class="timeline-frente-nome" style="color:${corFrente};">${escapeHtml(grupo.frente)}</span>`;
                     html += `<span class="timeline-frente-count">— ${grupo.demandas.length} demanda${grupo.demandas.length !== 1 ? 's' : ''}</span>`;
-                    html += '</div>';
-                    html += '<div class="timeline-frente-bars"></div>';
                     html += '</div>';
 
                     if (!colapsado) {
@@ -3373,7 +3423,7 @@
                     html += '<div style="padding: 3rem; text-align: center; color: var(--text-tertiary);">Nenhuma demanda encontrada para os filtros atuais.</div>';
                 }
 
-                html += '</div>'; // fim timeline-body
+                html += '</div>'; // fim timeline-rows-container
                 html += '</div></div>'; // fim gantt-inner / gantt
 
                 html += '</div>'; // fim timeline-wrapper
