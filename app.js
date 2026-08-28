@@ -3068,10 +3068,16 @@
             };
 
             // Retorna { inicio, fim } (Date) para o período atual da timeline
-            _timelineIntervalo() {
+            // (demandasFiltradas só é usado pelo período "geral", que cobre o ciclo de vida
+            // completo das demandas em vez de uma janela fixa de calendário)
+            _timelineIntervalo(demandasFiltradas) {
                 const hoje = new Date();
                 hoje.setHours(0, 0, 0, 0);
                 const s = this._timelineState;
+
+                if (s.periodo === 'geral') {
+                    return this._timelineIntervaloCompleto(demandasFiltradas || [], hoje);
+                }
 
                 if (s.periodo === 'semana') {
                     const diaSemana = hoje.getDay();
@@ -3100,6 +3106,53 @@
                 const inicio = new Date(ano, mes, 1);
                 const fim = new Date(ano, mes + 1, 0, 23, 59, 59, 999);
                 return { inicio, fim };
+            }
+
+            // Intervalo do período "Completo": vai do mês da data mais antiga (abertura) ao mês
+            // da data mais recente (vencimento/conclusão) entre as demandas filtradas — assim
+            // uma demanda de mai/2026 a dez/2026 aparece com seu período inteiro, sem cortes.
+            _timelineIntervaloCompleto(demandas, hoje) {
+                let min = null;
+                let max = null;
+                demandas.forEach(d => {
+                    [d.dataAbertura, d.vencimento, d.dataConclusao].forEach(dataStr => {
+                        if (!dataStr) return;
+                        const data = new Date(dataStr + 'T00:00:00');
+                        if (isNaN(data.getTime())) return;
+                        if (!min || data < min) min = data;
+                        if (!max || data > max) max = data;
+                    });
+                });
+                if (!min || !max) {
+                    min = hoje;
+                    max = hoje;
+                }
+                const inicio = new Date(min.getFullYear(), min.getMonth(), 1);
+                const fim = new Date(max.getFullYear(), max.getMonth() + 1, 0, 23, 59, 59, 999);
+                return { inicio, fim };
+            }
+
+            // Gera array de meses (cada um com { inicio, fim, rotulo, mes }) dentro do intervalo —
+            // usado no período "Completo", onde cada coluna do cabeçalho representa um mês inteiro
+            _timelineMeses(intervalo) {
+                const mesesAbrev = ['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ'];
+                const meses = [];
+                const cursor = new Date(intervalo.inicio.getFullYear(), intervalo.inicio.getMonth(), 1);
+
+                while (cursor <= intervalo.fim) {
+                    const inicioMes = new Date(cursor.getFullYear(), cursor.getMonth(), 1);
+                    const fimMesReal = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 0, 23, 59, 59, 999);
+
+                    meses.push({
+                        inicio: inicioMes,
+                        fim: new Date(Math.min(fimMesReal.getTime(), intervalo.fim.getTime())),
+                        rotulo: mesesAbrev[cursor.getMonth()],
+                        mes: String(cursor.getFullYear())
+                    });
+
+                    cursor.setMonth(cursor.getMonth() + 1);
+                }
+                return meses;
             }
 
             // Gera array de semanas (cada uma com { inicio, fim, rotulo }) dentro do intervalo
@@ -3246,14 +3299,16 @@
                 if (!container) return;
 
                 const s = this._timelineState;
-                const intervalo = this._timelineIntervalo();
-                const semanas = this._timelineSemanas(intervalo);
                 const hoje = new Date();
                 hoje.setHours(12, 0, 0, 0);
 
-                // Filtra e agrupa
+                // Filtra e agrupa primeiro: o período "Completo" precisa das demandas já
+                // filtradas para calcular o intervalo (início/fim reais das demandas exibidas)
                 const demandasFiltradas = this._timelineFiltrarDemandas();
                 const grupos = this._timelineAgruparPorFrente(demandasFiltradas);
+
+                const intervalo = this._timelineIntervalo(demandasFiltradas);
+                const colunas = s.periodo === 'geral' ? this._timelineMeses(intervalo) : this._timelineSemanas(intervalo);
 
                 // KPIs
                 const total = demandasFiltradas.length;
@@ -3311,6 +3366,12 @@
                 // === Navegação de período ===
                 const rotuloPeriodo = (() => {
                     const meses = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+                    if (s.periodo === 'geral') {
+                        const mesesAbrev = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+                        const iniIgualFim = intervalo.inicio.getMonth() === intervalo.fim.getMonth() && intervalo.inicio.getFullYear() === intervalo.fim.getFullYear();
+                        if (iniIgualFim) return `${mesesAbrev[intervalo.inicio.getMonth()]}/${intervalo.inicio.getFullYear()}`;
+                        return `${mesesAbrev[intervalo.inicio.getMonth()]}/${intervalo.inicio.getFullYear()} – ${mesesAbrev[intervalo.fim.getMonth()]}/${intervalo.fim.getFullYear()}`;
+                    }
                     if (s.periodo === 'semana') {
                         const ini = intervalo.inicio;
                         const fim = intervalo.fim;
@@ -3327,11 +3388,14 @@
                 html += `<button class="timeline-period-btn ${s.periodo === 'semana' ? 'active' : ''}" data-periodo="semana">Semana</button>`;
                 html += `<button class="timeline-period-btn ${s.periodo === 'mes' ? 'active' : ''}" data-periodo="mes">Mês</button>`;
                 html += `<button class="timeline-period-btn ${s.periodo === 'trimestre' ? 'active' : ''}" data-periodo="trimestre">Trimestre</button>`;
-                html += '<div class="timeline-nav-arrows">';
-                html += '<button id="timelinePrev" title="Anterior">◀</button>';
-                html += `<button id="timelineHoje" title="Hoje" style="font-weight:600;">Hoje</button>`;
-                html += '<button id="timelineNext" title="Próximo">▶</button>';
-                html += '</div>';
+                html += `<button class="timeline-period-btn ${s.periodo === 'geral' ? 'active' : ''}" data-periodo="geral" title="Mostra o período inteiro de cada demanda, do início ao fim">Completo</button>`;
+                if (s.periodo !== 'geral') {
+                    html += '<div class="timeline-nav-arrows">';
+                    html += '<button id="timelinePrev" title="Anterior">◀</button>';
+                    html += `<button id="timelineHoje" title="Hoje" style="font-weight:600;">Hoje</button>`;
+                    html += '<button id="timelineNext" title="Próximo">▶</button>';
+                    html += '</div>';
+                }
                 html += `<span class="timeline-period-label">${rotuloPeriodo}</span>`;
                 html += '</div>';
 
@@ -3339,11 +3403,11 @@
                 html += '<div class="timeline-gantt" id="timelineGantt">';
                 html += '<div class="timeline-gantt-inner">';
 
-                // Cabeçalho de semanas
+                // Cabeçalho de semanas (ou meses, no período "Completo")
                 html += '<div class="timeline-header">';
                 html += '<div class="timeline-header-labels">Frente / Demanda</div>';
                 html += '<div class="timeline-header-weeks">';
-                semanas.forEach(sem => {
+                colunas.forEach(sem => {
                     html += `<div class="timeline-week-header"><span class="month-label">${sem.mes}</span><span class="week-label">${sem.rotulo}</span></div>`;
                 });
                 html += '</div></div>';
