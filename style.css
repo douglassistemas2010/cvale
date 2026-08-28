@@ -2392,9 +2392,10 @@
             position: relative;
         }
 
-        /* Container das linhas de demanda — padding-left compensa o label fixo de 520px */
+        /* Container das linhas de demanda — cada .timeline-row já reserva sua própria
+           coluna de label (520px) via flex, então este container não deve aplicar
+           padding-left de novo (isso deslocava e estreitava as barras de data). */
         .timeline-rows-container {
-            padding-left: 520px;
             position: relative;
         }
 

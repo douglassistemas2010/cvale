@@ -3063,7 +3063,7 @@
                 filtroStatus: '',
                 filtroPrioridade: '',
                 filtroBusca: '',
-                mostrarConcluidas: true,
+                mostrarConcluidas: false,
                 frentesColapsadas: {} // { 'C4C': true, ... }
             };
 
@@ -3348,14 +3348,15 @@
                 });
                 html += '</div></div>';
 
-                // Container das linhas (com padding-left para compensar o label fixo)
-                // A linha HOJE e as barras usam % relativa a este container
+                // Container das linhas — cada linha já reserva sua própria coluna de label
+                // (520px), então a linha HOJE precisa compensar essa mesma largura via calc()
+                // para ficar alinhada com as colunas de data do cabeçalho.
                 html += '<div class="timeline-rows-container">';
 
                 // Linha HOJE
                 const hojePos = this._timelinePosicaoData(hoje.toISOString().split('T')[0], intervalo);
                 if (hojePos !== null && hojePos >= 0 && hojePos <= 1) {
-                    html += `<div class="timeline-today-line" style="left:${(hojePos * 100).toFixed(2)}%;">`;
+                    html += `<div class="timeline-today-line" style="left:calc(520px + (100% - 520px) * ${hojePos.toFixed(4)});">`;
                     html += '<div class="timeline-today-label">HOJE</div>';
                     html += '</div>';
                 }
