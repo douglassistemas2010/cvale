@@ -530,3 +530,11 @@ A pedido do usuário, dois ajustes na aba **Timeline**:
 ## Sessão de 26/10/2026 — tema igual ao dos treinamentos
 
 Visual alinhado ao padrão de C4C/Treinamento (Plus Jakarta Sans; navy #003a5c/#00294a, azul #005a9c, ciano #00a9dc, dourado #f5c242, papel #f4f8fc). Cabeçalho com barra azul→ciano, abas e kickers em ciano, cards em vidro (escuro) ou brancos (claro) com cantos 24px. Mudanças: bloco 'TEMA TREINAMENTO C.VALE' no fim de `style.css`, paletas em `THEMES` (`app.js`) e fonte no `index.html`. Os dois temas (claro/escuro) foram mantidos; as cores das frentes (C4C/ESG/MKT/SAP) não mudaram.
+
+## Sessão de 26/10/2026 (2) — correção de textos transparentes / baixo contraste
+
+Auditoria WCAG AA (4.5:1 texto normal, 3:1 grande) em todas as abas, nos dois temas: havia ~15 falhas por aba (cores neon inline sobre vidro azul-marinho, cinzas secundários, textos com opacity .5/.7, texto branco na ponta ciano do cabeçalho). Correção:
+
+- `contraste.js` (novo, carregado após `app.js`): guarda de contraste em tempo de execução. A cada renderização recalcula a cor efetiva do fundo e, se o texto ficar abaixo de AA, clareia/escurece a cor (marca `data-cg`). Não altera as cores das frentes no código, só corrige o que não é legível.
+- `style.css`: cabeçalho com gradiente mais escuro e borda ciano de 3px; botão verde neon mais escuro; gradiente do valor dos cards (tema claro) em azul-marinho; `::placeholder` legível nos dois temas (o guard não enxerga placeholder); ícone de busca acima do input; no tema claro, filtros/seletores em branco e logo sobre faixa azul (logo é branco).
+- Resultado: 0 falhas na auditoria (5 abas x 2 temas).

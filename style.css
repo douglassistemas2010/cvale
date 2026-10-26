@@ -2896,8 +2896,8 @@
         /* --- Cabeçalho: mesma barra superior azul→ciano do treinamento --- */
         .header,
         body.theme-light .header {
-            background: linear-gradient(90deg, #0a6fb5, #00a9dc 55%, #38c6e8);
-            border-bottom: none;
+            background: linear-gradient(90deg, #00294a, #004a80 55%, #0a6fb5);
+            border-bottom: 3px solid var(--cyan);
             color: #ffffff;
             box-shadow: 0 6px 22px rgba(0, 41, 74, 0.28);
             -webkit-backdrop-filter: none;
@@ -2952,8 +2952,8 @@
         .btn-secondary:hover { background: rgba(0, 169, 220, 0.28); }
 
         .btn-neon-green {
-            background: linear-gradient(135deg, #14966b, #0f7d58);
-            box-shadow: 0 8px 20px rgba(20, 150, 107, 0.3);
+            background: linear-gradient(135deg, #0f7d58, #0b6b4a);
+            box-shadow: 0 8px 20px rgba(11, 107, 74, 0.3);
         }
 
         .btn-neon-green:hover {
@@ -3094,6 +3094,12 @@
 
         body.theme-light .card:hover { box-shadow: 0 18px 40px rgba(0, 90, 156, 0.16); }
 
+        body.theme-light .card-value {
+            background: linear-gradient(135deg, #00294a, #005a9c);
+            -webkit-background-clip: text;
+            background-clip: text;
+        }
+
         body.theme-light .modal {
             background: rgba(0, 41, 74, 0.38);
         }
@@ -3122,6 +3128,56 @@
         body.theme-light .form-select option {
             background: #ffffff !important;
             color: var(--ink) !important;
+        }
+
+        /* --- Placeholders e ícone de busca legíveis (o guard de contraste não vê placeholder) --- */
+        ::placeholder { opacity: 1; }
+        body.theme-dark ::placeholder,
+        body.theme-dark .search-box input::placeholder { color: #b6d1e4; opacity: 1; }
+        body.theme-light ::placeholder,
+        body.theme-light .search-box input::placeholder { color: #5b7088; opacity: 1; }
+
+        .search-box::before {
+            z-index: 2;
+            pointer-events: none;
+            opacity: 0.9;
+        }
+
+        body.theme-light .search-box input,
+        body.theme-light .filter-select {
+            background: #ffffff;
+            border: 1px solid #c4d3e2;
+            color: var(--ink);
+        }
+
+        /* Tema claro: seletores personalizados em branco e logo sobre fundo azul */
+        body.theme-light .custom-select-trigger {
+            background: #ffffff;
+            border: 1px solid #c4d3e2;
+            color: var(--ink);
+            box-shadow: none;
+        }
+        body.theme-light .custom-select-trigger:hover,
+        body.theme-light .custom-select.open .custom-select-trigger {
+            border-color: var(--cv-blue, #005a9c);
+        }
+        body.theme-light .custom-select-menu {
+            background: #ffffff;
+            border: 1px solid #c4d3e2;
+            box-shadow: 0 18px 40px rgba(0, 41, 74, 0.16);
+        }
+        body.theme-light .custom-select-option { color: var(--ink); }
+        body.theme-light .custom-select-option:hover { background: #e8f1f9; }
+        body.theme-light .custom-select-option.active {
+            background: #d6e8f6;
+            color: #00294a;
+        }
+        body.theme-light .tabs-logo img {
+            background: linear-gradient(135deg, #00294a, #005a9c);
+            padding: 6px 14px;
+            border-radius: 10px;
+            height: 44px;
+            opacity: 1;
         }
 
         /* Barra de rolagem na paleta C.Vale */
