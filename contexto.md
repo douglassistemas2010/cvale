@@ -546,3 +546,7 @@ Auditoria WCAG AA (4.5:1 texto normal, 3:1 grande) em todas as abas, nos dois te
 - Grids `1fr` trocados por `minmax(0,1fr)` (tipo-cards, cards, charts, form-row) para o conteúdo não esticar a trilha.
 - Mobile (<=768px): `.header-actions` e `.timeline-period-nav` quebram linha (antes passavam de 390px).
 - Validado em 1536/1366/1280/1024/390px nas 5 abas: sem overflow horizontal da página. Overrides ficam no bloco final de `style.css`.
+
+## Sessão de 26/10/2026 (4) — tema claro como padrão
+
+`carregarTema()` (`app.js`) agora sempre abre em tema claro, ignorando o `localStorage['tema']` salvo. O botão de tema continua funcionando durante a sessão (e ainda grava a escolha, mas ela não é lida na próxima abertura).

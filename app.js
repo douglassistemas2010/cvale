@@ -454,8 +454,8 @@
             }
 
             carregarTema() {
-                const tema = localStorage.getItem('tema') || 'dark';
-                this.trocarTema(tema);
+                // Sempre abre no tema claro; o botão de tema vale apenas durante a sessão aberta.
+                this.trocarTema('light');
             }
 
             // ===== CONFIGURAÇÃO CENTRALIZADA DE TEMAS =====
