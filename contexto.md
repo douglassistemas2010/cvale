@@ -538,3 +538,11 @@ Auditoria WCAG AA (4.5:1 texto normal, 3:1 grande) em todas as abas, nos dois te
 - `contraste.js` (novo, carregado após `app.js`): guarda de contraste em tempo de execução. A cada renderização recalcula a cor efetiva do fundo e, se o texto ficar abaixo de AA, clareia/escurece a cor (marca `data-cg`). Não altera as cores das frentes no código, só corrige o que não é legível.
 - `style.css`: cabeçalho com gradiente mais escuro e borda ciano de 3px; botão verde neon mais escuro; gradiente do valor dos cards (tema claro) em azul-marinho; `::placeholder` legível nos dois temas (o guard não enxerga placeholder); ícone de busca acima do input; no tema claro, filtros/seletores em branco e logo sobre faixa azul (logo é branco).
 - Resultado: 0 falhas na auditoria (5 abas x 2 temas).
+
+## Sessão de 26/10/2026 (3) — colunas/grids estourando a tela
+
+- Tabela de Demandas: `.table-container` tinha `overflow:hidden` e cortava as colunas Abertura/Vencimento abaixo de ~1300px. Agora `overflow-x:auto` (rolagem como último recurso), Título como coluna flexível (quebra linha, mín. 180px), cabeçalhos e badge de Status quebram linha, paddings menores até 1400px. Em 1280px as 11 colunas cabem sem rolagem.
+- `.card-subtitle` deixou de cortar com reticências (quebra linha).
+- Grids `1fr` trocados por `minmax(0,1fr)` (tipo-cards, cards, charts, form-row) para o conteúdo não esticar a trilha.
+- Mobile (<=768px): `.header-actions` e `.timeline-period-nav` quebram linha (antes passavam de 390px).
+- Validado em 1536/1366/1280/1024/390px nas 5 abas: sem overflow horizontal da página. Overrides ficam no bloco final de `style.css`.
