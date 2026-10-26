@@ -462,48 +462,48 @@
             THEMES = {
                 dark: {
                     bodyClass: 'theme-dark',
-                    pageBackground: 'linear-gradient(135deg, #0b1220 0%, #10233d 25%, #16385e 50%, #0d1f35 100%)',
+                    pageBackground: 'linear-gradient(135deg, #00294a 0%, #003a5c 55%, #04507f 100%)',
                     vars: {
-                        '--bg-primary': '#0b1220',
-                        '--bg-secondary': '#10233d',
-                        '--bg-tertiary': '#16385e',
-                        '--bg-card': 'rgba(16, 35, 61, 0.4)',
-                        '--bg-overlay': 'rgba(11, 18, 32, 0.8)',
-                        '--glass': 'rgba(26, 37, 64, 0.7)',
-                        '--glass-border': 'rgba(255, 255, 255, 0.15)',
-                        '--text-primary': '#f8f9fa',
-                        '--text-secondary': '#cbd5e1',
-                        '--text-tertiary': '#94a3b8',
-                        '--border-color': 'rgba(148, 163, 184, 0.2)',
-                        '--border-light': 'rgba(148, 163, 184, 0.3)',
-                        '--primary': '#2d5a8c',
-                        '--success': '#10b981',
+                        '--bg-primary': '#00294a',
+                        '--bg-secondary': '#003a5c',
+                        '--bg-tertiary': '#04507f',
+                        '--bg-card': 'rgba(255, 255, 255, 0.08)',
+                        '--bg-overlay': 'rgba(0, 41, 74, 0.8)',
+                        '--glass': 'rgba(255, 255, 255, 0.10)',
+                        '--glass-border': 'rgba(255, 255, 255, 0.26)',
+                        '--text-primary': '#f4f8fc',
+                        '--text-secondary': '#cfe6f4',
+                        '--text-tertiary': '#9fbdd3',
+                        '--border-color': 'rgba(255, 255, 255, 0.16)',
+                        '--border-light': 'rgba(255, 255, 255, 0.26)',
+                        '--primary': '#00a9dc',
+                        '--success': '#14966b',
                         '--danger': '#ef4444',
-                        '--warning': '#f59e0b',
-                        '--info': '#06b6d4'
+                        '--warning': '#f5c242',
+                        '--info': '#38c6e8'
                     }
                 },
                 light: {
                     bodyClass: 'theme-light',
-                    pageBackground: 'linear-gradient(135deg, #ecefed 0%, #f5f7f5 52%, #fcfcfb 100%)',
+                    pageBackground: 'linear-gradient(135deg, #f4f8fc 0%, #e4f0f8 100%)',
                     vars: {
-                        '--bg-primary': '#ecefed',
-                        '--bg-secondary': '#f4f6f4',
-                        '--bg-tertiary': '#fbfcfa',
-                        '--bg-card': 'rgba(255, 255, 255, 0.62)',
-                        '--bg-overlay': 'rgba(236, 239, 237, 0.72)',
-                        '--glass': 'rgba(255, 255, 255, 0.52)',
-                        '--glass-border': 'rgba(255, 255, 255, 0.68)',
-                        '--text-primary': '#17212b',
-                        '--text-secondary': '#4d5b68',
-                        '--text-tertiary': '#7b8794',
-                        '--border-color': 'rgba(116, 129, 144, 0.16)',
-                        '--border-light': 'rgba(116, 129, 144, 0.26)',
-                        '--primary': '#2d5a8c',
-                        '--success': '#10b981',
+                        '--bg-primary': '#f4f8fc',
+                        '--bg-secondary': '#e4f0f8',
+                        '--bg-tertiary': '#ffffff',
+                        '--bg-card': '#ffffff',
+                        '--bg-overlay': 'rgba(244, 248, 252, 0.8)',
+                        '--glass': '#ffffff',
+                        '--glass-border': '#d6e0ea',
+                        '--text-primary': '#16293d',
+                        '--text-secondary': '#3f566e',
+                        '--text-tertiary': '#5b7088',
+                        '--border-color': 'rgba(0, 58, 92, 0.12)',
+                        '--border-light': 'rgba(0, 58, 92, 0.22)',
+                        '--primary': '#005a9c',
+                        '--success': '#14966b',
                         '--danger': '#ef4444',
-                        '--warning': '#f59e0b',
-                        '--info': '#06b6d4'
+                        '--warning': '#d99a0b',
+                        '--info': '#00a9dc'
                     }
                 }
             };
@@ -522,8 +522,9 @@
                 btnDark.classList.toggle('active', tema === 'dark');
                 btnLight.classList.toggle('active', tema === 'light');
 
-                btnDark.style.color = tema === 'dark' ? '#06b6d4' : '#7b8794';
-                btnLight.style.color = tema === 'light' ? '#2d5a8c' : '#f8f9fa';
+                // Os botões ficam sobre a barra azul→ciano do cabeçalho: ativo em branco pleno, inativo atenuado.
+                btnDark.style.color = tema === 'dark' ? '#ffffff' : 'rgba(255, 255, 255, 0.7)';
+                btnLight.style.color = tema === 'light' ? '#ffffff' : 'rgba(255, 255, 255, 0.7)';
             }
 
             aplicarClasseTema(tema) {
@@ -541,8 +542,8 @@
                 const isLight = tema === 'light';
                 document.querySelectorAll('input, textarea, select').forEach(el => {
                     if (isLight) {
-                        el.style.color = '#17212b';
-                        el.style.background = 'rgba(255, 255, 255, 0.72)';
+                        el.style.color = '#16293d';
+                        el.style.background = '#ffffff';
                     } else {
                         el.style.color = '';
                         el.style.background = '';

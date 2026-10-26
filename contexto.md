@@ -526,3 +526,7 @@ A pedido do usuário, dois ajustes na aba **Timeline**:
   simplesmente não tinha o conteúdo novo, sem edição paralela real), resolvido aceitando sempre o
   lado recebido (`git checkout --theirs`) e conferido arquivo a arquivo (`Compare-Object`) que ficou
   idêntico ao repositório pessoal antes do push. Staging apagado ao final.
+
+## Sessão de 26/10/2026 — tema igual ao dos treinamentos
+
+Visual alinhado ao padrão de C4C/Treinamento (Plus Jakarta Sans; navy #003a5c/#00294a, azul #005a9c, ciano #00a9dc, dourado #f5c242, papel #f4f8fc). Cabeçalho com barra azul→ciano, abas e kickers em ciano, cards em vidro (escuro) ou brancos (claro) com cantos 24px. Mudanças: bloco 'TEMA TREINAMENTO C.VALE' no fim de `style.css`, paletas em `THEMES` (`app.js`) e fonte no `index.html`. Os dois temas (claro/escuro) foram mantidos; as cores das frentes (C4C/ESG/MKT/SAP) não mudaram.
