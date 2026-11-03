@@ -98,8 +98,8 @@
         const CORES_FRENTE = {
             'C4C': 'var(--frente-c4c-branco)',   // branco neon (escurece sozinho no tema claro, ver style.css)
             'SAP': '#00b3ff',                    // azul neon
-            'ESG': '#39ff14',                    // verde neon
-            'MKT': '#b026ff',                    // roxo neon
+            'ESG': '#16a34a',                    // verde escuro
+            'MKT': '#7a1fff',                    // roxo forte
             'Dev Interno': '#ff6a00',            // laranja neon
             'Outro': 'var(--frente-outro-branco)' // branco neon (escurece sozinho no tema claro, ver style.css)
         };
@@ -1818,7 +1818,7 @@
                     const isTestesIntegrados = status === 'Em Testes Integrados';
 
                     html += `
-                        <div class="card card-clickable ${isTestesIntegrados ? 'card-testes-integrados' : ''}" onclick="app.filtrarPorStatus('${statusEscaped}')" title="Clique para ver demandas: ${statusHtml}" ${isTestesIntegrados ? 'style="border: 2px solid #3b82f6; box-shadow: 0 0 15px rgba(59, 130, 246, 0.3);"' : ''}>
+                        <div class="card card-clickable ${isTestesIntegrados ? 'card-testes-integrados' : ''}" onclick="app.filtrarPorStatus('${statusEscaped}')" title="Clique para ver demandas: ${statusHtml}">
                             <div class="card-header">
                                 <div class="card-title">${statusHtml}</div>
                                 <div class="card-icon" data-lucide="${icone}"></div>
@@ -2019,7 +2019,7 @@
                         const data = canvas._chartData;
                         if (!data) return;
                         
-                        const paddingLeft = 150;
+                        const paddingLeft = 185;
                         const paddingTop = 30;
                         const paddingBottom = 30;
                         const graphHeight = data.height - paddingTop - paddingBottom;
@@ -2083,7 +2083,7 @@
                 
                 ctx.clearRect(0, 0, width, height);
 
-                const paddingLeft = 150;
+                const paddingLeft = 185;
                 const paddingRight = 60;
                 const paddingTop = 30;
                 const paddingBottom = 30;
@@ -2093,10 +2093,8 @@
                 const barSpacing = graphHeight / labels.length;
                 const maxValue = Math.max(...dados, 1);
 
-                // Detectar tema
-                const temaCaro = document.documentElement.style.getPropertyValue('--bg-primary').includes('c9');
-                const corTexto = temaCaro ? '#000000' : 'rgba(248, 249, 250, 0.8)';
-                const corEixo = temaCaro ? 'rgba(0, 0, 0, 0.3)' : 'rgba(148, 163, 184, 0.2)';
+                // Detectar tema (texto branco no escuro, azul-marinho no claro)
+                const { corTexto, corEixo } = this.coresTextoGrafico();
 
                 // Eixo X (horizontal) com efeito de brilho
                 ctx.strokeStyle = corEixo;
@@ -2158,7 +2156,7 @@
                     ctx.shadowColor = 'transparent';
 
                     // Label à esquerda (maior no hover)
-                    ctx.fillStyle = isHovered ? '#fff' : corTexto;
+                    ctx.fillStyle = corTexto;
                     ctx.font = isHovered ? 'bold 16px Inter' : 'bold 14px Inter';
                     ctx.textAlign = 'right';
                     ctx.textBaseline = 'middle';
@@ -2177,6 +2175,15 @@
                         ctx.fillText(valor.toString(), x + barWidthAnimado + 5, y + actualBarHeight / 2);
                     }
                 });
+            }
+
+            // Cor de texto/eixos dos gráficos de canvas: branco no tema escuro, azul-marinho no claro
+            coresTextoGrafico() {
+                const claro = document.body.classList.contains('theme-light');
+                return {
+                    corTexto: claro ? '#16293d' : '#ffffff',
+                    corEixo: claro ? 'rgba(22, 41, 61, 0.35)' : 'rgba(255, 255, 255, 0.35)'
+                };
             }
 
             desenharGraficoPizza(ctx, labels, dados, cores, width, height) {
@@ -2263,9 +2270,8 @@
                 const baseRadius = Math.min(width, height) / 2 - 40;
                 const total = dados.reduce((s, v) => s + v, 1);
 
-                // Detectar tema
-                const temaCaro = document.documentElement.style.getPropertyValue('--bg-primary').includes('c9');
-                const corTexto = temaCaro ? '#000000' : '#f8f9fa';
+                // Detectar tema (texto branco no escuro, azul-marinho no claro)
+                const { corTexto } = this.coresTextoGrafico();
 
                 let currentAngle = -Math.PI / 2;
 
@@ -2328,10 +2334,14 @@
                     const labelX = centerX + offsetX + Math.cos(labelAngle) * labelRadius;
                     const labelY = centerY + offsetY + Math.sin(labelAngle) * labelRadius;
 
-                    ctx.fillStyle = isHovered ? '#fff' : corTexto;
+                    // Número sobre a fatia colorida: branco com contorno escuro fino (legível nos dois temas)
+                    ctx.fillStyle = '#ffffff';
                     ctx.font = isHovered ? 'bold 16px Inter' : 'bold 13px Inter';
                     ctx.textAlign = 'center';
                     ctx.textBaseline = 'middle';
+                    ctx.lineWidth = 3;
+                    ctx.strokeStyle = 'rgba(0, 0, 0, 0.45)';
+                    ctx.strokeText(valor.toString(), labelX, labelY);
                     ctx.fillText(valor.toString(), labelX, labelY);
 
                     currentAngle += sliceAngle;
@@ -2351,7 +2361,7 @@
                         ctx.strokeRect(15, legendY - 8, 14, 14);
                     }
                     
-                    ctx.fillStyle = isHovered ? '#fff' : corTexto;
+                    ctx.fillStyle = corTexto;
                     ctx.font = isHovered ? 'bold 14px Inter' : '13px Inter';
                     ctx.textAlign = 'left';
                     ctx.textBaseline = 'middle';
@@ -2506,8 +2516,7 @@
                             .reu-empty { padding: 2rem; text-align: center; color: var(--text-tertiary); }
                             /* Divide a tela entre a Visão por Frente (torres) e o bloco de pontos da
                                reunião — colapsa pra 1 coluna em telas menores. */
-                            .reu-split { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(260px, 1fr); gap: 1.5rem; align-items: start; }
-                            @media (max-width: 900px) { .reu-split { grid-template-columns: 1fr; } }
+                            .reu-split { display: block; }
                             /* Torres (gráfico de colunas empilhadas) — a barra fica numa zona de altura
                                fixa (.reu-torre-barwrap) pra que o rótulo/frente de todas as colunas
                                alinhe na mesma linha, mesmo com alturas de torre diferentes. */
@@ -2528,11 +2537,12 @@
                             .reu-insight span { flex-shrink: 0; }
                             /* Pontos para a reunião — lista curta em tópicos, ao lado da Visão por
                                Frente (.reu-split). Só localStorage, sem sincronizar com Supabase. */
-                            .reu-pontos { display: flex; flex-direction: column; min-height: 100%; }
-                            .reu-pontos-form { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
-                            .reu-pontos-form input { flex: 1; }
-                            .reu-pontos-lista { display: flex; flex-direction: column; gap: 0.5rem; list-style: none; margin: 0; padding: 0; max-height: 320px; overflow-y: auto; }
-                            .reu-ponto-item { display: flex; align-items: flex-start; gap: 0.6rem; padding: 0.55rem 0.7rem; border-radius: 10px; background: rgba(148,163,184,0.06); font-size: 0.85rem; color: var(--text-secondary); line-height: 1.4; }
+                            .reu-pontos { display: flex; flex-direction: column; min-height: 460px; padding: 1.6rem; }
+                            .reu-pontos .reu-panel-title { font-size: 1.15rem; }
+                            .reu-pontos-form { display: flex; gap: 0.75rem; margin-bottom: 1.25rem; }
+                            .reu-pontos-form input { flex: 1; font-size: 1rem; padding: 0.8rem 1rem; }
+                            .reu-pontos-lista { display: flex; flex-direction: column; gap: 0.65rem; list-style: none; margin: 0; padding: 0; max-height: 60vh; overflow-y: auto; }
+                            .reu-ponto-item { display: flex; align-items: flex-start; gap: 0.8rem; padding: 0.85rem 1rem; border-radius: 12px; background: rgba(148,163,184,0.06); font-size: 1rem; color: var(--text-secondary); line-height: 1.5; }
                             .reu-ponto-num { flex-shrink: 0; font-weight: 700; color: var(--text-tertiary); font-variant-numeric: tabular-nums; }
                             .reu-ponto-texto { flex: 1; word-break: break-word; white-space: pre-wrap; }
                             .reu-ponto-remover { flex-shrink: 0; background: none; border: none; color: var(--text-tertiary); font-size: 1.1rem; line-height: 1; cursor: pointer; padding: 0 0.15rem; transition: color 0.15s ease; }
@@ -2585,38 +2595,6 @@
                             </div>
 
                             <div class="reu-split">
-                                <div class="reu-panel">
-                                    <div class="reu-panel-title">Visão por Frente</div>
-                                    ${frentesArr.length ? `
-                                        <div class="reu-torres">
-                                            ${frentesArr.map(([nome, v]) => {
-                                                const alturaTotal = Math.round((v.total / maxFrenteTotal) * 85); // 85% deixa espaço pro número acima da torre
-                                                const segConcl = v.total ? Math.round((v.concluida / v.total) * 100) : 0;
-                                                const segAndam = v.total ? Math.round((v.andamento / v.total) * 100) : 0;
-                                                const segTeste = Math.max(0, 100 - segConcl - segAndam);
-                                                return `<div class="reu-torre-col" onclick="app.abrirModalTorreDemandas('${escapeAttrJs(nome)}')" title="Ver as ${v.total} demanda(s) desta frente">
-                                                    <div class="reu-torre-barwrap">
-                                                        <div class="reu-torre-valor">${v.total}</div>
-                                                        <div class="reu-torre-bar" style="height:${alturaTotal}%;">
-                                                            <div style="height:${segTeste}%; background:#1d4ed8;"></div>
-                                                            <div style="height:${segAndam}%; background:${corDaFrente(nome)};"></div>
-                                                            <div style="height:${segConcl}%; background:#16a34a;"></div>
-                                                        </div>
-                                                    </div>
-                                                    <div class="reu-torre-label">${getBadgeFrente(nome)}</div>
-                                                    <div class="reu-torre-atraso">${v.atrasada ? v.atrasada + ' atras.' : ''}</div>
-                                                </div>`;
-                                            }).join('')}
-                                        </div>
-                                        <div class="reu-torres-legenda">
-                                            <span><i style="background:#1d4ed8;"></i> Em teste/validação</span>
-                                            <span><i style="background:var(--text-tertiary);"></i> Em andamento (cor da frente)</span>
-                                            <span><i style="background:#16a34a;"></i> Concluída</span>
-                                            <span style="color:#ef4444;"><i style="background:#ef4444;"></i> Atrasadas (subconjunto, não somam na altura)</span>
-                                        </div>
-                                    ` : '<div class="reu-empty">Nenhuma demanda no filtro atual</div>'}
-                                </div>
-
                                 <div class="reu-panel reu-pontos">
                                     <div class="reu-panel-title">Pontos para a Reunião</div>
                                     <form class="reu-pontos-form" onsubmit="app.submeterPontoReuniao(event)">
@@ -3816,7 +3794,10 @@
                 this.atualizarBotoesTema(tema);
                 this.atualizarInputsTema(tema);
 
-                if (!silencioso) this.mostrarToast(tema === 'dark' ? '🌙 Modo escuro ativado' : '☀️ Modo claro ativado');
+                if (!silencioso) {
+                    this.atualizarDashboard(); // gráficos de canvas precisam ser redesenhados com as cores do novo tema
+                    this.mostrarToast(tema === 'dark' ? '🌙 Modo escuro ativado' : '☀️ Modo claro ativado');
+                }
             }
 
 

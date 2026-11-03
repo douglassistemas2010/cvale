@@ -558,3 +558,11 @@ Auditoria WCAG AA (4.5:1 texto normal, 3:1 grande) em todas as abas, nos dois te
 - Login: a leitura é pública e já abre sem login. O modo edição segue exigindo e-mail/senha do Supabase (a sessão fica salva no navegador); não foi embutida credencial no código por ser site público.
 - Não testado em navegador real nesta sessão (só 
 ode --check).
+
+## Sessão de 03/11/2026 (2) — ajustes visuais
+
+- Card "Testes Integrados": sem borda azul inline (layout igual aos demais); só o brilho (box-shadow) pulsa (cardTestePulse).
+- Cores de origem: ESG #16a34a (verde mais escuro) e MKT #7a1fff (roxo mais forte), no app.js (CORES_FRENTE) e nos cards "Distribuição por Tipo".
+- Gráficos: coresTextoGrafico() detecta o tema por body.theme-light (a detecção anterior por --bg-primary nunca batia e deixava o texto branco no tema claro). Troca de tema redesenha os gráficos. paddingLeft das barras 185 para não cortar "Em Testes Integrados".
+- Reunião Semanal: removido o painel "Visão por Frente"; painel de pontos ocupa a largura toda e ficou maior. Código das torres/modal mantido sem uso visível.
+- Validado no navegador (dados injetados): legendas legíveis nos temas claro e escuro, rótulo sem corte, card sem borda azul e pulsando, Reunião sem Visão por Frente.
