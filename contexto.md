@@ -550,3 +550,11 @@ Auditoria WCAG AA (4.5:1 texto normal, 3:1 grande) em todas as abas, nos dois te
 ## Sessão de 26/10/2026 (4) — tema claro como padrão
 
 `carregarTema()` (`app.js`) agora sempre abre em tema claro, ignorando o `localStorage['tema']` salvo. O botão de tema continua funcionando durante a sessão (e ainda grava a escolha, mas ela não é lida na próxima abertura).
+
+## Sessão de 03/11/2026 — abertura rápida e tema claro sem piscar
+
+- Causa da lentidão: inicializar() esperava sessão + leitura do Supabase + gravação (upsert) antes de desenhar qualquer coisa, e o tema só era aplicado depois disso (tela aparecia escura por alguns segundos). Também carregava o SheetJS (cdnjs) de forma bloqueante.
+- Agora: tema claro (sem toast) e dados do cache local (localStorage + SEED) aparecem na hora; sincronizarComServidor() consulta sessão e Supabase em paralelo e re-renderiza ao chegar (Supabase continua vencendo na mesclagem — mesclarFontes()). Somente leitura não tenta mais gravar no servidor a cada abertura (sem requisição 401 nem aviso). <body class="theme-light"> + fundo claro inline no index.html; SheetJS com sync.
+- Login: a leitura é pública e já abre sem login. O modo edição segue exigindo e-mail/senha do Supabase (a sessão fica salva no navegador); não foi embutida credencial no código por ser site público.
+- Não testado em navegador real nesta sessão (só 
+ode --check).

@@ -383,18 +383,17 @@
 
             async inicializar() {
                 try {
-                    if (typeof CockpitAuth !== 'undefined') {
-                        await CockpitAuth.inicializar();
-                    }
-                    await this.carregarDados();
-
+                    // Abertura rápida: tema claro + dados do cache local aparecem na hora;
+                    // Supabase e sessão de login são consultados em segundo plano e a tela
+                    // é atualizada quando chegarem (antes a tela esperava a rede inteira).
                     this.carregarTema();
+                    this.carregarDadosLocais();
 
                     this.vincularEventos();
 
                     this.renderizar();
 
-                    this.ajustarVencimentosAtrasados();
+                    await this.sincronizarComServidor();
                 } catch (err) {
                     console.error('❌ Erro na inicialização:', err);
                 }
@@ -455,7 +454,7 @@
 
             carregarTema() {
                 // Sempre abre no tema claro; o botão de tema vale apenas durante a sessão aberta.
-                this.trocarTema('light');
+                this.trocarTema('light', true);
             }
 
             // ===== CONFIGURAÇÃO CENTRALIZADA DE TEMAS =====
@@ -580,24 +579,51 @@
                 return mapeamento[status] || status;
             }
 
-            async carregarDados() {
-                // PROTEÇÃO ANTI-PERDA: Coleta dados de TODAS as fontes e mescla
-                let demandasServidor = [];
+            // Mostra na hora o que já existe no navegador (cache local + SEED), sem rede.
+            carregarDadosLocais() {
+                const { demandasLocal, demandasSeed } = this.lerFontesLocais();
+                this.demandas = this.mesclarFontes([], demandasLocal, demandasSeed);
+            }
+
+            // Em segundo plano: consulta sessão + Supabase em paralelo, mescla (Supabase vence)
+            // e atualiza a tela só quando os dados chegam.
+            async sincronizarComServidor() {
+                let resultado = null;
+                const [, retornoBusca] = await Promise.allSettled([
+                    (typeof CockpitAuth !== 'undefined') ? CockpitAuth.inicializar() : null,
+                    SupabaseRepo.buscar()
+                ]);
+                if (retornoBusca.status === 'fulfilled') resultado = retornoBusca.value;
+
+                if (resultado) {
+                    const demandasServidor = resultado.demandas.map(d => {
+                        d.status = this.migrarStatus(d.status);
+                        return new Demanda(d);
+                    });
+                    this.kanbanOrderSalva = resultado.kanbanOrder;
+
+                    const { demandasLocal, demandasSeed } = this.lerFontesLocais();
+                    this.demandas = this.mesclarFontes(demandasServidor, demandasLocal, demandasSeed);
+                }
+
+                this.renderizar();
+
+                // Logado: grava o conjunto mesclado no servidor (sem travar a tela).
+                // Somente leitura: só atualiza o cache local (evita requisição 401 e aviso a cada abertura).
+                if (this.demandas.length > 0) {
+                    if (typeof CockpitAuth !== 'undefined' && CockpitAuth.estaLogado()) {
+                        this.salvarDados();
+                    } else {
+                        localStorage.setItem(STORAGE_KEY, JSON.stringify(this.demandas));
+                    }
+                }
+
+                this.ajustarVencimentosAtrasados();
+            }
+
+            lerFontesLocais() {
                 let demandasLocal = [];
                 let demandasSeed = [];
-                
-                // 1. Tenta carregar do Supabase (banco na nuvem, substitui o antigo cockpit_dados.json)
-                try {
-                    const resultado = await SupabaseRepo.buscar();
-                    if (resultado) {
-                        demandasServidor = resultado.demandas.map(d => {
-                            d.status = this.migrarStatus(d.status);
-                            return new Demanda(d);
-                        });
-                        this.kanbanOrderSalva = resultado.kanbanOrder;
-                    }
-                } catch (err) {
-                }
 
                 // 2. Carrega do localStorage (backup local)
                 try {
@@ -633,37 +659,25 @@
                     console.error('❌ Erro ao ler SEED_DEMANDAS:', err);
                 }
 
-                // 4. MESCLAR: Supabase é sempre a fonte de verdade quando o registro existe
-                // lá — nunca escolher a fonte "com mais itens" (um backup local desatualizado
-                // pode ter mais linhas que o banco atual e "vencer" por tamanho, congelando a
-                // tela num status antigo). LocalStorage/SEED só preenchem registros que o
-                // Supabase não tem (ex.: criados offline, sem estar logado).
-                const fontes = [
-                    { nome: 'Servidor', dados: demandasServidor },
-                    { nome: 'LocalStorage', dados: demandasLocal },
-                    { nome: 'SEED', dados: demandasSeed }
-                ].filter(f => f.dados.length > 0);
+                return { demandasLocal, demandasSeed };
+            }
 
-                if (fontes.length === 0) {
-                    console.warn('⚠️ Nenhuma fonte de dados disponível!');
-                    this.demandas = [];
-                    return;
-                }
-
+            // PROTEÇÃO ANTI-PERDA: mescla todas as fontes. Supabase é sempre a fonte de verdade
+            // quando o registro existe lá — nunca escolher a fonte "com mais itens" (um backup
+            // local desatualizado pode ter mais linhas que o banco atual e "vencer" por tamanho,
+            // congelando a tela num status antigo). LocalStorage/SEED só preenchem registros que
+            // o Supabase não tem (ex.: criados offline, sem estar logado).
+            mesclarFontes(demandasServidor, demandasLocal, demandasSeed) {
                 const mapaDemandas = new Map();
-                fontes.forEach(fonte => {
-                    fonte.dados.forEach(d => {
+                [demandasServidor, demandasLocal, demandasSeed].forEach(dados => {
+                    dados.forEach(d => {
                         const chave = d.numero || d.id;
                         if (!mapaDemandas.has(chave)) {
                             mapaDemandas.set(chave, d);
                         }
                     });
                 });
-
-                this.demandas = Array.from(mapaDemandas.values());
-
-                // Salva o conjunto completo mesclado
-                await this.salvarDados();
+                return Array.from(mapaDemandas.values());
             }
 
             atualizarTimestamp() {
@@ -3791,7 +3805,7 @@
             // Tema claro: fundo cinza #f3f4f2, cards glass, texto escuro
             // Tema escuro: fundo gradiente azul-escuro, vidro, texto claro
             // Salva preferência no localStorage['tema']
-            trocarTema(tema) {
+            trocarTema(tema, silencioso = false) {
                 const config = this.THEMES[tema] || this.THEMES.dark;
 
                 localStorage.setItem('tema', tema);
@@ -3802,7 +3816,7 @@
                 this.atualizarBotoesTema(tema);
                 this.atualizarInputsTema(tema);
 
-                this.mostrarToast(tema === 'dark' ? '🌙 Modo escuro ativado' : '☀️ Modo claro ativado');
+                if (!silencioso) this.mostrarToast(tema === 'dark' ? '🌙 Modo escuro ativado' : '☀️ Modo claro ativado');
             }
 
 
