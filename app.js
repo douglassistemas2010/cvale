@@ -866,18 +866,32 @@
                 document.getElementById('inputImportFile').addEventListener('change', (e) => this.importarDemandas(e));
                 
                 // Fechar modal ao clicar fora (no overlay)
-                document.getElementById('modalDemanda').addEventListener('click', (e) => {
-                    if (e.target.id === 'modalDemanda') {
+                // Só fecha se o clique COMEÇOU e TERMINOU no overlay; arrastar para selecionar
+                // texto e soltar fora do popup não deve fechar o modal.
+                let mousedownNoOverlay = false;
+                const modalDemandaEl = document.getElementById('modalDemanda');
+                modalDemandaEl.addEventListener('mousedown', (e) => {
+                    mousedownNoOverlay = e.target === modalDemandaEl;
+                });
+                modalDemandaEl.addEventListener('click', (e) => {
+                    if (e.target === modalDemandaEl && mousedownNoOverlay) {
                         this.fecharModal();
                     }
+                    mousedownNoOverlay = false;
                 });
 
                 // Modal de demandas da torre (Reunião Semanal → Visão por Frente)
                 document.getElementById('closeModalTorre').addEventListener('click', () => this.fecharModalTorreDemandas());
-                document.getElementById('modalTorreDemandas').addEventListener('click', (e) => {
-                    if (e.target.id === 'modalTorreDemandas') {
+                let mousedownNoOverlayTorre = false;
+                const modalTorreEl = document.getElementById('modalTorreDemandas');
+                modalTorreEl.addEventListener('mousedown', (e) => {
+                    mousedownNoOverlayTorre = e.target === modalTorreEl;
+                });
+                modalTorreEl.addEventListener('click', (e) => {
+                    if (e.target === modalTorreEl && mousedownNoOverlayTorre) {
                         this.fecharModalTorreDemandas();
                     }
+                    mousedownNoOverlayTorre = false;
                 });
 
                 // Filtros — interação manual aqui sempre limpa um eventual grupo de status
@@ -1314,23 +1328,34 @@
                     // Verifica se é edição (demanda existente com esse número)
                     const demandaExistente = this.demandas.find(d => d.numero === numeroChamado);
                     const demandaOriginal = document.getElementById('numeroChamadoOriginal')?.value;
+                    let demandaSalva = null;
+                    let origemAnterior = null;
 
                     if (demandaOriginal && demandaOriginal !== numeroChamado) {
                         // Mudou o número - atualiza a demanda original
                         const demanda = this.demandas.find(d => d.numero === demandaOriginal);
                         if (demanda) {
+                            origemAnterior = demanda.origem;
                             Object.assign(demanda, demandaData);
+                            demandaSalva = demanda;
                             this.mostrarToast('✏️ Demanda atualizada com sucesso!');
                         }
                     } else if (demandaExistente) {
                         // Editar demanda existente
+                        origemAnterior = demandaExistente.origem;
                         Object.assign(demandaExistente, demandaData);
+                        demandaSalva = demandaExistente;
                         this.mostrarToast('✏️ Demanda atualizada com sucesso!');
                     } else {
                         // Criar nova
                         const novaDemanda = new Demanda(demandaData);
                         this.demandas.push(novaDemanda);
+                        demandaSalva = novaDemanda;
                         this.mostrarToast('✅ Demanda criada com sucesso!');
+                    }
+
+                    if (demandaSalva) {
+                        this.reordenarPrioridades(demandaSalva, origemAnterior);
                     }
 
                     this.fecharModal();
@@ -1344,6 +1369,34 @@
                         btnSalvar.textContent = 'Salvar';
                     }
                 }
+            }
+
+            // Mantém a Priorização (numeroOrdem) sequencial (1, 2, 3...) dentro da frente (origem).
+            // A demanda salva é encaixada na posição escolhida e as demais se deslocam
+            // (ex.: inserir como 6º empurra o 6º atual para 7º, e assim por diante).
+            // Concluídas ficam de fora: já aparecem sempre no final da lista.
+            reordenarPrioridades(demandaFoco, origemAnterior = null) {
+                const valorOrdem = (d) => {
+                    const n = Number(d.numeroOrdem);
+                    return Number.isFinite(n) && d.numeroOrdem !== '' && d.numeroOrdem !== null && d.numeroOrdem !== undefined ? n : 9999;
+                };
+                const abertas = (origem) => this.demandas.filter(d => d.origem === origem && d.status !== 'Concluído');
+
+                // Frente de onde a demanda saiu (mudança de origem): fecha o buraco na sequência
+                if (origemAnterior && origemAnterior !== demandaFoco.origem) {
+                    abertas(origemAnterior)
+                        .sort((a, b) => valorOrdem(a) - valorOrdem(b))
+                        .forEach((d, i) => { d.numeroOrdem = i + 1; });
+                }
+
+                if (demandaFoco.status === 'Concluído') return;
+
+                const outras = abertas(demandaFoco.origem)
+                    .filter(d => d !== demandaFoco)
+                    .sort((a, b) => valorOrdem(a) - valorOrdem(b));
+                const posicao = Math.min(Math.max((Number(demandaFoco.numeroOrdem) || 1) - 1, 0), outras.length);
+                outras.splice(posicao, 0, demandaFoco);
+                outras.forEach((d, i) => { d.numeroOrdem = i + 1; });
             }
 
             editarDemanda(numero) {
