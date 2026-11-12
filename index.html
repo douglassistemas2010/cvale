@@ -12,6 +12,7 @@
     <!-- SheetJS: leitura/escrita de planilhas Excel (.xlsx) para exportar/importar demandas -->
     <script async src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="ui-moderno.css">
     <!-- Tema claro desde o primeiro desenho (o app.js reaplica as variáveis completas) -->
     <style>html, body { background: linear-gradient(135deg, #f4f8fc 0%, #e4f0f8 100%); color: #16293d; }</style>
 </head>
@@ -53,7 +54,19 @@
             <div class="content-area" id="contentArea">
                 <!-- DASHBOARD TAB -->
                 <div id="tab-dashboard" class="tab-content active">
-                    <h2 style="margin-bottom: 1.5rem; font-size: 1.3rem;">Visão Funcional</h2>
+                    <section class="ui-hero">
+                        <div class="ui-hero-texto">
+                            <span class="ui-kicker">C.VALE | GECLI</span>
+                            <h2>Visão Funcional</h2>
+                            <p>Acompanhe o volume operacional, os prazos e as prioridades das suas demandas em um só lugar.</p>
+                        </div>
+                        <div class="ui-hero-kpis">
+                            <div class="ui-hero-kpi"><b id="heroAbertas">0</b><span>Em aberto</span></div>
+                            <div class="ui-hero-kpi alerta"><b id="heroCriticas">0</b><span>Críticas / Alta</span></div>
+                            <div class="ui-hero-kpi alerta"><b id="heroAtrasadas">0</b><span>Atrasadas</span></div>
+                            <div class="ui-hero-kpi ok"><b id="heroConcluidas">0</b><span>Concluídas</span></div>
+                        </div>
+                    </section>
 
                     <!-- VOLUME OPERACIONAL - Por Status -->
                     <h3 style="margin-top: 2rem; margin-bottom: 1rem; font-size: 1rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Volume Operacional - Por Status</h3>
@@ -457,5 +470,6 @@
 
     <script src="app.js"></script>
     <script src="contraste.js"></script>
+    <script src="ui-moderno.js"></script>
 </body>
 </html>

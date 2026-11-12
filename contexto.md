@@ -566,3 +566,12 @@ ode --check).
 - Gráficos: coresTextoGrafico() detecta o tema por body.theme-light (a detecção anterior por --bg-primary nunca batia e deixava o texto branco no tema claro). Troca de tema redesenha os gráficos. paddingLeft das barras 185 para não cortar "Em Testes Integrados".
 - Reunião Semanal: removido o painel "Visão por Frente"; painel de pontos ocupa a largura toda e ficou maior. Código das torres/modal mantido sem uso visível.
 - Validado no navegador (dados injetados): legendas legíveis nos temas claro e escuro, rótulo sem corte, card sem borda azul e pulsando, Reunião sem Visão por Frente.
+
+## Sessão de 12/11/2026 — layout modernizado, sem controles nativos do navegador
+
+- Regra do usuário: nada nativo do navegador na tela; tudo estilizado por CSS da página, com layout semelhante ao Treinamento Prático C4C.
+- Arquivos novos: `ui-moderno.css` (camada carregada depois do `style.css`) e `ui-moderno.js` (carregado depois do `contraste.js`). `index.html` só ganhou os dois links e o hero do Dashboard (`.ui-hero`, KPIs `heroAbertas/heroCriticas/heroAtrasadas/heroConcluidas`, preenchidos a partir de `app.demandas`).
+- `ui-moderno.js` troca, de forma progressiva e sincronizada (o elemento nativo fica escondido no DOM, o `app.js` não muda): `<select>` → menu próprio; `input[type=date]` → calendário pt-BR próprio (dd/mm/aaaa, Hoje/Limpar); `input[type=number]` → botões − / +; `title=` → dica própria. Menus/calendário ficam fixados no `<body>` (não são cortados pelo modal); Esc fecha só o popup. Um MutationObserver aprimora controles criados depois (filtros da Timeline).
+- `ui-moderno.css`: abas em pílula, kicker "C.VALE | GECLI" nos títulos, hero navy com anéis e KPIs em vidro, modais com faixa azul→ciano e cantos de 32px, checkbox próprio (`appearance:none`), confirmação e toasts alinhados. O hero tem `background-color` opaco de propósito: o `contraste.js` mede o fundo real e clareava/escurecia o texto quando o gradiente tinha ponto transparente.
+- `app.js`: o `confirm()` nativo de `importarDemandas` virou `mostrarConfirmacao()` (modal próprio).
+- Validado no navegador com dados injetados, temas claro e escuro: hero, modal Nova Demanda, menu de select, calendário, botões do número, Esc fechando só o popup. Erros de console só de recursos externos (CDN/fonte offline).

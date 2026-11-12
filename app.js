@@ -1218,7 +1218,13 @@
                         }
 
                         const totalArquivo = demandasArquivo.length;
-                        if (!confirm(`Importar ${totalArquivo} linha(s) do arquivo?\n\nDemandas com número já existente serão ATUALIZADAS; números novos serão CRIADOS. As demais demandas atuais são mantidas.`)) {
+                        const confirmouImportacao = await this.mostrarConfirmacao({
+                            icon: '📥',
+                            title: `Importar ${totalArquivo} linha(s) do arquivo?`,
+                            message: 'Demandas com número já existente serão ATUALIZADAS; números novos serão CRIADOS. As demais demandas atuais são mantidas.',
+                            confirmText: 'Importar'
+                        });
+                        if (!confirmouImportacao) {
                             event.target.value = '';
                             return;
                         }
