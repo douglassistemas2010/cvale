@@ -234,6 +234,9 @@
                 this.progresso = data.progresso || 0;
                 this.observacoes = data.observacoes || '';
                 this.ordemKanban = data.ordemKanban || 0;
+                // Histórico de auditoria (aba Planner): registros append-only { id, em (ISO), tipo, texto }.
+                // Precisa estar aqui, senão `new Demanda(d)` descarta o campo ao recarregar.
+                this.historico = Array.isArray(data.historico) ? data.historico : [];
             }
 
             // Gera novo número sequencial para demanda
@@ -378,6 +381,8 @@
                 this.pontosReuniao = JSON.parse(localStorage.getItem('cockpit_pontos_reuniao') || '[]');
                 // Demandas por frente do último render da Reunião Semanal (base pro modal ao clicar numa torre)
                 this.reuniaoFrentesDemandas = {};
+                // Estado da aba Planner (planner.js) — antes de inicializar(), que já renderiza.
+                this.iniciarPlanner();
                 this.inicializar();
             }
 
@@ -619,6 +624,9 @@
                 }
 
                 this.ajustarVencimentosAtrasados();
+
+                // Tarefas pessoais do Planner (tabela privada; só com login)
+                this.sincronizarPlanner();
             }
 
             lerFontesLocais() {
@@ -1053,6 +1061,10 @@
                 if (abaAtiva === 'timeline') {
                     this.renderizarTimeline();
                 }
+
+                if (abaAtiva === 'planner') {
+                    this.renderizarPlanner();
+                }
             }
 
             atualizarIcones() {
@@ -1342,19 +1354,24 @@
                         const demanda = this.demandas.find(d => d.numero === demandaOriginal);
                         if (demanda) {
                             origemAnterior = demanda.origem;
+                            const antesHistorico = this.instantaneoHistorico(demanda);
                             Object.assign(demanda, demandaData);
+                            this.registrarMudancasHistorico(demanda, antesHistorico, 'cadastro');
                             demandaSalva = demanda;
                             this.mostrarToast('✏️ Demanda atualizada com sucesso!');
                         }
                     } else if (demandaExistente) {
                         // Editar demanda existente
                         origemAnterior = demandaExistente.origem;
+                        const antesHistorico = this.instantaneoHistorico(demandaExistente);
                         Object.assign(demandaExistente, demandaData);
+                        this.registrarMudancasHistorico(demandaExistente, antesHistorico, 'cadastro');
                         demandaSalva = demandaExistente;
                         this.mostrarToast('✏️ Demanda atualizada com sucesso!');
                     } else {
                         // Criar nova
                         const novaDemanda = new Demanda(demandaData);
+                        this.registrarHistorico(novaDemanda, 'criacao', `Demanda criada com status “${novaDemanda.status}”.`);
                         this.demandas.push(novaDemanda);
                         demandaSalva = novaDemanda;
                         this.mostrarToast('✅ Demanda criada com sucesso!');

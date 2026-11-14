@@ -1,0 +1,118 @@
+/* =====================================================================
+   graficos.css — efeitos dos cartões de gráficos do Dashboard
+   (mesma linguagem do Treinamento C4C: pulso elétrico, espelho/brilho, respiração).
+   Só decoração: pseudo-elementos com pointer-events:none, nada altera o layout.
+   ===================================================================== */
+
+@property --gf-ang {
+    syntax: '<angle>';
+    inherits: false;
+    initial-value: 0deg;
+}
+
+.chart-container {
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+}
+
+/* Cabeçalho: ponto "ao vivo" pulsando antes do título */
+.chart-title {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+}
+
+.chart-title::before {
+    content: "";
+    flex: none;
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: #00d4ff;
+    box-shadow: 0 0 10px 2px rgba(0, 212, 255, .75);
+}
+
+/* Canvas sempre acima da decoração de fundo */
+.chart-container canvas {
+    position: relative;
+    z-index: 1;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    /* Pulso elétrico: faixa de luz que corre pela borda do cartão */
+    .chart-container::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        z-index: 2;
+        border-radius: inherit;
+        padding: 2px;
+        background: conic-gradient(from var(--gf-ang),
+            transparent 0 68%,
+            rgba(0, 169, 220, .0) 68%,
+            rgba(0, 212, 255, .75) 88%,
+            #ffffff 95%,
+            transparent 100%);
+        -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+        -webkit-mask-composite: xor;
+        mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+        pointer-events: none;
+        animation: gf-orbita 7s linear infinite;
+    }
+
+    .charts-grid > .chart-container:nth-child(2)::before { animation-delay: -1.7s; }
+    .charts-grid > .chart-container:nth-child(3)::before { animation-delay: -3.5s; }
+    .charts-grid > .chart-container:nth-child(4)::before { animation-delay: -5.2s; }
+
+    /* Espelho: reflexo de vidro atravessando o cartão */
+    .chart-container::after {
+        content: "";
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        width: 180px;
+        z-index: 2;
+        background: linear-gradient(100deg, transparent, rgba(255, 255, 255, .10), transparent);
+        transform: translateX(-260px) skewX(-14deg);
+        pointer-events: none;
+        animation: gf-varredura 8s ease-in-out infinite;
+    }
+
+    .charts-grid > .chart-container:nth-child(2)::after { animation-delay: 2s; }
+    .charts-grid > .chart-container:nth-child(3)::after { animation-delay: 4s; }
+    .charts-grid > .chart-container:nth-child(4)::after { animation-delay: 6s; }
+
+    body.theme-light .chart-container::after {
+        background: linear-gradient(100deg, transparent, rgba(0, 169, 220, .13), transparent);
+    }
+
+    /* Respiração do brilho do cartão + ponto do título */
+    .chart-container {
+        animation: slideUp 0.6s ease-out, gf-respira 4.2s ease-in-out 0.6s infinite;
+    }
+
+    .chart-title::before {
+        animation: gf-ping 2.2s ease-out infinite;
+    }
+}
+
+@keyframes gf-orbita {
+    to { --gf-ang: 360deg; }
+}
+
+@keyframes gf-varredura {
+    0% { transform: translateX(-260px) skewX(-14deg); }
+    55%, 100% { transform: translateX(1100px) skewX(-14deg); }
+}
+
+@keyframes gf-respira {
+    0%, 100% { box-shadow: 0 8px 32px rgba(0, 0, 0, .15), 0 2px 8px rgba(0, 0, 0, .08), 0 0 0 rgba(0, 212, 255, 0), inset 0 1px 1px rgba(255, 255, 255, .1); }
+    50% { box-shadow: 0 8px 32px rgba(0, 0, 0, .15), 0 2px 8px rgba(0, 0, 0, .08), 0 0 34px rgba(0, 212, 255, .28), inset 0 1px 1px rgba(255, 255, 255, .1); }
+}
+
+@keyframes gf-ping {
+    0% { box-shadow: 0 0 0 0 rgba(0, 212, 255, .7), 0 0 10px 2px rgba(0, 212, 255, .75); }
+    100% { box-shadow: 0 0 0 11px rgba(0, 212, 255, 0), 0 0 10px 2px rgba(0, 212, 255, .75); }
+}

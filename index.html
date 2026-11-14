@@ -13,6 +13,8 @@
     <script async src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="ui-moderno.css">
+    <link rel="stylesheet" href="planner.css">
+    <link rel="stylesheet" href="graficos.css">
     <!-- Tema claro desde o primeiro desenho (o app.js reaplica as variáveis completas) -->
     <style>html, body { background: linear-gradient(135deg, #f4f8fc 0%, #e4f0f8 100%); color: #16293d; }</style>
 </head>
@@ -40,6 +42,7 @@
         <!-- TABS -->
         <div class="tabs">
             <button class="tab active" data-tab="dashboard"><i data-lucide="layout-dashboard" style="width: 1rem; height: 1rem; margin-right: 0.5rem; display: inline-block; vertical-align: -2px;"></i>Dashboard</button>
+            <button class="tab" data-tab="planner"><i data-lucide="square-kanban" style="width: 1rem; height: 1rem; margin-right: 0.5rem; display: inline-block; vertical-align: -2px;"></i>Planner</button>
             <button class="tab" data-tab="demandas"><i data-lucide="list" style="width: 1rem; height: 1rem; margin-right: 0.5rem; display: inline-block; vertical-align: -2px;"></i>Demandas</button>
             <button class="tab" data-tab="timeline"><i data-lucide="clock" style="width: 1rem; height: 1rem; margin-right: 0.5rem; display: inline-block; vertical-align: -2px;"></i>Timeline</button>
             <button class="tab" data-tab="reuniao"><i data-lucide="presentation" style="width: 1rem; height: 1rem; margin-right: 0.5rem; display: inline-block; vertical-align: -2px;"></i>Reunião Semanal</button>
@@ -158,11 +161,11 @@
                             <canvas id="chartTipo" width="450" height="280"></canvas>
                         </div>
                         <div class="chart-container">
-                            <div class="chart-title">Conformidade de SLA</div>
+                            <div class="chart-title"><span>Conformidade de SLA <small style="font-weight:600;opacity:.65;">(ativas com prazo)</small></span></div>
                             <canvas id="chartSLA" width="450" height="280"></canvas>
                         </div>
                         <div class="chart-container">
-                            <div class="chart-title">Prioridades</div>
+                            <div class="chart-title"><span>Prioridades <small style="font-weight:600;opacity:.65;">(demandas ativas)</small></span></div>
                             <canvas id="chartPrioridade" width="450" height="280"></canvas>
                         </div>
                     </div>
@@ -302,6 +305,11 @@
                             </tbody>
                         </table>
                     </div>
+                </div>
+
+                <!-- PLANNER TAB (planner.js) -->
+                <div id="tab-planner" class="tab-content hidden">
+                    <div id="plannerContainer"></div>
                 </div>
 
                 <!-- REUNIÃO SEMANAL TAB -->
@@ -469,6 +477,8 @@
     <script src="supabase-config.js"></script>
 
     <script src="app.js"></script>
+    <script src="planner.js"></script>
+    <script src="graficos.js"></script>
     <script src="contraste.js"></script>
     <script src="ui-moderno.js"></script>
 </body>
