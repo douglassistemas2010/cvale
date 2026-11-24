@@ -329,6 +329,7 @@ body.theme-dark .pl-drawer {
     -webkit-backdrop-filter: var(--gl-blur);
     backdrop-filter: var(--gl-blur);
     overflow: hidden;
+    flex-shrink: 0;
     cursor: pointer;
     transition: box-shadow 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
 }
