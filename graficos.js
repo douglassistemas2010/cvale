@@ -112,6 +112,14 @@
         return { ctx, dpr };
     }
 
+    // Fonte dinâmica: parte de um tamanho-alvo (proporcional ao card) e encolhe só o necessário
+    // para o maior texto caber no limite — cada card/gráfico acaba com tamanhos próprios.
+    function ajustarFonte(ctx, textos, peso, alvo, limite, minimo) {
+        ctx.font = `${peso} ${alvo}px ${FONTE}`;
+        const w = Math.max(1, ...textos.map((t) => ctx.measureText(String(t)).width));
+        return w > limite ? Math.max(minimo, alvo * limite / w) : alvo;
+    }
+
     function canvasAuxiliar(g, chave, W, H, dpr) {
         let c = g[chave];
         if (!c) { c = document.createElement('canvas'); g[chave] = c; }
@@ -199,30 +207,37 @@
         const total = valores.reduce((a, b) => a + b, 0);
         const T = tema();
         const anim = !reduzirMovimento();
-        const H = Math.round(clamp(n * 38 + 56, 250, 520));
+        const H = Math.round(clamp(n * 42 + 60, 270, 560));
         const { ctx } = dimensionar(g, W, H);
 
         g.lay = null;
         if (!n || total === 0) { estadoVazio(ctx, W, H, T); return; }
 
-        const fonte = W < 400 ? 11 : 12.5;
-        ctx.font = `700 ${fonte}px ${FONTE}`;
+        const rowHprev = (H - 14 - 30) / n;
+        // rótulo da categoria: cresce com o card, limitado pelo maior texto e pela altura da linha
+        const fonte = ajustarFonte(ctx, labels, 700, clamp(W / 25, 13, 17), W * 0.47 - 22, 11.5);
+        const fonteRot = Math.min(fonte, rowHprev * 0.45);
+        // valor e percentual: maiores, independentes do rótulo
+        const fonteVal = clamp(W / 21, 15, 20);
+        const fontePct = fonteVal * 0.72;
+        const fonteEixo = clamp(W / 34, 10.5, 13);
+        ctx.font = `700 ${fonteRot}px ${FONTE}`;
         const maiorRotulo = Math.max(...labels.map((r) => ctx.measureText(r).width));
-        const padL = clamp(maiorRotulo + 22, 90, W * 0.45);
-        const padR = clamp(W * 0.2, 56, 84);
+        const padL = clamp(maiorRotulo + 22, 90, W * 0.47);
+        const padR = clamp(fonteVal * 4.4, 64, 100);
         const padT = 14;
-        const padB = 28;
+        const padB = 30;
         const depth = clamp(W / 60, 5, 9);
         const areaW = W - padL - padR - depth;
         const rowH = (H - padT - padB) / n;
-        const bh = Math.min(26, rowH * 0.56);
+        const bh = Math.min(30, rowH * 0.58);
         const esc = escala(Math.max(...valores));
 
         g.lay = { tipo: 'barras', padT, rowH, n, padB };
 
         // grade e eixo X (com números, para conferência)
         ctx.save();
-        ctx.font = `600 10px ${FONTE}`;
+        ctx.font = `600 ${fonteEixo}px ${FONTE}`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         for (let k = 0; k <= 4; k++) {
@@ -235,7 +250,7 @@
             ctx.lineTo(x, H - padB);
             ctx.stroke();
             ctx.fillStyle = T.suave;
-            ctx.fillText(String(esc.passo * k), x, H - padB + 14);
+            ctx.fillText(String(esc.passo * k), x, H - padB + 15);
         }
         ctx.setLineDash([]);
         ctx.strokeStyle = T.eixo;
@@ -264,7 +279,7 @@
             if (g.hover >= 0 && !hover) ctx.globalAlpha = 0.55;
 
             // nome da categoria
-            ctx.font = `700 ${fonte}px ${FONTE}`;
+            ctx.font = `700 ${fonteRot}px ${FONTE}`;
             ctx.textAlign = 'right';
             ctx.textBaseline = 'middle';
             ctx.fillStyle = T.texto;
@@ -363,12 +378,12 @@
             const lx = x0 + len + depth + 9;
             ctx.textAlign = 'left';
             ctx.textBaseline = 'middle';
-            ctx.font = `800 ${fonte + 2}px ${FONTE}`;
+            ctx.font = `800 ${fonteVal}px ${FONTE}`;
             ctx.fillStyle = T.texto;
             const txtValor = String(mostrado);
             ctx.fillText(txtValor, lx, yc + 1);
             const wv = ctx.measureText(txtValor).width;
-            ctx.font = `700 ${fonte - 1.5}px ${FONTE}`;
+            ctx.font = `700 ${fontePct}px ${FONTE}`;
             ctx.fillStyle = hover ? col : T.suave;
             ctx.fillText(fmtPct(valor, total), lx + wv + 6, yc + 1);
             ctx.restore();
@@ -420,7 +435,18 @@
         const depth = Math.round(R * 0.14);
         const refH = Math.round(ry * 0.95);
         const bloco = 2 * ry + depth + refH;
-        const LH = lado ? 27 : 26;
+
+        // fontes dinâmicas da legenda: crescem com o card; o nome encolhe só se não couber
+        const lwEst = lado ? W - (Math.max(R + 22, W * 0.29) + R + 36) - 6 : Math.min(W - 16, 320);
+        const fVal = clamp(W / 24, 14, 18);
+        const fPct = fVal * 0.78;
+        const ctxMed = g.canvas.getContext('2d');
+        ctxMed.font = `600 ${fPct}px ${FONTE}`;
+        const wpMed = ctxMed.measureText('100%').width;
+        ctxMed.font = `800 ${fVal}px ${FONTE}`;
+        const wvMed = ctxMed.measureText('000').width;
+        const fNome = ajustarFonte(ctxMed, labels, 600, clamp(W / 23, 14, 17.5), lwEst - 22 - wpMed - wvMed - 14, 11.5);
+        const LH = Math.round(Math.max(fNome, fVal) * 2.05);
         const H = lado
             ? Math.round(Math.max(290, bloco + 60, n * LH + 40))
             : Math.round(bloco + 44 + n * LH + 20);
@@ -613,7 +639,7 @@
                 const rm = (R + rin) / 2;
                 const x = cx + ox + Math.cos(am) * rm;
                 const y = cy + oy + Math.sin(am) * rm * tilt;
-                ctx.font = `800 ${i === hov ? 16 : 14}px ${FONTE}`;
+                ctx.font = `800 ${Math.round(clamp(R * 0.15, 14, 18)) + (i === hov ? 2 : 0)}px ${FONTE}`;
                 ctx.textAlign = 'center';
                 ctx.lineWidth = 3;
                 ctx.strokeStyle = T.contornoRotulo;
@@ -621,17 +647,17 @@
                 ctx.fillStyle = '#ffffff';
                 ctx.fillText(txt, x, y);
                 if (s.full >= 0.7) {
-                    ctx.font = `700 10px ${FONTE}`;
+                    ctx.font = `700 ${Math.round(clamp(R * 0.11, 11, 13))}px ${FONTE}`;
                     ctx.lineWidth = 2.5;
-                    ctx.strokeText(fmtPct(valores[i], total), x, y + 13);
-                    ctx.fillText(fmtPct(valores[i], total), x, y + 13);
+                    ctx.strokeText(fmtPct(valores[i], total), x, y + 15);
+                    ctx.fillText(fmtPct(valores[i], total), x, y + 15);
                 }
             } else {
                 const c = Math.cos(am);
                 const sn = Math.sin(am);
                 const x = cx + ox + c * (R + 14);
                 const y = cy + oy + sn * (ry + 10) + (sn > 0 ? depth * 0.6 : 0);
-                ctx.font = `800 13px ${FONTE}`;
+                ctx.font = `800 ${Math.round(clamp(R * 0.14, 13, 17))}px ${FONTE}`;
                 ctx.textAlign = c > 0.25 ? 'left' : (c < -0.25 ? 'right' : 'center');
                 ctx.fillStyle = cores[i] || COR_OUTROS;
                 ctx.lineWidth = 3;
@@ -647,11 +673,11 @@
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillStyle = T.texto;
-        ctx.font = `800 ${Math.round(R * 0.3)}px ${FONTE}`;
+        ctx.font = `800 ${Math.round(R * 0.36)}px ${FONTE}`;
         ctx.fillText(String(Math.round(total * p)), cx, cy - 4);
         ctx.fillStyle = T.suave;
-        ctx.font = `700 ${Math.max(9, Math.round(R * 0.11))}px ${FONTE}`;
-        ctx.fillText('TOTAL', cx, cy + R * 0.17);
+        ctx.font = `700 ${Math.max(10, Math.round(R * 0.13))}px ${FONTE}`;
+        ctx.fillText('TOTAL', cx, cy + R * 0.2);
         ctx.restore();
 
         drawLegenda();
@@ -683,23 +709,24 @@
                 ctx.shadowBlur = 8;
                 ctx.fillStyle = col;
                 ctx.beginPath();
-                ctx.roundRect(lx + 2, yc - 5, 10, 10, 3);
+                const q = Math.round(fNome * 0.8);
+                ctx.roundRect(lx + 2, yc - q / 2, q, q, 3);
                 ctx.fill();
                 ctx.restore();
                 // valor e % à direita; nome à esquerda
                 const xDir = lx + lw - 2;
                 ctx.textAlign = 'right';
-                ctx.font = `600 11px ${FONTE}`;
+                ctx.font = `600 ${fPct}px ${FONTE}`;
                 ctx.fillStyle = T.suave;
                 const pct = fmtPct(valores[i], total);
                 ctx.fillText(pct, xDir, yc);
                 const wp = ctx.measureText('100%').width;
-                ctx.font = `800 13px ${FONTE}`;
+                ctx.font = `800 ${fVal}px ${FONTE}`;
                 ctx.fillStyle = T.texto;
                 ctx.fillText(String(valores[i]), xDir - wp - 8, yc);
                 const wv = ctx.measureText('000').width;
                 ctx.textAlign = 'left';
-                ctx.font = `${g.hover === i ? 800 : 600} 12.5px ${FONTE}`;
+                ctx.font = `${g.hover === i ? 800 : 600} ${fNome}px ${FONTE}`;
                 ctx.fillStyle = T.texto;
                 const maxNome = Math.max(30, lw - 22 - wp - wv - 14);
                 ctx.fillText(elipsar(ctx, rot, maxNome), lx + 20, yc);
