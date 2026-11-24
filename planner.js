@@ -16,8 +16,8 @@
 // das demandas.
 //
 // Este arquivo só ESTENDE CockpitApp (carregado depois de app.js). Reaproveita
-// os helpers globais de app.js: escapeHtml, normalizarTexto, getBadgeFrente,
-// corDaFrente, progressoExibido, STATUS, PRIORIDADES, CORES_STATUS.
+// os helpers globais de app.js: escapeHtml, normalizarTexto,
+// progressoExibido, STATUS, PRIORIDADES.
 
 (function () {
     'use strict';
@@ -67,7 +67,11 @@
     ];
 
     const PESO_PRIORIDADE = { 'Crítica': 0, 'Alta': 1, 'Média': 2, 'Baixa': 3 };
-    const COR_PRIORIDADE = { 'Crítica': '#dc2626', 'Alta': '#ea580c', 'Média': '#d99a0b', 'Baixa': '#16a34a' };
+    // Mesmas opções do cadastro completo (modal de demanda).
+    const TIPOS_DEMANDA = ['Melhoria', 'Incidente'];
+    const FRENTES_DEMANDA = ['C4C', 'SAP', 'ESG', 'MKT', 'Dev Interno', 'Outro'];
+    // Só prioridades de atenção ganham cor; as demais ficam neutras (visual minimalista).
+    const CLASSE_PRIORIDADE = { 'Crítica': 'p-critica', 'Alta': 'p-alta' };
     const ROTULO_TIPO_HIST = { criacao: 'Criação', status: 'Status', campo: 'Alteração', nota: 'Nota', checklist: 'Checklist' };
     const DIAS_CONCLUIDOS_RECENTES = 7;
 
@@ -122,6 +126,23 @@
 
     function bucketDoStatus(status) {
         return BUCKET_POR_STATUS[status] || 'fazer';
+    }
+
+    // Sinal de situação do prazo (alerta x em dia): ícone + texto curto + classe de cor.
+    function sinalPrazo(prazo, concluido) {
+        if (concluido) return { classe: 'fim', icone: 'circle-check', texto: 'Concluída' };
+        const n = diasAte(prazo);
+        if (n === null) return { classe: 'sem', icone: 'circle-dashed', texto: 'Sem prazo' };
+        if (n < 0) return { classe: 'atrasado', icone: 'triangle-alert', texto: `Atrasada · ${-n}d` };
+        if (n === 0) return { classe: 'hoje', icone: 'alarm-clock', texto: 'Vence hoje' };
+        if (n <= 3) return { classe: 'breve', icone: 'calendar-clock', texto: `Vence em ${n}d` };
+        return { classe: 'em-dia', icone: 'circle-check', texto: 'Em dia' };
+    }
+
+    function htmlSinalPrazo(prazo, concluido, comData = true) {
+        const s = sinalPrazo(prazo, concluido);
+        const data = comData && fmtDataCurta(prazo) ? `<span class="pl-data">${fmtDataCurta(prazo)}</span>` : '';
+        return `<span class="pl-sinal pl-sinal-${s.classe}">${icone(s.icone)}${escapeHtml(s.texto)}</span>${data}`;
     }
 
     function rotuloBucket(id) {
@@ -352,7 +373,10 @@
                 vencimento: d.vencimento || '',
                 progresso: Number(d.progresso) || 0,
                 origem: d.origem || '',
-                observacoes: d.observacoes || ''
+                observacoes: d.observacoes || '',
+                tipo: d.tipo || '',
+                numeroOrdem: (d.numeroOrdem === '' || d.numeroOrdem === null || d.numeroOrdem === undefined) ? '' : Number(d.numeroOrdem),
+                dataAbertura: d.dataAbertura || ''
             };
         },
 
@@ -368,6 +392,9 @@
             if (antes.vencimento !== depois.vencimento) this.registrarHistorico(d, 'campo', `Prazo: ${prazo(antes.vencimento)} → ${prazo(depois.vencimento)}${sufixo}`);
             if (antes.progresso !== depois.progresso) this.registrarHistorico(d, 'campo', `Progresso: ${antes.progresso}% → ${depois.progresso}%${sufixo}`);
             if (antes.origem !== depois.origem) this.registrarHistorico(d, 'campo', `Frente: ${antes.origem || '—'} → ${depois.origem || '—'}${sufixo}`);
+            if (antes.tipo !== depois.tipo) this.registrarHistorico(d, 'campo', `Categoria: ${antes.tipo || '—'} → ${depois.tipo || '—'}${sufixo}`);
+            if (antes.numeroOrdem !== depois.numeroOrdem) this.registrarHistorico(d, 'campo', `Priorização: ${antes.numeroOrdem === '' ? '—' : antes.numeroOrdem} → ${depois.numeroOrdem === '' ? '—' : depois.numeroOrdem}${sufixo}`);
+            if (antes.dataAbertura !== depois.dataAbertura) this.registrarHistorico(d, 'campo', `Abertura: ${fmtData(antes.dataAbertura) || '—'} → ${fmtData(depois.dataAbertura) || '—'}${sufixo}`);
             if (antes.observacoes !== depois.observacoes) this.registrarHistorico(d, 'campo', `Observações atualizadas${sufixo}`);
         },
 
@@ -629,11 +656,11 @@
             const hoje = abertos.filter(it => diasAte(it.prazo) === 0).length;
             const andamento = abertos.filter(it => it.bucket === 'andamento').length;
             const minhas = abertos.filter(it => it.tipo === 'tarefa').length;
-            const chip = (n, rotulo, classe) => `<div class="pl-kpi ${classe}"><strong>${n}</strong><span>${rotulo}</span></div>`;
-            el.innerHTML = chip(atrasados, 'Atrasados', atrasados ? 'pl-kpi-alerta' : '')
-                + chip(hoje, 'Vencem hoje', hoje ? 'pl-kpi-atencao' : '')
-                + chip(andamento, 'Em andamento', '')
-                + chip(minhas, 'Minhas tarefas', '');
+            const chip = (n, rotulo, classe, ic) => `<div class="pl-kpi ${classe}"><strong>${n}</strong><span>${icone(ic)}${rotulo}</span></div>`;
+            el.innerHTML = chip(atrasados, 'Atrasados', atrasados ? 'pl-kpi-alerta' : '', 'triangle-alert')
+                + chip(hoje, 'Vencem hoje', hoje ? 'pl-kpi-atencao' : '', 'alarm-clock')
+                + chip(andamento, 'Em andamento', '', 'loader')
+                + chip(minhas, 'Minhas tarefas', '', 'user');
         },
 
         renderizarPlannerBoard() {
@@ -711,58 +738,49 @@
             </form>`;
         },
 
-        htmlChipPrazo(it) {
-            const n = diasAte(it.prazo);
-            if (n === null) return '';
-            let classe = '';
-            let texto = fmtDataCurta(it.prazo);
-            if (!it.concluido) {
-                if (n < 0) { classe = 'atrasado'; texto = `${texto} · ${-n}d atrasado`; }
-                else if (n === 0) { classe = 'hoje'; texto = 'Hoje'; }
-                else if (n <= 3) { classe = 'breve'; }
-            }
-            return `<span class="pl-prazo ${classe}">${icone('calendar')}${escapeHtml(texto)}</span>`;
-        },
-
+        // Cartão minimalista: o prazo (sinal de alerta / em dia) e o título são o destaque;
+        // número, frente, prioridade e status ficam em tom neutro.
         htmlCardPlanner(it, arrastavel) {
             const p = this.planner;
             const selecionado = p.selecionado && p.selecionado.tipo === it.tipo && p.selecionado.id === it.id;
-            const corPrio = COR_PRIORIDADE[it.prioridade] || '#64748b';
             const nHist = Array.isArray(it.ref.historico) ? it.ref.historico.length : 0;
+            const sinal = sinalPrazo(it.prazo, it.concluido);
             let topo;
             let extra = '';
             let estado = '';
-            let faixa;
 
             if (it.tipo === 'demanda') {
-                faixa = corDaFrente(it.grupo);
-                topo = `<span class="pl-num">#${escapeHtml(it.id)}</span>${getBadgeFrente(it.grupo)}`;
+                topo = `<span class="pl-num">#${escapeHtml(it.id)}</span><span class="pl-frente">${escapeHtml(it.grupo)}</span>`;
                 const prog = progressoExibido(it.ref);
                 if (prog > 0 && !it.concluido) {
                     extra = `<div class="pl-mini" aria-label="Progresso ${prog}%"><div class="pl-mini-fill" style="width:${Math.min(100, prog)}%"></div><span>${prog}%</span></div>`;
                 }
-                const corStatus = CORES_STATUS[it.ref.status] || '#64748b';
-                estado = `<span class="pl-estado" style="--c:${corStatus}">${escapeHtml(it.ref.status)}</span>`;
+                // O status só aparece quando a coluna reúne vários status (ou na visão por prazo).
+                if (p.agrupar === 'prazo' || it.bucket === 'aguardando' || it.bucket === 'teste') {
+                    estado = `<span class="pl-estado">${escapeHtml(it.ref.status)}</span>`;
+                }
             } else {
                 const cat = categoriaTarefa(it.grupo);
-                faixa = cat.cor;
-                topo = `<span class="pl-chip pl-chip-pessoal" style="--c:${cat.cor}">${icone('user')}${escapeHtml(cat.nome)}</span>`;
+                topo = `<span class="pl-frente">${icone('user')}${escapeHtml(cat.nome)}</span>`;
                 const ck = it.ref.checklist;
                 if (ck.length) {
                     const feitos = ck.filter(c => c.feito).length;
                     extra = `<div class="pl-mini" aria-label="Checklist ${feitos} de ${ck.length}"><div class="pl-mini-fill" style="width:${Math.round(feitos / ck.length * 100)}%"></div><span>${feitos}/${ck.length}</span></div>`;
                 }
-                if (p.agrupar === 'prazo') estado = `<span class="pl-estado" style="--c:#6b7280">${escapeHtml(rotuloBucket(it.bucket))}</span>`;
+                if (p.agrupar === 'prazo') estado = `<span class="pl-estado">${escapeHtml(rotuloBucket(it.bucket))}</span>`;
             }
 
-            return `<article class="pl-card pl-card-${it.tipo}${selecionado ? ' selecionado' : ''}${it.concluido ? ' concluido' : ''}" style="--stripe:${faixa}" tabindex="0" role="button"
+            const classePrio = CLASSE_PRIORIDADE[it.prioridade] || 'p-normal';
+            return `<article class="pl-card pl-card-${it.tipo} situ-${sinal.classe}${selecionado ? ' selecionado' : ''}${it.concluido ? ' concluido' : ''}" tabindex="0" role="button"
                     ${arrastavel ? 'draggable="true"' : ''} data-tipo="${it.tipo}" data-id="${escapeHtml(it.id)}" aria-label="Abrir ${escapeHtml(it.titulo)}">
-                <div class="pl-card-topo">${topo}</div>
+                <div class="pl-card-topo">
+                    ${topo}
+                    <span class="pl-prio ${classePrio}" title="Prioridade ${escapeHtml(it.prioridade)}">${icone('flag')}${escapeHtml(it.prioridade)}</span>
+                </div>
                 <h4 class="pl-card-titulo">${escapeHtml(it.titulo)}</h4>
                 ${extra}
                 <div class="pl-card-rodape">
-                    <span class="pl-prio" style="--c:${corPrio}"><i class="pl-ponto"></i>${escapeHtml(it.prioridade)}</span>
-                    ${this.htmlChipPrazo(it)}
+                    ${htmlSinalPrazo(it.prazo, it.concluido)}
                     ${estado}
                     ${nHist ? `<span class="pl-hist-n" title="${nHist} registro(s) no histórico">${icone('history')}${nHist}</span>` : ''}
                 </div>
@@ -999,11 +1017,33 @@
             if (!d) return false;
             const antes = this.instantaneoHistorico(d);
             const statusAntes = d.status;
+            const origemAntes = d.origem;
 
             if (campo === 'titulo') {
                 const v = String(valor).trim();
                 if (!v) { this.atualizarPartesDetalhe(null, true); return false; }
                 d.titulo = v;
+            } else if (campo === 'numero') {
+                const v = String(valor).trim();
+                if (!v) { this.atualizarPartesDetalhe(null, true); return false; }
+                if (this.demandas.some(x => x !== d && String(x.numero) === v)) {
+                    this.mostrarToast(`⚠️ Já existe uma demanda com o número ${v}`, 'warning');
+                    this.atualizarPartesDetalhe(null, true);
+                    return false;
+                }
+                d.numero = v;
+                const sel = this.planner.selecionado;
+                if (sel && sel.tipo === 'demanda' && sel.id === String(numero)) sel.id = v;
+            } else if (campo === 'tipo') {
+                const v = String(valor).trim();
+                if (!v) { this.atualizarPartesDetalhe(null, true); return false; }
+                d.tipo = v;
+            } else if (campo === 'origem') {
+                d.origem = String(valor).trim();
+            } else if (campo === 'numeroOrdem') {
+                d.numeroOrdem = Math.max(0, parseInt(valor, 10) || 0);
+            } else if (campo === 'dataAbertura') {
+                d.dataAbertura = valor || '';
             } else if (campo === 'status') {
                 d.status = valor;
                 if (valor === 'Concluído') {
@@ -1025,9 +1065,13 @@
             }
 
             if (JSON.stringify(antes) === JSON.stringify(this.instantaneoHistorico(d))) return false;
+            // Mantém a Priorização sequencial por frente (mesma regra do cadastro completo).
+            if (statusAntes !== d.status || origemAntes !== d.origem || campo === 'numeroOrdem') {
+                this.reordenarPrioridades(d, origemAntes);
+            }
             this.registrarMudancasHistorico(d, antes, origem);
-            if (statusAntes !== d.status) this.reordenarPrioridades(d);
 
+            // renderizar() atualiza dashboard, gráficos e a aba ativa; salvarDados() grava (Supabase + local).
             this.renderizar();
             this.salvarDados();
             this.atualizarPartesDetalhe(campo);
@@ -1239,13 +1283,13 @@
         htmlTagsDetalhe(item) {
             if (item.tipo === 'demanda') {
                 const d = item.ref;
-                const corStatus = CORES_STATUS[d.status] || '#64748b';
-                return `<span class="pl-num">#${escapeHtml(d.numero)}</span>${getBadgeFrente(d.origem)}<span class="pl-estado" style="--c:${corStatus}">${escapeHtml(d.status)}</span>`;
+                return `<span class="pl-num">#${escapeHtml(d.numero)}</span><span class="pl-frente">${escapeHtml(d.origem || 'Outro')}</span>`
+                    + htmlSinalPrazo(d.vencimento, d.status === 'Concluído');
             }
             const t = item.ref;
             const cat = categoriaTarefa(t.categoria);
-            return `<span class="pl-chip pl-chip-pessoal" style="--c:${cat.cor}">${icone('user')}Tarefa pessoal · ${escapeHtml(cat.nome)}</span>`
-                + `<span class="pl-estado" style="--c:#6b7280">${escapeHtml(rotuloBucket(t.etapa))}</span>`;
+            return `<span class="pl-frente">${icone('user')}Tarefa pessoal · ${escapeHtml(cat.nome)}</span>`
+                + htmlSinalPrazo(t.prazo, t.etapa === 'concluido');
         },
 
         htmlBlocoHistorico() {
@@ -1265,6 +1309,8 @@
 
         htmlDetalheDemanda(d) {
             const lista = STATUS.includes(d.status) ? STATUS : [d.status, ...STATUS];
+            const tipos = d.tipo && !TIPOS_DEMANDA.includes(d.tipo) ? [d.tipo, ...TIPOS_DEMANDA] : TIPOS_DEMANDA;
+            const frentes = d.origem && !FRENTES_DEMANDA.includes(d.origem) ? [d.origem, ...FRENTES_DEMANDA] : FRENTES_DEMANDA;
             return `
                 <header class="pl-dr-topo">
                     <div class="pl-dr-tags" id="plDrTags"></div>
@@ -1274,19 +1320,32 @@
                     </div>
                 </header>
                 <div class="pl-dr-scroll">
+                    <p class="pl-dr-nota">Tudo o que você alterar aqui é salvo na demanda e já aparece no dashboard e na lista.</p>
                     <div class="form-group">
                         <label class="form-label" for="plCampoTitulo">Título</label>
                         <input type="text" id="plCampoTitulo" class="form-input" data-campo="titulo" maxlength="200" value="${escapeHtml(d.titulo)}">
                     </div>
                     <div class="pl-grid2">
+                        <div class="form-group"><label class="form-label" for="plCampoNumero">Número (ID)</label>
+                            <input type="text" id="plCampoNumero" class="form-input" data-campo="numero" maxlength="40" value="${escapeHtml(d.numero)}"></div>
+                        <div class="form-group"><label class="form-label" for="plCampoTipo">Categoria</label>
+                            <select id="plCampoTipo" class="form-select" data-campo="tipo">${opcoesHtml(tipos, d.tipo)}</select></div>
+                        <div class="form-group"><label class="form-label" for="plCampoOrigem">Frente</label>
+                            <select id="plCampoOrigem" class="form-select" data-campo="origem">${opcoesHtml(frentes, d.origem)}</select></div>
+                        <div class="form-group"><label class="form-label" for="plCampoOrdem">Priorização (ordem)</label>
+                            <input type="number" id="plCampoOrdem" class="form-input" data-campo="numeroOrdem" min="0" step="1" value="${Number(d.numeroOrdem) || 0}"></div>
                         <div class="form-group"><label class="form-label" for="plCampoStatus">Status</label>
                             <select id="plCampoStatus" class="form-select" data-campo="status">${opcoesHtml(lista, d.status)}</select></div>
                         <div class="form-group"><label class="form-label" for="plCampoPrioridade">Prioridade</label>
                             <select id="plCampoPrioridade" class="form-select" data-campo="prioridade">${opcoesHtml(PRIORIDADES, d.prioridade)}</select></div>
+                        <div class="form-group"><label class="form-label" for="plCampoAbertura">Abertura</label>
+                            <input type="date" id="plCampoAbertura" class="form-input" data-campo="dataAbertura" value="${escapeHtml(d.dataAbertura || '')}"></div>
                         <div class="form-group"><label class="form-label" for="plCampoVencimento">Vencimento</label>
                             <input type="date" id="plCampoVencimento" class="form-input" data-campo="vencimento" value="${escapeHtml(d.vencimento || '')}"></div>
-                        <div class="form-group"><label class="form-label" for="plCampoProgresso">Progresso (%)</label>
-                            <input type="number" id="plCampoProgresso" class="form-input" data-campo="progresso" min="0" max="100" step="5" value="${Number(d.progresso) || 0}"></div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="plCampoProgresso">Progresso (%)</label>
+                        <input type="number" id="plCampoProgresso" class="form-input" data-campo="progresso" min="0" max="100" step="5" value="${Number(d.progresso) || 0}">
                     </div>
                     <div class="form-group">
                         <label class="form-label" for="plCampoObs">Observações</label>
@@ -1380,7 +1439,7 @@
             }
 
             drawer.querySelectorAll('[data-campo]').forEach(el => {
-                if (el.dataset.campo === campoAtual) return;
+                if (el.dataset.campo === campoAtual && campoAtual !== 'numeroOrdem') return;
                 if (!forcar && el === document.activeElement) return;
                 const valor = String(item.ref[el.dataset.campo] ?? '');
                 if (el.value !== valor) el.value = valor;

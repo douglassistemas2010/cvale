@@ -17,6 +17,30 @@ Tipo/Status/Prioridade, datas dd/mm/aaaa, barra de progresso, filtro, painel con
 extra "Situação do prazo" (ignorada na importação). Aba "Resumo" com indicadores e contagens. A
 importação continua com SheetJS e remove o emoji inicial de Tipo/Status/Prioridade.
 
+**Ordem padrão do Excel (24/11/2026):** origem na ordem C4C, SD, ESG, Dev Interno, MKT (origens
+desconhecidas depois, em ordem alfabética); dentro de cada origem, Concluídas por último e as demais
+por "Ordem" crescente (vazia = fim). A lista em tela não muda — só a exportação usa a cópia ordenada.
+
+## Gráficos do Dashboard — fontes dinâmicas (24/11/2026)
+
+`graficos.js` calcula tamanhos de fonte a partir da largura/altura do canvas (maiores e com diferença por
+card), sem truncar rótulos. Validado no navegador (cards Status, Tipo, SLA, Prioridades).
+
+## Planner redesenhado — glass minimalista e edição completa (24/11/2026)
+
+- Visual: superfícies glass espelhadas (`planner.css`), cor só nos sinalizadores de prazo
+  (`.pl-sinal-atrasado|hoje|breve|em-dia|fim|sem`, com ícone Lucide) e nos ícones de prioridade
+  Crítica/Alta. KPIs enxutos com ícone; dados principais (título, prazo, progresso) em destaque.
+- Sinal de prazo: `sinalPrazo()`/`htmlSinalPrazo()` em `planner.js` (Atrasada Nd, Vence hoje, Vence em Nd,
+  Em dia, Concluída, Sem prazo).
+- Ao clicar num card de demanda abre o painel lateral com os mesmos campos da edição da tabela: Título,
+  Número, Categoria, Frente (origem), Priorização (ordem), Status, Prioridade, Abertura, Vencimento,
+  Progresso e Observações. `aplicarEdicaoDemanda()` grava na demanda original, e Dashboard, tabela,
+  Timeline e Reunião refletem a mudança; cada alteração entra no histórico (`registrarMudancasHistorico`).
+  Número duplicado é recusado com aviso; Título vazio é revertido; Status "Concluído" leva o progresso a 100%.
+- Validado no navegador (tema claro e escuro) com dados de teste; gravação no Supabase não foi testada
+  (exige login).
+
 ## Sessão de 03/08/2026
 
 **1. Comparação Demandas Gecli.xlsx × dados do Cockpit (só entendimento, sem aplicar ainda)**

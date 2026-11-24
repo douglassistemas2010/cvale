@@ -1201,7 +1201,28 @@
                     c.border = bordas;
                 });
 
-                this.demandas.forEach((d, i) => {
+                // Ordem padrão da planilha: por origem (mesma sequência das frentes na tela) e, dentro
+                // de cada origem, pela coluna Ordem (Priorização); concluídas ao final da origem.
+                const ORDEM_ORIGENS = ['C4C', 'SD', 'ESG', 'Dev Interno', 'MKT'];
+                const posicaoOrigem = (o) => {
+                    const i = ORDEM_ORIGENS.indexOf(o);
+                    return i === -1 ? ORDEM_ORIGENS.length : i;
+                };
+                const valorOrdem = (d) => {
+                    const n = Number(d.numeroOrdem);
+                    return d.numeroOrdem === '' || d.numeroOrdem === null || d.numeroOrdem === undefined || !Number.isFinite(n) ? 9999 : n;
+                };
+                const demandasOrdenadas = [...this.demandas].sort((a, b) => {
+                    const porOrigem = posicaoOrigem(a.origem) - posicaoOrigem(b.origem);
+                    if (porOrigem !== 0) return porOrigem;
+                    const origemA = String(a.origem || ''), origemB = String(b.origem || '');
+                    if (origemA !== origemB) return origemA.localeCompare(origemB, 'pt-BR');
+                    const concluidaA = a.status === 'Concluído' ? 1 : 0, concluidaB = b.status === 'Concluído' ? 1 : 0;
+                    if (concluidaA !== concluidaB) return concluidaA - concluidaB;
+                    return valorOrdem(a) - valorOrdem(b);
+                });
+
+                demandasOrdenadas.forEach((d, i) => {
                     const linha = {};
                     CAMPOS_DEMANDA.forEach(campo => {
                         let v = d[campo.chave];
