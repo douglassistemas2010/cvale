@@ -293,8 +293,9 @@ body.theme-dark .pl-drawer {
     flex-direction: column;
     gap: 0.6rem;
     min-height: 150px;
-    max-height: calc(100vh - 360px);
-    overflow-y: auto;
+    /* Sem altura máxima nem rolagem interna: a barra de rolagem da página alcança todos os cards, qualquer que seja o tamanho da janela. */
+    max-height: none;
+    overflow-y: visible;
     padding: 0.4rem 0.6rem 0.7rem;
     border-radius: 0 0 14px 14px;
     transition: background 0.15s ease, box-shadow 0.15s ease;

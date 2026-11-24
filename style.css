@@ -158,6 +158,8 @@
             flex-direction: column;
             width: 100%;
             height: 100%;
+            /* Viewport dinâmica: a área rolável sempre cabe na janela visível (barras do navegador, zoom, janela pequena). */
+            height: 100dvh;
         }
 
         /* HEADER */
@@ -490,6 +492,8 @@
             display: block;
             min-height: 0;
             box-sizing: border-box;
+            /* Folga no fim para o último item nunca ficar colado/cortado na borda da janela. */
+            padding-bottom: 3rem;
         }
 
         /* TAB CONTENT */
