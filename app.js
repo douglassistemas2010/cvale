@@ -1118,36 +1118,240 @@
             // Exporta todas as demandas para uma planilha Excel (.xlsx) com TODOS os
             // campos (uma coluna por campo da Demanda, cabeçalhos em português).
             // A mesma planilha serve de modelo para reimportar/editar em massa.
-            exportarDemandas() {
-                if (typeof XLSX === 'undefined') {
+            // Aba 1 "Demandas": cabeçalho na linha 1 (compatível com a importação), ícones e cores
+            // por Tipo/Status/Prioridade, coluna extra "Situação do prazo" (ignorada na importação).
+            // Aba 2 "Resumo": indicadores e contagens por status e prioridade.
+            async exportarDemandas() {
+                if (typeof ExcelJS === 'undefined') {
                     this.mostrarToast('Biblioteca de Excel ainda carregando. Tente novamente em instantes.', 'error');
                     return;
                 }
-                // Monta uma linha (objeto com cabeçalhos PT) por demanda, na ordem de CAMPOS_DEMANDA
-                const linhas = this.demandas.map(d => {
+
+                const ICONE_STATUS = {
+                    'Aguardando CSS': '⏳', 'Aguardando Retorno TI': '📨', 'Concluído': '✅',
+                    'Em Análise Inicial': '🔍', 'Em Andamento': '🔧', 'Em Orçamentação': '💰',
+                    'Em Testes Integrados': '🧪', 'Enviar a Produção': '🚀', 'Pausado': '⏸️',
+                    'Pendente': '🕒', 'Testes Com Erros': '❌'
+                };
+                const ICONE_PRIORIDADE = { 'Crítica': '🔴', 'Alta': '🟠', 'Média': '🟡', 'Baixa': '🟢' };
+                const COR_PRIORIDADE = { 'Crítica': '#dc2626', 'Alta': '#ea580c', 'Média': '#ca8a04', 'Baixa': '#16a34a' };
+                const ICONE_TIPO = {
+                    'Incidente': '🚨', 'Melhoria': '✨', 'Projeto': '📁', 'Suporte': '🛠️', 'Reunião': '👥',
+                    'Análise': '🔎', 'Integração': '🔗', 'Outro': '📌', 'CSS': '🎫', 'Ticket': '🎟️'
+                };
+
+                // Utilidades de cor: ExcelJS usa ARGB; tom claro = mistura da cor com branco
+                const argb = (hex) => 'FF' + hex.replace('#', '').toUpperCase();
+                const tom = (hex, fator) => {
+                    const n = parseInt(hex.replace('#', ''), 16);
+                    const mix = (c) => Math.round(c + (255 - c) * fator);
+                    const r = mix((n >> 16) & 255), g = mix((n >> 8) & 255), b = mix(n & 255);
+                    return 'FF' + [r, g, b].map(v => v.toString(16).padStart(2, '0')).join('').toUpperCase();
+                };
+                const AZUL = '#1e3a8a';
+                const borda = { style: 'thin', color: { argb: 'FFD1D5DB' } };
+                const bordas = { top: borda, left: borda, bottom: borda, right: borda };
+                const dataBR = (iso) => {
+                    const m = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})/);
+                    return m ? `${m[3]}/${m[2]}/${m[1]}` : (iso || '');
+                };
+
+                const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+                const situacaoPrazo = (d) => {
+                    if (d.status === 'Concluído') return { texto: '✅ Concluída', cor: '#16a34a' };
+                    const m = String(d.vencimento || '').match(/^(\d{4})-(\d{2})-(\d{2})/);
+                    if (!m) return { texto: '➖ Sem prazo', cor: '#6b7280' };
+                    const dias = Math.round((new Date(+m[1], +m[2] - 1, +m[3]) - hoje) / 86400000);
+                    if (dias < 0) return { texto: `⚠️ Atrasada (${-dias}d)`, cor: '#dc2626' };
+                    if (dias === 0) return { texto: '🔔 Vence hoje', cor: '#ea580c' };
+                    if (dias <= 3) return { texto: `⏰ Vence em ${dias}d`, cor: '#ca8a04' };
+                    return { texto: `📅 No prazo (${dias}d)`, cor: '#2563eb' };
+                };
+
+                const livro = new ExcelJS.Workbook();
+                livro.creator = 'Minhas Atividades - C.Vale';
+                livro.created = new Date();
+
+                // ===== Aba Demandas =====
+                const aba = livro.addWorksheet('Demandas', {
+                    views: [{ state: 'frozen', xSplit: 2, ySplit: 1, showGridLines: false }],
+                    properties: { tabColor: { argb: argb(AZUL) } }
+                });
+                const LARGURAS = {
+                    numero: 14, titulo: 46, descricao: 52, tipo: 18, status: 26, prioridade: 14, numeroOrdem: 9,
+                    impacto: 12, urgencia: 12, complexidade: 14, origem: 14, sistema: 14, solicitante: 18,
+                    responsavel: 18, dataAbertura: 14, vencimento: 14, slaHoras: 12, dataConclusao: 15,
+                    progresso: 16, observacoes: 52, ordemKanban: 12
+                };
+                const CENTRALIZADOS = ['numero', 'tipo', 'status', 'prioridade', 'numeroOrdem', 'impacto', 'urgencia',
+                    'complexidade', 'origem', 'sistema', 'dataAbertura', 'vencimento', 'slaHoras', 'dataConclusao', 'progresso', 'ordemKanban'];
+
+                aba.columns = [
+                    ...CAMPOS_DEMANDA.map(c => ({ header: c.rotulo, key: c.chave, width: LARGURAS[c.chave] || 16 })),
+                    { header: 'Situação do prazo', key: '_situacao', width: 24 }
+                ];
+                const totalColunas = aba.columns.length;
+
+                const cab = aba.getRow(1);
+                cab.height = 32;
+                cab.eachCell(c => {
+                    c.font = { name: 'Calibri', bold: true, size: 11, color: { argb: 'FFFFFFFF' } };
+                    c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: argb(AZUL) } };
+                    c.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+                    c.border = bordas;
+                });
+
+                this.demandas.forEach((d, i) => {
                     const linha = {};
                     CAMPOS_DEMANDA.forEach(campo => {
-                        let valor = d[campo.chave];
-                        if (valor === undefined || valor === null) valor = '';
-                        linha[campo.rotulo] = valor;
+                        let v = d[campo.chave];
+                        if (v === undefined || v === null) v = '';
+                        if (campo.tipo === 'data') v = dataBR(v);
+                        else if (campo.tipo === 'numero') v = (v === '' ? '' : Number(v));
+                        else v = String(v);
+                        linha[campo.chave] = v;
                     });
-                    return linha;
+                    if (ICONE_TIPO[d.tipo]) linha.tipo = `${ICONE_TIPO[d.tipo]} ${d.tipo}`;
+                    if (ICONE_STATUS[d.status]) linha.status = `${ICONE_STATUS[d.status]} ${d.status}`;
+                    if (ICONE_PRIORIDADE[d.prioridade]) linha.prioridade = `${ICONE_PRIORIDADE[d.prioridade]} ${d.prioridade}`;
+                    const sit = situacaoPrazo(d);
+                    linha._situacao = sit.texto;
+
+                    const row = aba.addRow(linha);
+                    const zebra = i % 2 === 1 ? 'FFF8FAFC' : 'FFFFFFFF';
+                    row.eachCell({ includeEmpty: true }, (cell, col) => {
+                        const chave = aba.columns[col - 1].key;
+                        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: zebra } };
+                        cell.border = bordas;
+                        cell.font = { name: 'Calibri', size: 10.5, color: { argb: 'FF1F2937' } };
+                        cell.alignment = {
+                            horizontal: CENTRALIZADOS.includes(chave) || chave === '_situacao' ? 'center' : 'left',
+                            vertical: 'middle', wrapText: true
+                        };
+                    });
+                    // Número e título em destaque
+                    row.getCell('numero').font = { name: 'Calibri', size: 10.5, bold: true, color: { argb: argb(AZUL) } };
+                    row.getCell('titulo').font = { name: 'Calibri', size: 10.5, bold: true, color: { argb: 'FF111827' } };
+                    // Status, Tipo e Prioridade: "pílula" colorida
+                    const pintar = (chave, hex) => {
+                        if (!hex || !hex.startsWith('#')) return;
+                        const cell = row.getCell(chave);
+                        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: tom(hex, 0.85) } };
+                        cell.font = { name: 'Calibri', size: 10.5, bold: true, color: { argb: argb(hex) } };
+                    };
+                    pintar('status', CORES_STATUS[d.status]);
+                    pintar('tipo', CORES_TIPO[d.tipo]);
+                    pintar('prioridade', COR_PRIORIDADE[d.prioridade]);
+                    pintar('_situacao', sit.cor);
+                    // Vencimento em vermelho quando atrasada
+                    if (sit.cor === '#dc2626') {
+                        row.getCell('vencimento').font = { name: 'Calibri', size: 10.5, bold: true, color: { argb: argb('#dc2626') } };
+                    }
+                    row.getCell('progresso').numFmt = '0"%"';
+                    row.getCell('slaHoras').numFmt = '0"h"';
                 });
 
-                const cabecalhos = CAMPOS_DEMANDA.map(c => c.rotulo);
-                const planilha = XLSX.utils.json_to_sheet(linhas, { header: cabecalhos });
-                // Largura de coluna confortável (título, descrição e observações mais largos)
-                planilha['!cols'] = CAMPOS_DEMANDA.map(c => {
-                    if (['titulo', 'descricao', 'observacoes'].includes(c.chave)) return { wch: 40 };
-                    if (c.tipo === 'data') return { wch: 14 };
-                    return { wch: 16 };
-                });
+                const ultimaLinha = aba.rowCount;
+                aba.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: totalColunas } };
+                if (ultimaLinha > 1) {
+                    const colProgresso = aba.getColumn('progresso').letter;
+                    aba.addConditionalFormatting({
+                        ref: `${colProgresso}2:${colProgresso}${ultimaLinha}`,
+                        rules: [{
+                            type: 'dataBar', gradient: false, minLength: 0, maxLength: 100,
+                            cfvo: [{ type: 'num', value: 0 }, { type: 'num', value: 100 }],
+                            color: { argb: 'FF60A5FA' }
+                        }]
+                    });
+                }
+                aba.pageSetup = { orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0, paperSize: 9 };
+                aba.headerFooter.oddFooter = 'Minhas Atividades - C.Vale  |  Página &P de &N';
 
-                const livro = XLSX.utils.book_new();
-                XLSX.utils.book_append_sheet(livro, planilha, 'Demandas');
-                const nomeArquivo = `demandas_cockpit_${new Date().toISOString().split('T')[0]}.xlsx`;
-                XLSX.writeFile(livro, nomeArquivo);
-                this.mostrarToast(`${this.demandas.length} demandas exportadas para Excel!`, 'success');
+                // ===== Aba Resumo =====
+                const resumo = livro.addWorksheet('Resumo', {
+                    views: [{ showGridLines: false }],
+                    properties: { tabColor: { argb: 'FF3B82F6' } }
+                });
+                resumo.columns = [{ width: 30 }, { width: 14 }, { width: 4 }, { width: 24 }, { width: 14 }];
+                resumo.mergeCells('A1:E1');
+                const titulo = resumo.getCell('A1');
+                titulo.value = `Resumo das Demandas — ${hoje.toLocaleDateString('pt-BR')}`;
+                titulo.font = { name: 'Calibri', size: 16, bold: true, color: { argb: 'FFFFFFFF' } };
+                titulo.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: argb(AZUL) } };
+                titulo.alignment = { horizontal: 'left', vertical: 'middle', indent: 1 };
+                resumo.getRow(1).height = 36;
+
+                const total = this.demandas.length;
+                const concluidas = this.demandas.filter(d => d.status === 'Concluído').length;
+                const atrasadas = this.demandas.filter(d => situacaoPrazo(d).cor === '#dc2626').length;
+                const secao = (linhaIni, colIni, texto, cabecalhos, itens) => {
+                    const t = resumo.getCell(linhaIni, colIni);
+                    t.value = texto;
+                    t.font = { name: 'Calibri', size: 12, bold: true, color: { argb: argb(AZUL) } };
+                    cabecalhos.forEach((h, k) => {
+                        const c = resumo.getCell(linhaIni + 1, colIni + k);
+                        c.value = h;
+                        c.font = { name: 'Calibri', bold: true, color: { argb: 'FFFFFFFF' } };
+                        c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: argb(AZUL) } };
+                        c.alignment = { horizontal: k === 0 ? 'left' : 'center', vertical: 'middle', indent: k === 0 ? 1 : 0 };
+                        c.border = bordas;
+                    });
+                    itens.forEach((it, r) => {
+                        const c1 = resumo.getCell(linhaIni + 2 + r, colIni);
+                        const c2 = resumo.getCell(linhaIni + 2 + r, colIni + 1);
+                        c1.value = it.rotulo; c2.value = it.valor;
+                        const fill = it.cor ? { type: 'pattern', pattern: 'solid', fgColor: { argb: tom(it.cor, 0.85) } } : undefined;
+                        [c1, c2].forEach(c => {
+                            c.border = bordas;
+                            c.font = { name: 'Calibri', size: 11, bold: true, color: { argb: it.cor ? argb(it.cor) : 'FF1F2937' } };
+                            if (fill) c.fill = fill;
+                        });
+                        c1.alignment = { horizontal: 'left', vertical: 'middle', indent: 1 };
+                        c2.alignment = { horizontal: 'center', vertical: 'middle' };
+                    });
+                };
+
+                secao(3, 1, 'Indicadores', ['Indicador', 'Qtde'], [
+                    { rotulo: '📋 Total de demandas', valor: total, cor: AZUL },
+                    { rotulo: '✅ Concluídas', valor: concluidas, cor: '#16a34a' },
+                    { rotulo: '🔧 Em aberto', valor: total - concluidas, cor: '#3b82f6' },
+                    { rotulo: '⚠️ Atrasadas', valor: atrasadas, cor: '#dc2626' }
+                ]);
+                secao(3, 4, 'Por prioridade', ['Prioridade', 'Qtde'],
+                    PRIORIDADES.map(p => ({
+                        rotulo: `${ICONE_PRIORIDADE[p]} ${p}`,
+                        valor: this.demandas.filter(d => d.prioridade === p).length,
+                        cor: COR_PRIORIDADE[p]
+                    })));
+                secao(10, 1, 'Por status', ['Status', 'Qtde'],
+                    STATUS.map(s => ({
+                        rotulo: `${ICONE_STATUS[s] || ''} ${s}`.trim(),
+                        valor: this.demandas.filter(d => d.status === s).length,
+                        cor: CORES_STATUS[s]
+                    })));
+                secao(10, 4, 'Por tipo', ['Tipo', 'Qtde'],
+                    TIPOS.map(t => ({
+                        rotulo: `${ICONE_TIPO[t] || ''} ${t}`.trim(),
+                        valor: this.demandas.filter(d => d.tipo === t).length,
+                        cor: CORES_TIPO[t]
+                    })));
+
+                // Download
+                try {
+                    const buffer = await livro.xlsx.writeBuffer();
+                    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `demandas_cockpit_${new Date().toISOString().split('T')[0]}.xlsx`;
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
+                    setTimeout(() => URL.revokeObjectURL(url), 1000);
+                    this.mostrarToast(`${total} demandas exportadas para Excel!`, 'success');
+                } catch (err) {
+                    this.mostrarToast('Erro ao gerar o Excel: ' + (err.message || err), 'error');
+                }
             }
 
             // Normaliza um valor lido da planilha conforme o tipo do campo
@@ -1218,7 +1422,14 @@
                             const dados = {};
                             Object.keys(linha).forEach(coluna => {
                                 const campo = idx[normalizar(coluna)];
-                                if (campo) dados[campo.chave] = this.normalizarValorCampo(linha[coluna], campo.tipo);
+                                if (campo) {
+                                    let valorCampo = this.normalizarValorCampo(linha[coluna], campo.tipo);
+                                    // A exportação prefixa ícones (emoji) em Tipo/Status/Prioridade: remove ao importar
+                                    if (['tipo', 'status', 'prioridade'].includes(campo.chave) && typeof valorCampo === 'string') {
+                                        valorCampo = valorCampo.replace(/^[^\p{L}\p{N}]+/u, '').trim();
+                                    }
+                                    dados[campo.chave] = valorCampo;
+                                }
                             });
                             return dados;
                         }).filter(d => (d.titulo && String(d.titulo).trim()) || (d.numero && String(d.numero).trim()));

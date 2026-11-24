@@ -9,6 +9,14 @@ coluna `dados` em jsonb). `supabase/seed.sql` é só a carga inicial histórica 
 de verdade atual; para ver os dados reais em produção é preciso consultar a API do Supabase
 (`supabase-config.js` tem URL + anon key, leitura é pública).
 
+## Exportação Excel formatada (24/11/2026)
+
+`exportarDemandas()` em `app.js` agora usa **ExcelJS** (CDN no `index.html`; o SheetJS gratuito não
+grava estilos). Aba "Demandas" (cabeçalho na linha 1, compatível com a importação): ícones + cores em
+Tipo/Status/Prioridade, datas dd/mm/aaaa, barra de progresso, filtro, painel congelado, zebra e coluna
+extra "Situação do prazo" (ignorada na importação). Aba "Resumo" com indicadores e contagens. A
+importação continua com SheetJS e remove o emoji inicial de Tipo/Status/Prioridade.
+
 ## Sessão de 03/08/2026
 
 **1. Comparação Demandas Gecli.xlsx × dados do Cockpit (só entendimento, sem aplicar ainda)**
