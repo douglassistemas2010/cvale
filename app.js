@@ -2350,6 +2350,7 @@
                 this.desenharGraficoSLA();
                 this.desenharGraficoPrioridade();
                 if (typeof this.desenharGraficoFrente === 'function') this.desenharGraficoFrente();
+                if (typeof this.desenharGraficoLinhaTempo === 'function') this.desenharGraficoLinhaTempo();
 
                 // Renderizar ícones Lucide após atualizar dashboard
             }

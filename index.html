@@ -158,27 +158,33 @@
 
                     <!-- GRÁFICOS -->
                     <h3 style="margin-top: 2rem; margin-bottom: 1rem; font-size: 1rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Análises Visuais</h3>
-                    <div class="charts-grid">
-                        <div class="chart-container">
+                    <div class="charts-bento-host">
+                    <div class="charts-grid charts-bento">
+                        <div class="chart-container bento-status">
                             <div class="chart-title">Demandas por Status</div>
                             <canvas id="chartStatus" width="450" height="280"></canvas>
                         </div>
-                        <div class="chart-container">
+                        <div class="chart-container bento-tipo">
                             <div class="chart-title">Distribuição por Tipo</div>
                             <canvas id="chartTipo" width="450" height="280"></canvas>
                         </div>
-                        <div class="chart-container">
+                        <div class="chart-container bento-sla">
                             <div class="chart-title"><span>Conformidade de SLA <small style="font-weight:600;opacity:.65;">(ativas com prazo)</small></span></div>
                             <canvas id="chartSLA" width="450" height="280"></canvas>
                         </div>
-                        <div class="chart-container">
+                        <div class="chart-container bento-prioridade">
                             <div class="chart-title"><span>Prioridades <small style="font-weight:600;opacity:.65;">(demandas ativas)</small></span></div>
                             <canvas id="chartPrioridade" width="450" height="280"></canvas>
                         </div>
-                        <div class="chart-container">
+                        <div class="chart-container bento-frente">
                             <div class="chart-title"><span>Frente de atuação <small style="font-weight:600;opacity:.65;">(onde está o meu tempo · demandas em aberto)</small></span></div>
                             <canvas id="chartFrente" width="450" height="280"></canvas>
                         </div>
+                        <div class="chart-container bento-linha">
+                            <div class="chart-title"><span>Linha do tempo <small style="font-weight:600;opacity:.65;">(8 semanas)</small></span></div>
+                            <canvas id="chartLinhaTempo" width="450" height="280"></canvas>
+                        </div>
+                    </div>
                     </div>
 
                     <!-- CRITICIDADE -->

@@ -759,10 +759,160 @@
         return -1;
     }
 
+    // ------------------------------------------------------------------ LINHA DO TEMPO
+    // Séries por semana: "Em aberto" (acumulado, em área), "Novas" e "Concluídas".
+    function desenharLinha(g, now) {
+        const W = largura(g);
+        if (!W) return;
+        const { labels, series, semanas } = g.dados;
+        const n = labels.length;
+        const T = tema();
+        const H = Math.round(clamp(W * 0.6, 270, 340));
+        const { ctx } = dimensionar(g, W, H);
+
+        g.lay = null;
+        const todos = series.flatMap((s) => s.valores);
+        if (n < 2 || !todos.some((v) => v > 0)) { estadoVazio(ctx, W, H, T, 'Sem datas para a linha do tempo'); return; }
+
+        const fonteEixo = clamp(W / 34, 10.5, 13);
+        const esc = escala(Math.max(...todos));
+        const padL = clamp(fonteEixo * 2.6, 28, 40);
+        const padR = 16;
+        const padT = 40;
+        const padB = 30;
+        const areaW = W - padL - padR;
+        const areaH = H - padT - padB;
+        const xs = labels.map((_, i) => padL + areaW * i / (n - 1));
+        const yDe = (v) => padT + areaH * (1 - v / esc.max);
+        g.lay = { tipo: 'linha', xs, padT, padB, n };
+
+        // legenda no topo
+        ctx.save();
+        ctx.font = `700 ${fonteEixo}px ${FONTE}`;
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        let lx = padL;
+        series.forEach((s) => {
+            ctx.fillStyle = s.cor;
+            ctx.beginPath();
+            ctx.arc(lx + 5, 14, 5, 0, TAU);
+            ctx.fill();
+            ctx.fillStyle = T.texto;
+            ctx.fillText(s.nome, lx + 15, 15);
+            lx += 15 + ctx.measureText(s.nome).width + 16;
+        });
+        ctx.restore();
+
+        // grade e eixo Y
+        ctx.save();
+        ctx.font = `600 ${fonteEixo}px ${FONTE}`;
+        ctx.textAlign = 'right';
+        ctx.textBaseline = 'middle';
+        for (let k = 0; k <= 4; k++) {
+            const y = padT + areaH * (1 - k / 4);
+            ctx.strokeStyle = k === 0 ? T.eixo : T.grade;
+            ctx.lineWidth = k === 0 ? 1.5 : 1;
+            ctx.setLineDash(k === 0 ? [] : [3, 5]);
+            ctx.beginPath();
+            ctx.moveTo(padL, y);
+            ctx.lineTo(padL + areaW, y);
+            ctx.stroke();
+            ctx.fillStyle = T.suave;
+            ctx.fillText(String(esc.passo * k), padL - 8, y);
+        }
+        ctx.setLineDash([]);
+        // eixo X (pula rótulos quando o card estreita)
+        ctx.textAlign = 'center';
+        const passoRot = Math.ceil(44 / (areaW / (n - 1)));
+        labels.forEach((rot, i) => {
+            if ((n - 1 - i) % passoRot !== 0) return;
+            ctx.fillStyle = i === n - 1 ? T.texto : T.suave;
+            ctx.fillText(rot, xs[i], H - padB + 16);
+        });
+        ctx.restore();
+
+        // revelação da esquerda para a direita
+        const p = reduzirMovimento() ? 1 : easeOut(clamp((now - g.t0) / 1100));
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(0, 0, padL + areaW * p + 10, H);
+        ctx.clip();
+
+        [...series].reverse().forEach((s) => {
+            const pts = s.valores.map((v, i) => [xs[i], yDe(v)]);
+            if (s.area) {
+                const gr = ctx.createLinearGradient(0, padT, 0, padT + areaH);
+                gr.addColorStop(0, rgba(s.cor, T.claro ? 0.32 : 0.42));
+                gr.addColorStop(1, rgba(s.cor, 0));
+                ctx.fillStyle = gr;
+                ctx.beginPath();
+                ctx.moveTo(pts[0][0], padT + areaH);
+                pts.forEach(([x, y]) => ctx.lineTo(x, y));
+                ctx.lineTo(pts[n - 1][0], padT + areaH);
+                ctx.closePath();
+                ctx.fill();
+            }
+            ctx.save();
+            ctx.shadowColor = rgba(s.cor, 0.6);
+            ctx.shadowBlur = 10;
+            ctx.strokeStyle = s.cor;
+            ctx.lineWidth = s.area ? 3 : 2.4;
+            ctx.lineJoin = 'round';
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            pts.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
+            ctx.stroke();
+            ctx.restore();
+            pts.forEach(([x, y], i) => {
+                const h = g.hover === i;
+                ctx.fillStyle = T.claro ? '#ffffff' : '#0b2540';
+                ctx.strokeStyle = s.cor;
+                ctx.lineWidth = 2.2;
+                ctx.beginPath();
+                ctx.arc(x, y, h ? 6 : 3.8, 0, TAU);
+                ctx.fill();
+                ctx.stroke();
+            });
+        });
+        ctx.restore();
+
+        // guia vertical + tooltip da semana sob o mouse
+        if (g.hover >= 0 && g.mouse) {
+            const i = g.hover;
+            ctx.save();
+            ctx.strokeStyle = T.eixo;
+            ctx.lineWidth = 1;
+            ctx.setLineDash([4, 4]);
+            ctx.beginPath();
+            ctx.moveTo(xs[i], padT);
+            ctx.lineTo(xs[i], padT + areaH);
+            ctx.stroke();
+            ctx.restore();
+            const v = (k) => series[k].valores[i];
+            tooltip(ctx, W, H, T, `Semana de ${semanas[i]}`,
+                `Em aberto ${v(0)} \u00b7 Novas ${v(1)} \u00b7 Concl. ${v(2)}`, g.mouse, series[0].cor);
+        }
+    }
+
+    function acharPonto(g) {
+        const m = g.mouse;
+        const L = g.lay;
+        if (!m || !L || L.tipo !== 'linha') return -1;
+        if (m.y < L.padT - 6 || m.y > g.H - L.padB + 6) return -1;
+        let melhor = -1;
+        let dist = Infinity;
+        L.xs.forEach((x, i) => {
+            const d = Math.abs(m.x - x);
+            if (d < dist) { dist = d; melhor = i; }
+        });
+        return melhor;
+    }
+
     // ------------------------------------------------------------------ motor de animação
     function desenhar(g, now) {
         if (!document.body.contains(g.canvas) || g.canvas.offsetParent === null || !g.dados) return;
         if (g.tipo === 'barras') desenharBarras(g, now);
+        else if (g.tipo === 'linha') desenharLinha(g, now);
         else desenharRosca(g, now);
     }
 
@@ -796,7 +946,7 @@
                 x: (e.clientX - r.left) * (g.W / (r.width || 1)),
                 y: (e.clientY - r.top) * (g.H / (r.height || 1))
             };
-            g.hover = g.tipo === 'barras' ? acharBarra(g) : acharFatia(g);
+            g.hover = g.tipo === 'barras' ? acharBarra(g) : g.tipo === 'linha' ? acharPonto(g) : acharFatia(g);
             c.style.cursor = g.hover >= 0 ? 'pointer' : 'default';
             if (reduzirMovimento()) desenhar(g, performance.now());
         };
@@ -826,7 +976,7 @@
         }
         g.tipo = tipo;
         g.dados = dados;
-        const assinatura = JSON.stringify([dados.labels, dados.valores]);
+        const assinatura = JSON.stringify([dados.labels, dados.valores || (dados.series || []).map((s) => s.valores)]);
         if (g.assinatura !== assinatura) {
             g.assinatura = assinatura;
             g.t0 = performance.now(); // dados mudaram: refaz a animação de entrada
@@ -915,6 +1065,53 @@
             labels,
             valores: labels.map((l) => cont[l]),
             cores: labels.map(corHexFrente)
+        });
+    };
+
+    // Linha do tempo: últimas 8 semanas (segunda a domingo) — backlog acumulado, novas e concluídas.
+    CockpitApp.prototype.desenharGraficoLinhaTempo = function () {
+        const canvas = document.getElementById('chartLinhaTempo');
+        if (!canvas) return;
+        const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        const fmt = (d) => `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
+        const hoje = new Date();
+        hoje.setHours(12, 0, 0, 0);
+        const segunda = new Date(hoje);
+        segunda.setDate(hoje.getDate() - ((hoje.getDay() + 6) % 7));
+        const hojeIso = iso(hoje);
+
+        const itens = this.demandas
+            .filter((d) => d.dataAbertura)
+            .map((d) => ({
+                abre: String(d.dataAbertura).slice(0, 10),
+                fecha: d.dataConclusao ? String(d.dataConclusao).slice(0, 10) : (d.status === 'Concluído' ? String(d.dataAbertura).slice(0, 10) : '')
+            }));
+
+        const N = 8;
+        const labels = [];
+        const novas = [];
+        const concl = [];
+        const aberto = [];
+        for (let i = N - 1; i >= 0; i--) {
+            const ini = new Date(segunda);
+            ini.setDate(segunda.getDate() - 7 * i);
+            const fim = new Date(ini);
+            fim.setDate(ini.getDate() + 6);
+            const a = iso(ini);
+            const b = iso(fim) > hojeIso ? hojeIso : iso(fim);
+            labels.push(fmt(ini));
+            novas.push(itens.filter((x) => x.abre >= a && x.abre <= b).length);
+            concl.push(itens.filter((x) => x.fecha && x.fecha >= a && x.fecha <= b).length);
+            aberto.push(itens.filter((x) => x.abre <= b && (!x.fecha || x.fecha > b)).length);
+        }
+        registrar(canvas, 'linha', {
+            labels,
+            semanas: labels,
+            series: [
+                { nome: 'Em aberto', cor: '#00a9dc', valores: aberto, area: true },
+                { nome: 'Novas', cor: '#f59e0b', valores: novas },
+                { nome: 'Concluídas', cor: '#10b981', valores: concl }
+            ]
         });
     };
 })();
