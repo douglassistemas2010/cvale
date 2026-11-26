@@ -9,6 +9,28 @@ coluna `dados` em jsonb). `supabase/seed.sql` é só a carga inicial histórica 
 de verdade atual; para ver os dados reais em produção é preciso consultar a API do Supabase
 (`supabase-config.js` tem URL + anon key, leitura é pública).
 
+## Refino de UI, Insights/Reunião com panorama e status "Realizar Deploy" (26/11/2026)
+
+Novos arquivos (carregados por último): `refino-ui.css`, `refino-ui.js`, `LOGO_padrao.png`.
+
+- **Insights e Reunião Semanal**: painel de panorama (KPIs, gráfico "Frente de atuação", fluxo semanal,
+  leitura automática, contexto/data) montado por `refino-ui.js`; Dashboard ganhou `canvas#chartFrente`
+  (rosca de demandas abertas por frente, `desenharGraficoFrente` em `graficos.js`).
+- **Toast de sucesso** novo (verde, elegante, `mostrarToast` em `app.js`, classes `.toast--*`).
+- **Logo padrão C.Vale** colorida no tema claro (`LOGO_padrao.png`); tema escuro mantém a logo branca.
+- Botões "Somente leitura" e "Importar" apenas **ocultos** (`oculto-ui`); login continua por Ctrl+Alt+L.
+- **Renumeração de prioridade** ao priorizar, adicionar e concluir demandas.
+- **Modal de demanda sem barra de rolagem**: campos escalam pela altura da tela (`--campo-h`, 38–54px),
+  empilha abaixo de 1100px; histórico de interações mais largo (modal 1320px); campo ID do chamado
+  com a mesma altura dos demais.
+- **Progresso**: botão "▾" abre opções 0/25/50/75/100 ou digitação manual (`instalarPresetsProgresso`).
+- **Novo status "Realizar Deploy"** (grupo de teste; bucket `teste` no Planner; cor #14b8a6).
+- **Timeline**: percentual em pílula de alto contraste ao lado da barra (antes ilegível dentro da barra),
+  separadores/zebra entre linhas, rótulo rico (nº, título com quebra, trecho da descrição, status, datas,
+  prazo). **Tabela de Demandas**: separação elegante por linha, faixa lateral na cor do status, título
+  com quebra de linha.
+- Não testado: persistência no Supabase (app estava somente leitura no teste) e o tema escuro completo.
+
 ## Glass iOS, histórico de notas, modal grande, Reunião e Timeline (26/11/2026)
 
 - **Glass iOS** em todas as abas: `vidro-ios.css` (cards, tabelas — linhas viram "tiras" de vidro —, kanban,

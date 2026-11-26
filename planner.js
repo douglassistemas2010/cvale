@@ -43,6 +43,7 @@
         'Em Testes Integrados': 'teste',
         'Testes Com Erros': 'teste',
         'Enviar a Produção': 'teste',
+        'Realizar Deploy': 'teste',
         'Concluído': 'concluido'
     };
     // Tarefas pessoais não passam por "Em testes".

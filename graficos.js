@@ -890,4 +890,31 @@
             cores: ['#ef4444', '#f59e0b', '#3b82f6', '#10b981']
         });
     };
+
+    // Cor da frente em hexadecimal (CORES_FRENTE usa var(--...) para C4C/Outro, que muda por tema)
+    function corHexFrente(nome) {
+        const bruta = corDaFrente(nome);
+        const m = /^var\((--[\w-]+)\)$/.exec(bruta);
+        if (!m) return bruta;
+        const v = getComputedStyle(document.body).getPropertyValue(m[1]).trim();
+        return /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(v) ? v : COR_OUTROS;
+    }
+
+    // Frente de atuação: onde está o tempo (demandas em aberto por C4C, SAP, ESG...).
+    CockpitApp.prototype.desenharGraficoFrente = function () {
+        const canvas = document.getElementById('chartFrente');
+        if (!canvas) return;
+        const cont = {};
+        this.demandas.filter((d) => d.status !== 'Concluído').forEach((d) => {
+            const bruto = (d.origem && String(d.origem).trim()) || 'Outro';
+            const nome = ALIAS_FRENTE[bruto] || bruto;
+            cont[nome] = (cont[nome] || 0) + 1;
+        });
+        const labels = Object.keys(cont).sort((a, b) => cont[b] - cont[a]);
+        registrar(canvas, 'rosca', {
+            labels,
+            valores: labels.map((l) => cont[l]),
+            cores: labels.map(corHexFrente)
+        });
+    };
 })();

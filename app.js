@@ -60,7 +60,7 @@
 
         // Estados possíveis
         const TIPOS = ['Incidente', 'Melhoria', 'Projeto', 'Suporte', 'Reunião', 'Análise', 'Integração', 'Outro', 'CSS', 'Ticket'];
-        const STATUS = ['Aguardando CSS', 'Aguardando Retorno TI', 'Concluído', 'Em Análise Inicial', 'Em Andamento', 'Em Orçamentação', 'Em Testes Integrados', 'Enviar a Produção', 'Pausado', 'Pendente', 'Testes Com Erros'];
+        const STATUS = ['Aguardando CSS', 'Aguardando Retorno TI', 'Concluído', 'Em Análise Inicial', 'Em Andamento', 'Em Orçamentação', 'Em Testes Integrados', 'Enviar a Produção', 'Pausado', 'Pendente', 'Realizar Deploy', 'Testes Com Erros'];
         const PRIORIDADES = ['Crítica', 'Alta', 'Média', 'Baixa'];
         const CORES_STATUS = {
             'Aguardando CSS': '#f59e0b',        // 🟠 Laranja
@@ -73,6 +73,7 @@
             'Enviar a Produção': '#ec4899',     // 💗 Pink
             'Pausado': '#6b7280',               // ⚫ Cinza
             'Pendente': '#eab308',              // 🟡 Amarelo
+            'Realizar Deploy': '#14b8a6',       // 🟢 Verde-água
             'Testes Com Erros': '#dc2626'       // 🔴 Vermelho
         };
 
@@ -156,7 +157,7 @@
         // Os 11 status reais das demandas não mapeiam 1:1 com "em andamento"/"em teste"
         // da aba Reunião Semanal — agrupados aqui numa fonte única (combinado com o usuário).
         const STATUS_GRUPO_ANDAMENTO = ['Pendente', 'Em Análise Inicial', 'Em Orçamentação', 'Em Andamento', 'Aguardando CSS', 'Aguardando Retorno TI', 'Pausado'];
-        const STATUS_GRUPO_TESTE = ['Em Testes Integrados', 'Testes Com Erros', 'Enviar a Produção'];
+        const STATUS_GRUPO_TESTE = ['Em Testes Integrados', 'Testes Com Erros', 'Enviar a Produção', 'Realizar Deploy'];
 
         // Segunda-feira 00:00 da semana de calendário (seg-dom) que contém `data`
         function inicioDaSemana(data) {
@@ -1137,7 +1138,7 @@
                     'Aguardando CSS': '⏳', 'Aguardando Retorno TI': '📨', 'Concluído': '✅',
                     'Em Análise Inicial': '🔍', 'Em Andamento': '🔧', 'Em Orçamentação': '💰',
                     'Em Testes Integrados': '🧪', 'Enviar a Produção': '🚀', 'Pausado': '⏸️',
-                    'Pendente': '🕒', 'Testes Com Erros': '❌'
+                    'Pendente': '🕒', 'Realizar Deploy': '⚙️', 'Testes Com Erros': '❌'
                 };
                 const ICONE_PRIORIDADE = { 'Crítica': '🔴', 'Alta': '🟠', 'Média': '🟡', 'Baixa': '🟢' };
                 const COR_PRIORIDADE = { 'Crítica': '#dc2626', 'Alta': '#ea580c', 'Média': '#ca8a04', 'Baixa': '#16a34a' };
@@ -1709,29 +1710,38 @@
             // Mantém a Priorização (numeroOrdem) sequencial (1, 2, 3...) dentro da frente (origem).
             // A demanda salva é encaixada na posição escolhida e as demais se deslocam
             // (ex.: inserir como 6º empurra o 6º atual para 7º, e assim por diante).
-            // Concluídas ficam de fora: já aparecem sempre no final da lista.
+            // Concluídas SAEM da sequência (ficam com 0 e aparecem como "—" no fim da lista) e as
+            // demais da frente sobem, sem buracos. Vale ao priorizar, adicionar, concluir, reabrir,
+            // trocar de frente ou excluir (ver renumerarFrente).
             reordenarPrioridades(demandaFoco, origemAnterior = null) {
+                // Frente de onde a demanda saiu (mudança de origem): fecha o buraco na sequência
+                if (origemAnterior && origemAnterior !== demandaFoco.origem) this.renumerarFrente(origemAnterior);
+
+                if (demandaFoco.status !== 'Concluído') {
+                    // 0/vazio = sem posição escolhida (ex.: demanda reaberta): entra no fim da fila
+                    const desejada = Number(demandaFoco.numeroOrdem);
+                    this.renumerarFrente(demandaFoco.origem, demandaFoco, desejada > 0 ? desejada : Infinity);
+                } else {
+                    this.renumerarFrente(demandaFoco.origem);
+                }
+            }
+
+            // Renumera a Priorização (1, 2, 3...) das demandas em aberto de uma frente. Opcionalmente
+            // encaixa `demandaFoco` na posição `posicao` (1 = primeira) deslocando as demais.
+            // Demandas Concluídas ficam com numeroOrdem 0 (fora da sequência).
+            renumerarFrente(origem, demandaFoco = null, posicao = Infinity) {
                 const valorOrdem = (d) => {
                     const n = Number(d.numeroOrdem);
-                    return Number.isFinite(n) && d.numeroOrdem !== '' && d.numeroOrdem !== null && d.numeroOrdem !== undefined ? n : 9999;
+                    return Number.isFinite(n) && n > 0 && d.numeroOrdem !== '' ? n : 9999;
                 };
-                const abertas = (origem) => this.demandas.filter(d => d.origem === origem && d.status !== 'Concluído');
+                const daFrente = this.demandas.filter(d => d.origem === origem);
+                daFrente.filter(d => d.status === 'Concluído').forEach(d => { d.numeroOrdem = 0; });
 
-                // Frente de onde a demanda saiu (mudança de origem): fecha o buraco na sequência
-                if (origemAnterior && origemAnterior !== demandaFoco.origem) {
-                    abertas(origemAnterior)
-                        .sort((a, b) => valorOrdem(a) - valorOrdem(b))
-                        .forEach((d, i) => { d.numeroOrdem = i + 1; });
-                }
-
-                if (demandaFoco.status === 'Concluído') return;
-
-                const outras = abertas(demandaFoco.origem)
-                    .filter(d => d !== demandaFoco)
+                const fila = daFrente
+                    .filter(d => d.status !== 'Concluído' && d !== demandaFoco)
                     .sort((a, b) => valorOrdem(a) - valorOrdem(b));
-                const posicao = Math.min(Math.max((Number(demandaFoco.numeroOrdem) || 1) - 1, 0), outras.length);
-                outras.splice(posicao, 0, demandaFoco);
-                outras.forEach((d, i) => { d.numeroOrdem = i + 1; });
+                if (demandaFoco) fila.splice(Math.min(Math.max(posicao - 1, 0), fila.length), 0, demandaFoco);
+                fila.forEach((d, i) => { d.numeroOrdem = i + 1; });
             }
 
             editarDemanda(numero) {
@@ -1797,6 +1807,8 @@
                                               d.origem === 'SD' || d.origem === 'SAP' || d.origem === 'SAP SD' ? 'SAP' : d.origem;
                 
                 if (getFrenteDemanda(demandaAtual) !== getFrenteDemanda(demandaVizinha)) return;
+                // Concluídas estão fora da sequência de priorização
+                if (demandaAtual.status === 'Concluído' || demandaVizinha.status === 'Concluído') return;
                 
                 // Animação visual
                 tr.classList.add(direcao === 'up' ? 'row-moving-up' : 'row-moving-down');
@@ -1814,13 +1826,12 @@
                 const frenteAtual = getFrenteDemanda(demandaAtual);
                 const linhasDaFrente = Array.from(tbody.querySelectorAll(`tr.group-item[data-frente="${frente}"]`));
                 
-                linhasDaFrente.forEach((linha, index) => {
+                let posicaoOrdem = 0;
+                linhasDaFrente.forEach((linha) => {
                     const numDemanda = linha.dataset.numero;
                     const demanda = this.demandas.find(d => d.numero === numDemanda);
-                    if (demanda) {
-                        // Atribuir nova ordem sequencial (começando de 1)
-                        demanda.numeroOrdem = index + 1;
-                    }
+                    // Atribuir nova ordem sequencial (começando de 1); concluídas ficam fora da sequência
+                    if (demanda && demanda.status !== 'Concluído') demanda.numeroOrdem = ++posicaoOrdem;
                 });
                 
                 
@@ -1879,7 +1890,9 @@
                 this.criarBackup('antes_excluir_' + numero);
                 
                 const qtdAntes = this.demandas.length;
+                const origemExcluida = (this.demandas.find(d => d.numero === numero) || {}).origem;
                 this.demandas = this.demandas.filter(d => d.numero !== numero);
+                if (origemExcluida) this.renumerarFrente(origemExcluida); // fecha o buraco na sequência
                 
                 // Verificação: Só deve ter removido 1 demanda
                 if (qtdAntes - this.demandas.length !== 1) {
@@ -2083,7 +2096,7 @@
                         }
 
                         return `
-                            <tr class="group-item" data-numero="${numEsc}" data-frente="${escapeHtml(frente)}" style="${frenteExpandida ? '' : 'display: none;'} color: var(--text-primary); background: transparent; cursor: pointer;" onclick="app.editarDemanda('${numJsEsc}')">
+                            <tr class="group-item" data-numero="${numEsc}" data-frente="${escapeHtml(frente)}" style="${frenteExpandida ? '' : 'display: none;'} color: var(--text-primary); background: transparent; cursor: pointer; --st: ${CORES_STATUS[d.status] || '#94a3b8'};" onclick="app.editarDemanda('${numJsEsc}')">
                                 <td style="text-align: center; padding: 1rem 0.5rem;" onclick="event.stopPropagation();">
                                     <button class="btn btn-xs btn-secondary" onclick="app.copiarLinhaDemanda('${numJsEsc}')" title="Copiar número e descrição (Teams, e-mail...)">
                                         <span data-icon="copy"></span>
@@ -2094,7 +2107,7 @@
                                 <td style="text-align: center;">
                                     <div class="order-controls" onclick="event.stopPropagation();" style="display: flex; align-items: center; justify-content: center; gap: 0.4rem;">
                                         <button class="order-btn" onclick="app.moverDemanda('${numJsEsc}', '${frenteJsEsc}', 'up')" title="Subir prioridade">▲</button>
-                                        <span class="badge" style="background: linear-gradient(135deg, #2d5a8c, #1f3a54); color: #ffffff; font-weight: 700; padding: 0.4rem 0.6rem; border-radius: 6px; min-width: 32px; text-align: center;">${d.numeroOrdem || 0}º</span>
+                                        <span class="badge" style="background: linear-gradient(135deg, #2d5a8c, #1f3a54); color: #ffffff; font-weight: 700; padding: 0.4rem 0.6rem; border-radius: 6px; min-width: 32px; text-align: center;">${isConcluido || !d.numeroOrdem ? '—' : d.numeroOrdem + 'º'}</span>
                                         <button class="order-btn" onclick="app.moverDemanda('${numJsEsc}', '${frenteJsEsc}', 'down')" title="Descer prioridade">▼</button>
                                         ${iconeStatus}
                                     </div>
@@ -2174,6 +2187,7 @@
                     'Enviar a Produção': 'package',
                     'Pausado': 'pause-circle',
                     'Pendente': 'hourglass',
+                    'Realizar Deploy': 'rocket',
                     'Testes Com Erros': 'x-circle'
                 };
                 
@@ -2317,6 +2331,7 @@
                 this.desenharGraficoTipo();
                 this.desenharGraficoSLA();
                 this.desenharGraficoPrioridade();
+                if (typeof this.desenharGraficoFrente === 'function') this.desenharGraficoFrente();
 
                 // Renderizar ícones Lucide após atualizar dashboard
             }
@@ -2831,23 +2846,12 @@
                     const maxFrenteTotal = Math.max(1, ...frentesArr.map(([, v]) => v.total));
                     this.reuniaoFrentesDemandas = frentesDemandas;
 
-                    // Insights curtos derivados só dos números já calculados acima — nada inventado,
-                    // nenhuma comparação com período anterior ainda (isso fica pra Fase 2).
-                    const insights = [];
-                    if (frentesArr.length) {
-                        const [topNome, topV] = frentesArr[0];
-                        const pctTop = total ? Math.round((topV.total / total) * 100) : 0;
-                        if (pctTop >= 30) insights.push(`${pctTop}% das demandas do período estão concentradas na frente ${topNome}.`);
-                    }
-                    if (total > 0) {
-                        insights.push(atrasadas > 0
-                            ? `${atrasadas} demanda${atrasadas > 1 ? 's' : ''} atrasada${atrasadas > 1 ? 's' : ''} no período selecionado.`
-                            : 'Nenhuma demanda atrasada no período selecionado.');
-                        const taxaConclusao = Math.round((baseFiltrada.filter(d => d.status === 'Concluído').length / total) * 100);
-                        insights.push(`${taxaConclusao}% das demandas abertas no período já estão concluídas.`);
-                    }
-                    if (emTeste > 0) insights.push(`${emTeste} demanda${emTeste > 1 ? 's' : ''} em teste/validação aguardando avanço.`);
-                    if (!insights.length) insights.push('Sem demandas no filtro atual para gerar insights.');
+                    // KPIs extras, gráficos (frente de atuação e fluxo semanal) e "leitura do cenário"
+                    // vêm de refino-ui.js, derivados só de baseFiltrada/baseEstado (nada é gravado).
+                    const panorama = this.htmlPanoramaReuniao(baseFiltrada, baseEstado, {
+                        dentroPeriodo: (s) => dataDentroDoPeriodo(s, inicio, fim),
+                        rotuloCurto: rotulosPeriodo[f.periodo] || 'Semana anterior'
+                    });
 
                     // Valores distintos já usados nos dados (frente/responsável/sistema são texto
                     // livre — sem lista fixa nem normalização, ver contexto.md)
@@ -3045,6 +3049,9 @@
                                 </div>
                             </div>
 
+                            ${panorama.kpis}
+                            ${panorama.graficos}
+
                             <div class="reu-split">
                                 <div class="reu-panel reu-pontos">
                                     <div class="reu-panel-title">Pontos para a Reunião</div>
@@ -3085,9 +3092,7 @@
 
                             <div class="reu-panel">
                                 <div class="reu-panel-title">Insights</div>
-                                <div class="reu-insights">
-                                    ${insights.map(texto => `<div class="reu-insight"><span>💡</span>${escapeHtml(texto)}</div>`).join('')}
-                                </div>
+                                ${panorama.leitura}
                             </div>
                         </div>
                     `;
@@ -3420,6 +3425,8 @@
                                     </div>
                                 </div>
                             </div>
+
+                            ${typeof this.htmlPanoramaInsights === 'function' ? this.htmlPanoramaInsights(this.demandas) : ''}
 
                             <!-- KPIs de SLA -->
                             <div class="ins-kpis">
@@ -3760,7 +3767,7 @@
             _timelineClasseStatus(status) {
                 const s = (status || '').toLowerCase();
                 if (s.includes('pendente')) return 'status-pendente';
-                if (s.includes('andamento') || s.includes('análise') || s.includes('teste') || s.includes('produção') || s.includes('orçamentação') || s.includes('aguardando')) return 'status-em-andamento';
+                if (s.includes('andamento') || s.includes('análise') || s.includes('teste') || s.includes('produção') || s.includes('deploy') || s.includes('orçamentação') || s.includes('aguardando')) return 'status-em-andamento';
                 if (s.includes('concluído')) return 'status-concluido';
                 if (s.includes('pausado')) return 'status-pausado';
                 return 'status-default';
@@ -3942,17 +3949,48 @@
                             const barWidth = Math.max(0.01, barRight - barLeft);
 
                             html += '<div class="timeline-row" data-demanda-id="' + d.id + '">';
-                            // Label
+                            // Label: número + título (quebra de linha), descrição resumida e linha de dados
+                            const corSt = CORES_STATUS[d.status] || '#94a3b8';
+                            const fmtCurta = (iso) => { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso || ''); return m ? `${m[3]}/${m[2]}` : ''; };
+                            const dtAb = fmtCurta(d.dataAbertura);
+                            const dtVc = fmtCurta(d.vencimento);
+                            let prazoHtml = '';
+                            if (d.status === 'Concluído') {
+                                prazoHtml = '<span class="tl-prazo ok">Concluída</span>';
+                            } else if (d.vencimento) {
+                                const dv = new Date(d.vencimento + 'T00:00:00');
+                                const h0 = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
+                                const dif = Math.round((dv - h0) / 86400000);
+                                if (!isNaN(dif)) {
+                                    if (dif < 0) prazoHtml = `<span class="tl-prazo atraso">Atrasada ${-dif} d</span>`;
+                                    else if (dif === 0) prazoHtml = '<span class="tl-prazo alerta">Vence hoje</span>';
+                                    else if (dif <= 3) prazoHtml = `<span class="tl-prazo alerta">Faltam ${dif} d</span>`;
+                                    else prazoHtml = `<span class="tl-prazo">Faltam ${dif} d</span>`;
+                                }
+                            }
+                            const descCurta = (d.descricao && d.descricao.trim() && d.descricao.trim() !== (d.titulo || '').trim()) ? d.descricao.trim() : '';
                             html += '<div class="timeline-row-label">';
                             html += `<span class="timeline-priority-dot ${prioCls}" title="Prioridade: ${escapeHtml(d.prioridade)}"></span>`;
-                            html += `<span class="demanda-titulo" title="${escapeHtml(d.titulo)}">${escapeHtml(d.titulo)}</span>`;
+                            html += '<div class="tl-info">';
+                            html += `<div class="tl-linha1">${d.numero ? `<span class="tl-num">${escapeHtml(d.numero)}</span>` : ''}<span class="demanda-titulo" title="${escapeHtml(d.titulo)}">${escapeHtml(d.titulo)}</span></div>`;
+                            if (descCurta) html += `<div class="tl-desc" title="${escapeHtml(descCurta)}">${escapeHtml(descCurta)}</div>`;
+                            html += '<div class="tl-linha2">';
+                            html += `<span class="tl-status" style="--sc:${corSt};">${escapeHtml(d.status)}</span>`;
+                            if (dtAb || dtVc) html += `<span class="tl-datas">${dtAb || '—'} → ${dtVc || '—'}</span>`;
+                            html += prazoHtml;
+                            html += '</div></div>';
                             html += '</div>';
                             // Barras
                             html += '<div class="timeline-row-bars">';
                             html += `<div class="timeline-bar ${statusCls} ${atrasada ? 'atrasada' : ''}" style="left:${barLeft * 100}%; width:${barWidth * 100}%; --i:${Math.min(idxBarra, 40)};" data-demanda-id="${d.id}">`;
                             html += `<div class="timeline-bar-fill" style="width:${prog}%;"></div>`;
-                            html += `<span class="timeline-bar-text">${prog}%</span>`;
                             html += '</div>';
+                            // Percentual em pastilha escura com texto branco (legível sobre qualquer cor de barra)
+                            const fimBarra = barLeft + barWidth;
+                            const pctPos = fimBarra <= 0.9
+                                ? `left:calc(${(fimBarra * 100).toFixed(2)}% + 8px);`
+                                : `right:calc(${((1 - fimBarra) * 100).toFixed(2)}% + 5px);`;
+                            html += `<span class="timeline-pct" style="${pctPos} --i:${Math.min(idxBarra, 40)};" title="Progresso: ${prog}%">${prog}%</span>`;
                             // Marcos
                             const iAnim = Math.min(idxBarra, 40);
                             idxBarra++;
@@ -4252,26 +4290,47 @@
                 });
             }
 
-            mostrarToast(mensagem) {
+            // Aviso no rodapé: ícone Lucide + cor por tipo (success = verde, error, warning, info).
+            // Um emoji no início da mensagem (legado) só indica o ícone/tipo e é removido do texto.
+            mostrarToast(mensagem, tipo) {
                 const toast = document.getElementById('toast');
+                if (!toast) return;
                 const icon = toast.querySelector('#toastIcon');
                 const msg = toast.querySelector('#toastMessage');
 
-                // Extrair emoji do início da mensagem se existir
-                const emojiMatch = mensagem.match(/^([\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|✅|❌|✏️|🗑️|🔄|🌙|☀️|⚠️)\s*/u);
-                if (emojiMatch) {
-                    icon.textContent = emojiMatch[1];
-                    msg.textContent = mensagem.slice(emojiMatch[0].length);
-                } else {
-                    icon.textContent = '✅';
-                    msg.textContent = mensagem;
-                }
-                
+                const MAPA_EMOJI = {
+                    '✅': ['check-circle-2', 'success'], '✔': ['check-circle-2', 'success'], '💾': ['save', 'success'],
+                    '✏': ['pencil', 'success'], '🗑': ['trash-2', 'success'],
+                    '❌': ['circle-x', 'error'], '⛔': ['circle-x', 'error'],
+                    '⚠': ['triangle-alert', 'warning'], '📖': ['book-open', 'warning'],
+                    '🔄': ['refresh-cw', 'info'], '🌙': ['moon', 'info'], '☀': ['sun', 'info'],
+                    '📋': ['clipboard-check', 'info'], 'ℹ': ['info', 'info']
+                };
+                const ICONE_TIPO = { success: 'check-circle-2', error: 'circle-x', warning: 'triangle-alert', info: 'info' };
+
+                const texto = String(mensagem ?? '');
+                const m = texto.match(/^((?:\p{Extended_Pictographic}\uFE0F?)+)\s*/u);
+                const emoji = m ? m[1].replace(/\uFE0F/g, '') : '';
+                const corpo = m ? texto.slice(m[0].length) : texto;
+                const [icoEmoji, tipoEmoji] = MAPA_EMOJI[emoji] || [];
+
+                let tom = tipo && ICONE_TIPO[tipo] ? tipo : (tipoEmoji || null);
+                if (!tom) tom = /^(erro|falha|n[aã]o foi poss)/i.test(corpo) ? 'error' : 'success';
+                const nomeIcone = icoEmoji || ICONE_TIPO[tom];
+
+                toast.classList.remove('show', 'toast--success', 'toast--error', 'toast--warning', 'toast--info');
+                toast.classList.add('toast--' + tom);
+                const duracao = tom === 'error' || tom === 'warning' ? 5000 : 3200;
+                toast.style.setProperty('--toast-dur', duracao + 'ms');
+                icon.innerHTML = `<i data-lucide="${nomeIcone}"></i>`;
+                msg.textContent = corpo;
+                if (typeof lucide !== 'undefined') lucide.createIcons();
+
+                void toast.offsetWidth; // reinicia a animação quando um aviso substitui o outro
                 toast.classList.add('show');
 
-                setTimeout(() => {
-                    toast.classList.remove('show');
-                }, 3000);
+                clearTimeout(this._toastTimer);
+                this._toastTimer = setTimeout(() => toast.classList.remove('show'), duracao);
             }
 
             // Troca entre tema escuro e claro

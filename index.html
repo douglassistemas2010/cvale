@@ -20,6 +20,7 @@
     <link rel="stylesheet" href="vidro-ios.css">
     <link rel="stylesheet" href="notas.css">
     <link rel="stylesheet" href="timeline-moderna.css">
+    <link rel="stylesheet" href="refino-ui.css">
     <!-- Tema claro desde o primeiro desenho (o app.js reaplica as variáveis completas) -->
     <style>html, body { background: linear-gradient(135deg, #f4f8fc 0%, #e4f0f8 100%); color: #16293d; }</style>
 </head>
@@ -36,9 +37,9 @@
                     <button class="theme-btn active" id="themeDark" title="Tema Escuro" data-icon="moon"></button>
                     <button class="theme-btn" id="themeLight" title="Tema Claro" data-icon="sun"></button>
                 </div>
-                <button class="btn btn-secondary" id="btnAuthSupabase" title="Somente leitura — clique para entrar e habilitar edição" style="margin-right: 0.5rem;"><span data-icon="lock" style="margin-right: 0.25rem;"></span>Somente leitura</button>
+                <button class="btn btn-secondary oculto-ui" id="btnAuthSupabase" title="Somente leitura — clique para entrar e habilitar edição" style="margin-right: 0.5rem;"><span data-icon="lock" style="margin-right: 0.25rem;"></span>Somente leitura</button>
                 <button class="btn btn-secondary" id="btnExportDemandas" title="Exportar todas as demandas para Excel (.xlsx), com todos os campos" style="margin-right: 0.5rem;"><span data-icon="download" style="margin-right: 0.25rem;"></span>Exportar</button>
-                <button class="btn btn-secondary" id="btnImportDemandas" title="Importar demandas de Excel (.xlsx/.csv) ou JSON — atualiza por número e cria as novas" style="margin-right: 0.5rem;"><span data-icon="upload" style="margin-right: 0.25rem;"></span>Importar</button>
+                <button class="btn btn-secondary oculto-ui" id="btnImportDemandas" title="Importar demandas de Excel (.xlsx/.csv) ou JSON — atualiza por número e cria as novas" style="margin-right: 0.5rem;"><span data-icon="upload" style="margin-right: 0.25rem;"></span>Importar</button>
                 <input type="file" id="inputImportFile" accept=".xlsx,.xls,.csv,.json" style="display: none;">
                 <button class="btn btn-neon-green" id="btnNewDemand"><span data-icon="plus" style="margin-right: 0.5rem;"></span>Nova Demanda</button>
             </div>
@@ -53,7 +54,8 @@
             <button class="tab" data-tab="reuniao"><i data-lucide="presentation" style="width: 1rem; height: 1rem; margin-right: 0.5rem; display: inline-block; vertical-align: -2px;"></i>Reunião Semanal</button>
             <button class="tab" data-tab="insights"><i data-lucide="lightbulb" style="width: 1rem; height: 1rem; margin-right: 0.5rem; display: inline-block; vertical-align: -2px;"></i>Insights</button>
             <div class="tabs-logo">
-                <img src="LOGO_transparente.png" alt="C.Vale" title="C.Vale Cooperativa Agroindustrial">
+                <img class="logo-escuro" src="LOGO_transparente.png" alt="C.Vale" title="C.Vale Cooperativa Agroindustrial">
+                <img class="logo-claro" src="LOGO_padrao.png" alt="C.Vale" title="C.Vale Cooperativa Agroindustrial">
             </div>
         </div>
 
@@ -173,6 +175,10 @@
                             <div class="chart-title"><span>Prioridades <small style="font-weight:600;opacity:.65;">(demandas ativas)</small></span></div>
                             <canvas id="chartPrioridade" width="450" height="280"></canvas>
                         </div>
+                        <div class="chart-container chart-wide">
+                            <div class="chart-title"><span>Frente de atuação <small style="font-weight:600;opacity:.65;">(onde está o meu tempo · demandas em aberto)</small></span></div>
+                            <canvas id="chartFrente" width="900" height="280"></canvas>
+                        </div>
                     </div>
 
                     <!-- CRITICIDADE -->
@@ -242,6 +248,7 @@
                                 <button type="button" class="custom-select-option" data-value="Enviar a Produção">Enviar a Produção</button>
                                 <button type="button" class="custom-select-option" data-value="Pausado">Pausado</button>
                                 <button type="button" class="custom-select-option" data-value="Pendente">Pendente</button>
+                                <button type="button" class="custom-select-option" data-value="Realizar Deploy">Realizar Deploy</button>
                                 <button type="button" class="custom-select-option" data-value="Testes Com Erros">Testes Com Erros</button>
                             </div>
                             <input type="hidden" id="filterStatus" value="">
@@ -415,12 +422,13 @@
                             <option value="Enviar a Produção">Enviar a Produção</option>
                             <option value="Pausado">Pausado</option>
                             <option value="Pendente">Pendente</option>
+                            <option value="Realizar Deploy">Realizar Deploy</option>
                             <option value="Testes Com Erros">Testes Com Erros</option>
                         </select>
                     </div>
                 </div>
 
-                <div class="form-row form-row-3">
+                <div class="form-row form-row-3 form-row-progresso">
                     <div class="form-group">
                         <label class="form-label">Abertura</label>
                         <input type="date" class="form-input" id="dataAbertura">
@@ -457,8 +465,8 @@
     </div>
 
     <!-- TOAST -->
-    <div class="toast" id="toast">
-        <span class="toast-icon" id="toastIcon">✅</span>
+    <div class="toast" id="toast" role="status" aria-live="polite">
+        <span class="toast-icon" id="toastIcon" aria-hidden="true"></span>
         <span class="toast-message" id="toastMessage"></span>
     </div>
 
@@ -486,6 +494,7 @@
     <script src="app.js"></script>
     <script src="planner.js"></script>
     <script src="graficos.js"></script>
+    <script src="refino-ui.js"></script>
     <script src="contraste.js"></script>
     <script src="ui-moderno.js"></script>
 </body>
