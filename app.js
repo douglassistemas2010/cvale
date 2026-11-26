@@ -863,6 +863,9 @@
 
                 // Modal
                 document.getElementById('btnNewDemand').addEventListener('click', () => this.abrirModalNova());
+                ['numeroChamado', 'titulo'].forEach((id) => {
+                    document.getElementById(id).addEventListener('input', () => this.atualizarTituloModal());
+                });
                 document.getElementById('closeModal').addEventListener('click', () => this.fecharModal());
                 document.getElementById('btnCancelar').addEventListener('click', () => this.fecharModal());
                 document.getElementById('formDemanda').addEventListener('submit', (e) => this.salvarDemanda(e));
@@ -1519,7 +1522,6 @@
             // Abre modal para criar nova demanda
             // Limpa formulário, seta data de abertura como hoje
             abrirModalNova() {
-                document.getElementById('modalTitle').textContent = 'Nova Demanda';
                 document.getElementById('formDemanda').reset();
                 document.getElementById('numeroChamado').value = '';
                 document.getElementById('numeroChamadoOriginal').value = '';
@@ -1530,6 +1532,7 @@
                 document.getElementById('dataAbertura').value = new Date().toISOString().split('T')[0];
                 // Excluir só faz sentido numa demanda já existente
                 document.getElementById('btnExcluirDemanda').style.display = 'none';
+                this.atualizarTituloModal();
                 this.montarNotasModal(null);
                 this.restaurarBotaoSalvar();
                 document.getElementById('modalDemanda').classList.add('active');
@@ -1744,6 +1747,21 @@
                 fila.forEach((d, i) => { d.numeroOrdem = i + 1; });
             }
 
+            // Cabeçalho do modal: "Editar <nº do chamado> · <descrição>" (ou "Nova Demanda"
+            // + nº e descrição conforme digitados). Chamado a cada abertura e a cada digitação.
+            atualizarTituloModal() {
+                const el = document.getElementById('modalTitle');
+                if (!el) return;
+                const original = document.getElementById('numeroChamadoOriginal').value;
+                const numero = document.getElementById('numeroChamado').value.trim();
+                const titulo = document.getElementById('titulo').value.trim();
+                const base = original ? 'Editar' : 'Nova Demanda';
+                const texto = [numero, titulo].filter(Boolean).join(' \u00b7 ');
+                const completo = [base, texto].filter(Boolean).join(' ');
+                el.textContent = completo;
+                el.title = completo;
+            }
+
             editarDemanda(numero) {
                 // Se o usuário estava selecionando texto (clique+arrastar+soltar), o mouseup
                 // dispara um "click" nativo mesmo sem intenção de abrir o modal. Ignora nesse caso.
@@ -1753,7 +1771,6 @@
                 const demanda = this.demandas.find(d => d.numero === numero);
                 if (!demanda) return;
 
-                document.getElementById('modalTitle').textContent = `Editar ${numero}`;
                 document.getElementById('numeroChamadoOriginal').value = numero;
                 document.getElementById('numeroChamado').value = numero;
                 document.getElementById('titulo').value = demanda.titulo;
@@ -1765,6 +1782,7 @@
                 document.getElementById('vencimento').value = demanda.vencimento;
                 document.getElementById('status').value = demanda.status;
                 document.getElementById('progresso').value = demanda.progresso;
+                this.atualizarTituloModal();
                 this.montarNotasModal(demanda);
                 this.restaurarBotaoSalvar();
 
