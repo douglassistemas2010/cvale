@@ -53,7 +53,6 @@ body.theme-dark .search-box::before { color: rgba(248, 249, 250, 0.78); }
 body.theme-light .chart-title .ctx-ico { color: #0070b8; }
 .tab-content h3 .ctx-ico { width: 1.1rem; height: 1.1rem; margin-right: 0.55rem; vertical-align: -0.22em; color: #00a9dc; opacity: 1; }
 body.theme-light .tab-content h3 .ctx-ico { color: #0070b8; }
-.charts-grid .chart-wide { grid-column: 1 / -1; }
 
 /* ---------- Aviso (toast) ---------- */
 .toast { --tc: #16a34a; --toast-dur: 3200ms; }
