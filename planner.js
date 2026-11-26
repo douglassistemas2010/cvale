@@ -1238,6 +1238,13 @@
                 return;
             }
             drawer.innerHTML = item.tipo === 'demanda' ? this.htmlDetalheDemanda(item.ref) : this.htmlDetalheTarefa(item.ref);
+            const alvoNotas = drawer.querySelector('#plNotasDemanda');
+            if (alvoNotas && window.NotasDemanda) {
+                NotasDemanda.montar(alvoNotas, {
+                    notas: item.ref.notas,
+                    aoMudar: (lista, acao, nota) => this.aplicarNotasDemanda(item.ref, lista, acao, nota)
+                });
+            }
             drawer.classList.add('aberto');
             overlay.classList.add('aberto');
             drawer.setAttribute('aria-hidden', 'false');
@@ -1348,8 +1355,8 @@
                         <input type="number" id="plCampoProgresso" class="form-input" data-campo="progresso" min="0" max="100" step="5" value="${Number(d.progresso) || 0}">
                     </div>
                     <div class="form-group">
-                        <label class="form-label" for="plCampoObs">Observações</label>
-                        <textarea id="plCampoObs" class="form-textarea" data-campo="observacoes" rows="4">${escapeHtml(d.observacoes || '')}</textarea>
+                        <label class="form-label">Interações</label>
+                        <div id="plNotasDemanda" class="pl-notas"></div>
                     </div>
                     ${this.htmlBlocoHistorico()}
                 </div>`;

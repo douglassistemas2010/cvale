@@ -1,0 +1,197 @@
+/* ============================================
+   TIMELINE MODERNA E MINIMALISTA
+   - linha HOJE em verde, pulsando;
+   - ao abrir a aba, as barras crescem da esquerda para a direita (escalonadas) e a linha desce;
+   - barras finas em formato de pílula, marcos discretos, cabeçalho leve.
+   A animação só dispara na abertura da aba (classe .anim no .timeline-gantt), não a cada filtro.
+   ============================================ */
+
+/* ---------- Navegação de período em pílulas ---------- */
+.timeline-period-nav { flex-wrap: wrap; }
+
+.timeline-period-btn {
+    padding: 0.38rem 0.95rem;
+    border-radius: 999px;
+    font-weight: 700;
+    background: rgba(148, 163, 184, 0.14);
+    border: 1px solid var(--glass-border, rgba(148, 163, 184, 0.3));
+}
+
+.timeline-period-btn.active {
+    border-color: transparent;
+    background: linear-gradient(135deg, #005a9c, #00a9dc);
+    box-shadow: 0 4px 12px rgba(0, 90, 156, 0.32);
+}
+
+.timeline-nav-arrows button { border-radius: 999px; }
+
+/* ---------- Cabeçalho leve ---------- */
+.timeline-gantt .timeline-header {
+    background: transparent;
+    border-bottom: 1px solid var(--glass-border, rgba(148, 163, 184, 0.25));
+    -webkit-backdrop-filter: blur(14px);
+    backdrop-filter: blur(14px);
+}
+
+.timeline-gantt .timeline-week-header {
+    border-left: 1px dashed rgba(148, 163, 184, 0.18);
+}
+
+.timeline-gantt .timeline-week-header .week-label { font-weight: 700; }
+
+/* ---------- Linhas e grupos ---------- */
+.timeline-gantt .timeline-frente-group { border-bottom: 0; }
+
+.timeline-gantt .timeline-frente-header {
+    padding: 0.7rem 1rem 0.35rem;
+}
+
+.timeline-gantt .timeline-row {
+    min-height: 46px;
+    border-top: 0;
+    border-radius: 12px;
+    transition: background 0.18s ease;
+}
+
+.timeline-gantt .timeline-row:hover { background: rgba(0, 169, 220, 0.07); }
+
+/* ---------- Barras: pílulas finas com preenchimento em degradê ---------- */
+.timeline-gantt .timeline-bar {
+    height: 16px;
+    border-radius: 999px;
+    overflow: hidden;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28);
+    transition: box-shadow 0.18s ease, height 0.18s ease;
+    transform-origin: left center;
+}
+
+.timeline-gantt .timeline-bar:hover {
+    filter: none;
+    height: 20px;
+    box-shadow: 0 4px 14px rgba(0, 90, 156, 0.30), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+
+.timeline-gantt .timeline-bar-fill {
+    border-radius: 999px;
+    transform-origin: left center;
+    transition: none;
+}
+
+.timeline-gantt .timeline-bar.status-pendente .timeline-bar-fill { background: linear-gradient(90deg, #eab308, #facc15); }
+.timeline-gantt .timeline-bar.status-em-andamento .timeline-bar-fill { background: linear-gradient(90deg, #2563eb, #38bdf8); }
+.timeline-gantt .timeline-bar.status-concluido .timeline-bar-fill { background: linear-gradient(90deg, #059669, #34d399); }
+.timeline-gantt .timeline-bar.status-pausado .timeline-bar-fill { background: linear-gradient(90deg, #64748b, #94a3b8); }
+
+.timeline-gantt .timeline-bar-text {
+    left: 8px;
+    font-size: 0.58rem;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+}
+
+.timeline-gantt .timeline-bar.atrasada {
+    border: 1px solid rgba(239, 68, 68, 0.85);
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.12);
+}
+
+/* ---------- Marcos discretos ---------- */
+.timeline-gantt .timeline-milestone {
+    width: 7px;
+    height: 7px;
+    border: 1.5px solid rgba(255, 255, 255, 0.9);
+    box-shadow: 0 1px 4px rgba(0, 40, 80, 0.35);
+}
+
+/* ---------- Linha HOJE: verde, fina, pulsando ---------- */
+.timeline-gantt .timeline-today-line {
+    width: 2px;
+    background: linear-gradient(180deg, #22c55e 0%, rgba(34, 197, 94, 0.55) 100%);
+    box-shadow: 0 0 8px 1px rgba(34, 197, 94, 0.55), 0 0 18px 3px rgba(34, 197, 94, 0.25);
+    transform-origin: top center;
+    animation: tlHojePulso 2.4s ease-in-out infinite;
+}
+
+.timeline-gantt .timeline-today-label {
+    top: 4px;
+    padding: 0.18rem 0.55rem;
+    border-radius: 999px;
+    background: linear-gradient(135deg, #16a34a, #22c55e);
+    color: #fff;
+    font-size: 0.58rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    box-shadow: 0 3px 10px rgba(34, 197, 94, 0.55);
+    animation: tlHojeSelo 2.4s ease-in-out infinite;
+}
+
+@keyframes tlHojePulso {
+    0%, 100% { box-shadow: 0 0 6px 1px rgba(34, 197, 94, 0.45), 0 0 14px 2px rgba(34, 197, 94, 0.18); opacity: 0.92; }
+    50% { box-shadow: 0 0 12px 3px rgba(34, 197, 94, 0.75), 0 0 28px 8px rgba(34, 197, 94, 0.32); opacity: 1; }
+}
+
+@keyframes tlHojeSelo {
+    0%, 100% { transform: translateX(-50%) scale(1); }
+    50% { transform: translateX(-50%) scale(1.08); }
+}
+
+/* ---------- Efeito de abertura da aba: barras crescem, linha desce ---------- */
+.timeline-gantt.anim .timeline-bar {
+    animation: tlBarraCresce 0.75s cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation-delay: calc(var(--i, 0) * 45ms + 120ms);
+}
+
+.timeline-gantt.anim .timeline-bar-fill {
+    animation: tlPreenche 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation-delay: calc(var(--i, 0) * 45ms + 420ms);
+}
+
+.timeline-gantt.anim .timeline-bar-text {
+    animation: tlTextoEntra 0.4s ease both;
+    animation-delay: calc(var(--i, 0) * 45ms + 900ms);
+}
+
+.timeline-gantt.anim .timeline-milestone {
+    animation: tlMarcoEntra 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+    animation-delay: calc(var(--i, 0) * 45ms + 650ms);
+}
+
+.timeline-gantt.anim .timeline-today-line {
+    animation: tlHojeDesce 0.8s cubic-bezier(0.22, 1, 0.36, 1) both, tlHojePulso 2.4s ease-in-out 0.9s infinite;
+}
+
+@keyframes tlBarraCresce {
+    from { transform: scaleX(0); opacity: 0; }
+    to { transform: scaleX(1); opacity: 1; }
+}
+
+@keyframes tlPreenche {
+    from { transform: scaleX(0); }
+    to { transform: scaleX(1); }
+}
+
+@keyframes tlTextoEntra {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes tlMarcoEntra {
+    from { opacity: 0; transform: translate(-50%, -50%) scale(0); }
+    to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+
+@keyframes tlHojeDesce {
+    from { transform: scaleY(0); opacity: 0; }
+    to { transform: scaleY(1); opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .timeline-gantt .timeline-today-line,
+    .timeline-gantt .timeline-today-label,
+    .timeline-gantt.anim .timeline-bar,
+    .timeline-gantt.anim .timeline-bar-fill,
+    .timeline-gantt.anim .timeline-bar-text,
+    .timeline-gantt.anim .timeline-milestone,
+    .timeline-gantt.anim .timeline-today-line {
+        animation: none;
+    }
+}

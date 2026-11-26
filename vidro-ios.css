@@ -1,0 +1,465 @@
+/* =========================================================================
+   Vidro estilo iOS nos cards da tela inicial (Dashboard)
+   Carregado por último: só estiliza o #tab-dashboard e não mexe nas outras abas.
+   Ingredientes (como o ícone de app do iOS):
+     1. fundo translúcido + desfoque forte do que está atrás;
+     2. borda fina clara e luz interna no topo;
+     3. reflexo (gloss) curvo cobrindo a metade de cima;
+     4. faixa diagonal de brilho (especular) cruzando o canto;
+     5. sombra suave embaixo.
+   O vidro só "aparece" se houver cor atrás dele — por isso o Dashboard ganha
+   manchas de cor suaves por trás dos cards (#tab-dashboard::before).
+   ========================================================================= */
+
+/* ---------- Manchas de cor atrás do vidro ---------- */
+#tab-dashboard {
+    position: relative;
+    isolation: isolate;
+}
+
+#tab-dashboard::before {
+    content: '';
+    position: absolute;
+    inset: -1.5rem -2.5rem;
+    z-index: -1;
+    pointer-events: none;
+    background-repeat: repeat-y;
+    background-size: 100% 1500px;
+    background-image:
+        radial-gradient(360px 300px at 8% 330px, rgba(0, 169, 220, 0.34), transparent 70%),
+        radial-gradient(420px 320px at 38% 470px, rgba(0, 90, 156, 0.22), transparent 70%),
+        radial-gradient(380px 300px at 64% 360px, rgba(16, 185, 129, 0.24), transparent 70%),
+        radial-gradient(400px 320px at 92% 500px, rgba(255, 190, 70, 0.26), transparent 70%),
+        radial-gradient(520px 360px at 22% 1000px, rgba(0, 169, 220, 0.20), transparent 70%),
+        radial-gradient(520px 360px at 78% 1100px, rgba(124, 92, 255, 0.16), transparent 70%);
+}
+
+body.theme-dark #tab-dashboard::before {
+    background-image:
+        radial-gradient(380px 300px at 8% 330px, rgba(0, 169, 220, 0.34), transparent 70%),
+        radial-gradient(420px 320px at 38% 470px, rgba(46, 125, 214, 0.30), transparent 70%),
+        radial-gradient(380px 300px at 64% 360px, rgba(16, 185, 129, 0.24), transparent 70%),
+        radial-gradient(400px 320px at 92% 500px, rgba(255, 190, 70, 0.20), transparent 70%),
+        radial-gradient(520px 360px at 22% 1000px, rgba(0, 169, 220, 0.24), transparent 70%),
+        radial-gradient(520px 360px at 78% 1100px, rgba(124, 92, 255, 0.22), transparent 70%);
+}
+
+/* ---------- Base do vidro (tema claro) ---------- */
+body.theme-light #tab-dashboard .card,
+body.theme-light #tab-dashboard .tipo-card,
+body.theme-light #tab-dashboard .stat-small {
+    position: relative;
+    overflow: hidden;
+    background:
+        linear-gradient(160deg, rgba(255, 255, 255, 0.66) 0%, rgba(255, 255, 255, 0.30) 52%, rgba(205, 233, 250, 0.38) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.78);
+    -webkit-backdrop-filter: blur(22px) saturate(190%);
+    backdrop-filter: blur(22px) saturate(190%);
+    box-shadow:
+        0 18px 38px rgba(0, 70, 120, 0.16),
+        0 3px 8px rgba(0, 70, 120, 0.07),
+        inset 0 1.5px 0 rgba(255, 255, 255, 0.98),
+        inset 0 -1px 0 rgba(0, 90, 156, 0.12),
+        inset 0 0 0 1px rgba(255, 255, 255, 0.22);
+}
+
+/* ---------- Base do vidro (tema escuro) ---------- */
+body.theme-dark #tab-dashboard .card,
+body.theme-dark #tab-dashboard .tipo-card,
+body.theme-dark #tab-dashboard .stat-small {
+    position: relative;
+    overflow: hidden;
+    background:
+        linear-gradient(160deg, rgba(255, 255, 255, 0.22) 0%, rgba(255, 255, 255, 0.07) 55%, rgba(0, 169, 220, 0.12) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.34);
+    -webkit-backdrop-filter: blur(22px) saturate(180%);
+    backdrop-filter: blur(22px) saturate(180%);
+    box-shadow:
+        0 20px 40px rgba(0, 12, 30, 0.40),
+        0 3px 8px rgba(0, 12, 30, 0.22),
+        inset 0 1.5px 0 rgba(255, 255, 255, 0.55),
+        inset 0 -1px 0 rgba(0, 0, 0, 0.18),
+        inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+
+/* Cartões de tipo: leve tinta da cor da frente por baixo do vidro */
+#tab-dashboard .tipo-card {
+    background-blend-mode: normal;
+}
+
+@supports (background: color-mix(in srgb, red 10%, transparent)) {
+    body.theme-light #tab-dashboard .tipo-card {
+        background:
+            linear-gradient(160deg, rgba(255, 255, 255, 0.62) 0%, rgba(255, 255, 255, 0.26) 55%, transparent 100%),
+            color-mix(in srgb, var(--card-color, #3b82f6) 14%, rgba(255, 255, 255, 0.18));
+    }
+
+    body.theme-dark #tab-dashboard .tipo-card {
+        background:
+            linear-gradient(160deg, rgba(255, 255, 255, 0.20) 0%, rgba(255, 255, 255, 0.05) 55%, transparent 100%),
+            color-mix(in srgb, var(--card-color, #3b82f6) 22%, rgba(255, 255, 255, 0.04));
+    }
+}
+
+/* ---------- Reflexo curvo (gloss) — substitui a faixa colorida do topo ---------- */
+#tab-dashboard .card::before,
+#tab-dashboard .tipo-card::before,
+#tab-dashboard .stat-small::before,
+#tab-dashboard .ui-hero-kpi::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: auto;
+    width: auto;
+    height: 54%;
+    border-radius: inherit;
+    border-bottom-left-radius: 100% 36%;
+    border-bottom-right-radius: 100% 36%;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.70) 0%, rgba(255, 255, 255, 0.20) 70%, rgba(255, 255, 255, 0.04) 100%);
+    opacity: 1;
+    pointer-events: none;
+    z-index: 0;
+    transition: opacity 0.3s ease;
+}
+
+body.theme-dark #tab-dashboard .card::before,
+body.theme-dark #tab-dashboard .tipo-card::before,
+body.theme-dark #tab-dashboard .stat-small::before,
+#tab-dashboard .ui-hero-kpi::before {
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.30) 0%, rgba(255, 255, 255, 0.09) 70%, rgba(255, 255, 255, 0) 100%);
+}
+
+/* ---------- Faixa diagonal de brilho (especular) ---------- */
+#tab-dashboard .card::after,
+#tab-dashboard .tipo-card::after,
+#tab-dashboard .stat-small::after,
+#tab-dashboard .ui-hero-kpi::after {
+    content: '';
+    position: absolute;
+    top: -40%;
+    left: -30%;
+    width: 46%;
+    height: 180%;
+    transform: rotate(24deg);
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.34), rgba(255, 255, 255, 0));
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.55;
+    transition: transform 0.7s cubic-bezier(0.22, 0.8, 0.28, 1), opacity 0.4s ease;
+}
+
+body.theme-dark #tab-dashboard .card::after,
+body.theme-dark #tab-dashboard .tipo-card::after,
+body.theme-dark #tab-dashboard .stat-small::after,
+#tab-dashboard .ui-hero-kpi::after {
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0));
+}
+
+/* Conteúdo sempre acima do reflexo */
+#tab-dashboard .card > *,
+#tab-dashboard .tipo-card > *,
+#tab-dashboard .stat-small > *,
+#tab-dashboard .ui-hero-kpi > * {
+    position: relative;
+    z-index: 1;
+}
+
+/* ---------- KPIs do hero (já ficam sobre azul-escuro nos dois temas) ---------- */
+#tab-dashboard .ui-hero-kpi {
+    position: relative;
+    overflow: hidden;
+    background: linear-gradient(160deg, rgba(255, 255, 255, 0.24) 0%, rgba(255, 255, 255, 0.07) 60%, rgba(0, 169, 220, 0.14) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.40);
+    -webkit-backdrop-filter: blur(18px) saturate(180%);
+    backdrop-filter: blur(18px) saturate(180%);
+    box-shadow:
+        0 12px 26px rgba(0, 20, 45, 0.30),
+        inset 0 1.5px 0 rgba(255, 255, 255, 0.60),
+        inset 0 -1px 0 rgba(0, 0, 0, 0.16);
+}
+
+/* ---------- Interação: sobe levemente e o brilho atravessa o vidro ---------- */
+@media (hover: hover) {
+    #tab-dashboard .card:hover,
+    #tab-dashboard .tipo-card:hover {
+        transform: translateY(-5px) scale(1.012);
+    }
+
+    #tab-dashboard .card:hover::after,
+    #tab-dashboard .tipo-card:hover::after,
+    #tab-dashboard .stat-small:hover::after,
+    #tab-dashboard .ui-hero-kpi:hover::after {
+        transform: translateX(260%) rotate(24deg);
+        opacity: 0.8;
+    }
+}
+
+#tab-dashboard .card-clickable:active {
+    transform: scale(0.98);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    #tab-dashboard .card::after,
+    #tab-dashboard .tipo-card::after,
+    #tab-dashboard .stat-small::after,
+    #tab-dashboard .ui-hero-kpi::after {
+        transition: none;
+    }
+
+    #tab-dashboard .card:hover,
+    #tab-dashboard .tipo-card:hover {
+        transform: none;
+    }
+}
+
+/* =========================================================================
+   Vidro estilo iOS em TODAS as abas (26/11/2026)
+   Mesmos ingredientes do Dashboard: translucidez, borda clara, reflexo no topo,
+   luz interna e sombra suave — aplicados em tabela/linhas, filtros, Reunião,
+   Insights, Timeline, Kanban, Planner, abas e modais.
+   Os blocos <style> de Reunião/Insights são injetados no <body> (depois deste
+   arquivo), por isso os seletores abaixo levam o prefixo body.theme-* (maior
+   especificidade) para não perder a disputa.
+   ========================================================================= */
+
+body.theme-light {
+    --vi-fundo: linear-gradient(160deg, rgba(255, 255, 255, 0.66) 0%, rgba(255, 255, 255, 0.30) 52%, rgba(205, 233, 250, 0.38) 100%);
+    --vi-fundo-forte: linear-gradient(160deg, rgba(255, 255, 255, 0.84) 0%, rgba(255, 255, 255, 0.52) 100%);
+    --vi-borda: rgba(255, 255, 255, 0.78);
+    --vi-sombra: 0 16px 36px rgba(0, 70, 120, 0.14), 0 3px 8px rgba(0, 70, 120, 0.06), inset 0 1.5px 0 rgba(255, 255, 255, 0.98), inset 0 -1px 0 rgba(0, 90, 156, 0.10);
+    --vi-gloss: linear-gradient(180deg, rgba(255, 255, 255, 0.62) 0%, rgba(255, 255, 255, 0.14) 75%, rgba(255, 255, 255, 0) 100%);
+    --vi-linha: linear-gradient(180deg, rgba(255, 255, 255, 0.70), rgba(255, 255, 255, 0.36));
+    --vi-linha-hover: linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(225, 242, 252, 0.66));
+    --vi-linha-topo: rgba(255, 255, 255, 0.95);
+    --vi-linha-base: rgba(0, 90, 156, 0.10);
+    --vi-grupo: linear-gradient(90deg, rgba(0, 169, 220, 0.24), rgba(255, 255, 255, 0.40));
+}
+
+body.theme-dark {
+    --vi-fundo: linear-gradient(160deg, rgba(255, 255, 255, 0.20) 0%, rgba(255, 255, 255, 0.07) 55%, rgba(0, 169, 220, 0.12) 100%);
+    --vi-fundo-forte: linear-gradient(160deg, rgba(255, 255, 255, 0.26) 0%, rgba(255, 255, 255, 0.10) 100%);
+    --vi-borda: rgba(255, 255, 255, 0.30);
+    --vi-sombra: 0 18px 38px rgba(0, 12, 30, 0.38), 0 3px 8px rgba(0, 12, 30, 0.20), inset 0 1.5px 0 rgba(255, 255, 255, 0.50), inset 0 -1px 0 rgba(0, 0, 0, 0.18);
+    --vi-gloss: linear-gradient(180deg, rgba(255, 255, 255, 0.26) 0%, rgba(255, 255, 255, 0.06) 75%, rgba(255, 255, 255, 0) 100%);
+    --vi-linha: linear-gradient(180deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.05));
+    --vi-linha-hover: linear-gradient(180deg, rgba(255, 255, 255, 0.26), rgba(0, 169, 220, 0.16));
+    --vi-linha-topo: rgba(255, 255, 255, 0.34);
+    --vi-linha-base: rgba(0, 0, 0, 0.20);
+    --vi-grupo: linear-gradient(90deg, rgba(0, 169, 220, 0.34), rgba(255, 255, 255, 0.08));
+}
+
+/* ---------- Manchas de cor atrás do vidro: todas as abas ---------- */
+.tab-content { position: relative; isolation: isolate; }
+
+.tab-content::before {
+    content: '';
+    position: absolute;
+    inset: -1.5rem -2.5rem;
+    z-index: -1;
+    pointer-events: none;
+    background-repeat: repeat-y;
+    background-size: 100% 1500px;
+}
+
+body.theme-light .tab-content:not(#tab-dashboard)::before {
+    background-image:
+        radial-gradient(380px 300px at 6% 220px, rgba(0, 169, 220, 0.30), transparent 70%),
+        radial-gradient(440px 320px at 40% 520px, rgba(0, 90, 156, 0.18), transparent 70%),
+        radial-gradient(380px 300px at 70% 300px, rgba(16, 185, 129, 0.20), transparent 70%),
+        radial-gradient(420px 320px at 96% 560px, rgba(255, 190, 70, 0.22), transparent 70%),
+        radial-gradient(520px 360px at 24% 1050px, rgba(0, 169, 220, 0.18), transparent 70%),
+        radial-gradient(520px 360px at 80% 1150px, rgba(124, 92, 255, 0.14), transparent 70%);
+}
+
+body.theme-dark .tab-content:not(#tab-dashboard)::before {
+    background-image:
+        radial-gradient(380px 300px at 6% 220px, rgba(0, 169, 220, 0.32), transparent 70%),
+        radial-gradient(440px 320px at 40% 520px, rgba(46, 125, 214, 0.28), transparent 70%),
+        radial-gradient(380px 300px at 70% 300px, rgba(16, 185, 129, 0.22), transparent 70%),
+        radial-gradient(420px 320px at 96% 560px, rgba(255, 190, 70, 0.18), transparent 70%),
+        radial-gradient(520px 360px at 24% 1050px, rgba(0, 169, 220, 0.22), transparent 70%),
+        radial-gradient(520px 360px at 80% 1150px, rgba(124, 92, 255, 0.20), transparent 70%);
+}
+
+/* ---------- Superfícies de vidro ---------- */
+body.theme-light .table-container,
+body.theme-light .kanban-column,
+body.theme-light .timeline-kpi,
+body.theme-light .timeline-gantt,
+body.theme-light .filters-bar,
+body.theme-light .reu-kpi,
+body.theme-light .reu-panel,
+body.theme-light .ins-kpi,
+body.theme-light .ins-panel,
+body.theme-light .ins-stat,
+body.theme-light .chart-container,
+body.theme-dark .table-container,
+body.theme-dark .kanban-column,
+body.theme-dark .timeline-kpi,
+body.theme-dark .timeline-gantt,
+body.theme-dark .filters-bar,
+body.theme-dark .reu-kpi,
+body.theme-dark .reu-panel,
+body.theme-dark .ins-kpi,
+body.theme-dark .ins-panel,
+body.theme-dark .ins-stat,
+body.theme-dark .chart-container {
+    background: var(--vi-fundo);
+    border-color: var(--vi-borda);
+    -webkit-backdrop-filter: blur(22px) saturate(190%);
+    backdrop-filter: blur(22px) saturate(190%);
+    box-shadow: var(--vi-sombra);
+}
+
+/* Reflexo no topo (z-index -1: fica sobre o fundo e abaixo do conteúdo; não intercepta cliques) */
+.table-container,
+.kanban-column,
+.timeline-kpi,
+.timeline-gantt,
+.reu-kpi,
+.reu-panel,
+.ins-kpi,
+.ins-panel,
+.ins-stat {
+    position: relative;
+    isolation: isolate;
+}
+
+.table-container::before,
+.kanban-column::before,
+.timeline-kpi::before,
+.timeline-gantt::before,
+.reu-kpi::before,
+.reu-panel::before,
+.ins-kpi::before,
+.ins-panel::before,
+.ins-stat::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: min(48%, 120px);
+    border-radius: inherit;
+    border-bottom-left-radius: 100% 30%;
+    border-bottom-right-radius: 100% 30%;
+    background: var(--vi-gloss);
+    pointer-events: none;
+    z-index: -1;
+}
+
+/* Barra de filtros sempre acima do conteúdo seguinte (os menus abertos descem sobre a tabela) */
+.filters-bar { position: relative; z-index: 30; }
+
+/* ---------- Tabela: linhas em vidro ---------- */
+.table-container { padding: 0 0.7rem 0.5rem; }
+
+.table { border-collapse: separate; border-spacing: 0 6px; }
+
+.table thead { background: transparent !important; border-bottom: 0; }
+.table thead th { border-bottom: 1px solid var(--vi-linha-base); }
+
+.table tbody tr,
+.table tbody tr.group-item,
+.table tbody tr.group-header { border: 0; background: transparent; }
+
+.table tbody tr.group-item td,
+.table tbody tr:not(.group-header) td {
+    background: var(--vi-linha);
+    border-top: 1px solid var(--vi-linha-topo);
+    border-bottom: 1px solid var(--vi-linha-base);
+    transition: background 0.18s ease, border-color 0.18s ease;
+}
+
+.table tbody tr.group-item td:first-child,
+.table tbody tr:not(.group-header) td:first-child {
+    border-left: 1px solid var(--vi-linha-topo);
+    border-radius: 16px 0 0 16px;
+}
+
+.table tbody tr.group-item td:last-child,
+.table tbody tr:not(.group-header) td:last-child {
+    border-right: 1px solid var(--vi-linha-topo);
+    border-radius: 0 16px 16px 0;
+}
+
+body.theme-light .table tbody tr:hover,
+body.theme-light .table tbody tr.group-item:hover,
+body.theme-dark .table tbody tr:hover,
+body.theme-dark .table tbody tr.group-item:hover { background: transparent; }
+
+.table tbody tr.group-item:hover td,
+.table tbody tr:not(.group-header):hover td {
+    background: var(--vi-linha-hover);
+    border-top-color: rgba(0, 169, 220, 0.55);
+}
+
+/* Cabeçalho de grupo (frente): vidro tingido de ciano */
+.table tbody tr.group-header td {
+    background: var(--vi-grupo);
+    border-top: 1px solid var(--vi-linha-topo);
+    border-bottom: 1px solid var(--vi-linha-base);
+    border-radius: 16px;
+}
+
+/* ---------- Kanban: cartões e colunas ---------- */
+body.theme-light .kanban-card,
+body.theme-dark .kanban-card {
+    background: var(--vi-fundo-forte);
+    border: 1px solid var(--vi-borda);
+    box-shadow: var(--vi-sombra);
+    -webkit-backdrop-filter: blur(14px) saturate(170%);
+    backdrop-filter: blur(14px) saturate(170%);
+}
+
+/* ---------- Planner: mesmos tokens do vidro iOS ---------- */
+.pl-raiz,
+.pl-drawer {
+    --gl-blur: blur(22px) saturate(190%);
+}
+
+body.theme-light .pl-raiz,
+body.theme-light .pl-drawer {
+    --gl-fundo: linear-gradient(160deg, rgba(255, 255, 255, 0.80), rgba(255, 255, 255, 0.40));
+    --gl-fundo-col: linear-gradient(160deg, rgba(255, 255, 255, 0.50), rgba(255, 255, 255, 0.20));
+    --gl-sombra: inset 0 1.5px 0 rgba(255, 255, 255, 0.98), inset 0 -1px 0 rgba(0, 90, 156, 0.10), 0 14px 32px rgba(0, 70, 120, 0.12);
+    --gl-brilho: linear-gradient(180deg, rgba(255, 255, 255, 0.70) 0%, rgba(255, 255, 255, 0) 55%);
+}
+
+body.theme-dark .pl-raiz,
+body.theme-dark .pl-drawer {
+    --gl-sombra: inset 0 1.5px 0 rgba(255, 255, 255, 0.40), inset 0 -1px 0 rgba(0, 0, 0, 0.18), 0 14px 32px rgba(0, 12, 30, 0.38);
+    --gl-brilho: linear-gradient(180deg, rgba(255, 255, 255, 0.22) 0%, rgba(255, 255, 255, 0) 55%);
+}
+
+/* ---------- Barra de abas e modais ---------- */
+body.theme-light .tabs {
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.72), rgba(255, 255, 255, 0.42));
+    border-bottom: 1px solid rgba(255, 255, 255, 0.85);
+    -webkit-backdrop-filter: blur(22px) saturate(190%);
+    backdrop-filter: blur(22px) saturate(190%);
+    box-shadow: inset 0 -1px 0 rgba(0, 90, 156, 0.08);
+}
+
+body.theme-light .modal-content,
+body.theme-light .modal-torre-content {
+    background: linear-gradient(160deg, rgba(255, 255, 255, 0.90), rgba(236, 246, 252, 0.78));
+    border: 1px solid rgba(255, 255, 255, 0.9);
+    -webkit-backdrop-filter: blur(28px) saturate(190%);
+    backdrop-filter: blur(28px) saturate(190%);
+    box-shadow: 0 30px 70px rgba(0, 41, 74, 0.30), inset 0 1.5px 0 rgba(255, 255, 255, 1);
+}
+
+body.theme-dark .modal-content,
+body.theme-dark .modal-torre-content {
+    background: linear-gradient(160deg, rgba(0, 58, 92, 0.92), rgba(0, 41, 74, 0.90));
+    -webkit-backdrop-filter: blur(28px) saturate(180%);
+    backdrop-filter: blur(28px) saturate(180%);
+    box-shadow: 0 30px 70px rgba(0, 12, 30, 0.55), inset 0 1.5px 0 rgba(255, 255, 255, 0.30);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .table tbody tr td { transition: none; }
+}

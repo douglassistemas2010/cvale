@@ -9,6 +9,34 @@ coluna `dados` em jsonb). `supabase/seed.sql` é só a carga inicial histórica 
 de verdade atual; para ver os dados reais em produção é preciso consultar a API do Supabase
 (`supabase-config.js` tem URL + anon key, leitura é pública).
 
+## Glass iOS, histórico de notas, modal grande, Reunião e Timeline (26/11/2026)
+
+- **Glass iOS** em todas as abas: `vidro-ios.css` (cards, tabelas — linhas viram "tiras" de vidro —, kanban,
+  filtros, Reunião, Insights, Planner, abas e modal). Vidro precisa de fundo colorido: há manchas
+  (`::before` de `.tab-content`). Tema claro e escuro via variáveis `--vi-*`.
+- **Observações viraram histórico de interações** (`notas.js` + `notas.css`): cada nota tem autor, data e
+  hora, edição ("editado") e exclusão (confirmação inline); sempre há um cartão novo no topo para preencher
+  e gravar (Ctrl+Enter). Modelo `Demanda.notas = [{id, autor, em, editadoEm, texto, legado}]`. O campo
+  `observacoes` continua existindo como **texto derivado** das notas (Excel/exportação). O texto antigo é
+  migrado como nota "Registro anterior" (sem data). Na demanda existente cada ação grava na hora
+  (`aplicarNotasDemanda`, entra no histórico de auditoria como tipo `nota`); na demanda nova as notas ficam
+  numa cópia de trabalho até Salvar. Texto digitado e não gravado vira nota ao salvar. Importação Excel: a
+  observação só vira nota nova ("Importação Excel") se for diferente do texto já existente. Autor: o que
+  estiver no campo "Por" (lembrado em `localStorage` `cockpit_autor_notas`); padrão = e-mail logado ou o
+  nome do cabeçalho. A gaveta do Planner usa o mesmo componente.
+- **Modal da demanda** maior (até 1180px, 2 colunas: campos à esquerda, histórico à direita); rótulo
+  "ID do chamado". Salvar pelo modal agora também preenche/limpa `dataConclusao` conforme o status.
+- **Reunião Semanal minimalista**: período em pílulas + botão "Filtros (n)" que abre o painel com os
+  demais filtros; filtros ativos viram chips removíveis. "Pontos para a Reunião" agora é automático:
+  coluna **Em teste / validação** (estado atual das demandas em `STATUS_GRUPO_TESTE`, independente do
+  período), coluna **Concluídas no período** (marcadas como feitas, verde) e coluna **Anotações** (manuais,
+  `localStorage` `cockpit_pontos_reuniao`).
+- **Timeline** (`timeline-moderna.css`): linha HOJE em verde pulsando; ao abrir a aba as barras crescem da
+  esquerda e a linha desce (classe `.anim`, só na abertura, via `_timelineAnimar`); barras em pílula, marcos
+  discretos, `prefers-reduced-motion` respeitado.
+- Validado no navegador (tema claro/escuro) com dados de teste. Não testado: gravação no Supabase (exige
+  login) e rolagem do modal em telas pequenas.
+
 ## Exportação Excel formatada (24/11/2026)
 
 `exportarDemandas()` em `app.js` agora usa **ExcelJS** (CDN no `index.html`; o SheetJS gratuito não
@@ -631,7 +659,8 @@ ode --check).
 
 ## Sessão de 26/11/2026 — modal sem travar, filtros e gráficos
 
-- Bug: o botão do modal de demanda ficava preso em Salvando... (desabilitado) porque era liberado só depois do wait salvarDados() (rede/Supabase). Agora salvarDemanda libera o botão logo após fechar o modal e renderizar (estaurarBotaoSalvar(), também chamado ao abrir nova/editar) e a persistência roda em segundo plano, em fila (ilaPersistencia).
+- Bug: o botão do modal de demanda ficava preso em Salvando... (desabilitado) porque era liberado só depois do wait salvarDados() (rede/Supabase). Agora salvarDemanda libera o botão logo após fechar o modal e renderizar (
+estaurarBotaoSalvar(), também chamado ao abrir nova/editar) e a persistência roda em segundo plano, em fila (ilaPersistencia).
 - Filtros da aba Demandas (.custom-select) ganharam o mesmo visual dos campos do modal (ui-moderno.css: cantos 14px, chevron em máscara CSS, menu 18px).
 - graficos.css: removida a varredura de reflexo (::after/gf-varredura) que cruzava o fundo dos cartões de gráfico; pulso na borda e respiração do brilho foram mantidos.
 - Validado no navegador: botão volta a Salvar mesmo com a gravação pendurada; filtro aberto no tema claro. Tema escuro dos filtros não validado.

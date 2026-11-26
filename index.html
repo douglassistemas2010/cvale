@@ -17,6 +17,9 @@
     <link rel="stylesheet" href="ui-moderno.css">
     <link rel="stylesheet" href="planner.css">
     <link rel="stylesheet" href="graficos.css">
+    <link rel="stylesheet" href="vidro-ios.css">
+    <link rel="stylesheet" href="notas.css">
+    <link rel="stylesheet" href="timeline-moderna.css">
     <!-- Tema claro desde o primeiro desenho (o app.js reaplica as variáveis completas) -->
     <style>html, body { background: linear-gradient(135deg, #f4f8fc 0%, #e4f0f8 100%); color: #16293d; }</style>
 </head>
@@ -350,11 +353,12 @@
                 </div>
             </div>
 
-            <form id="formDemanda" novalidate>
+            <div class="demanda-layout">
+            <form id="formDemanda" class="demanda-campos" novalidate>
                 <input type="hidden" id="numeroChamadoOriginal">
                 <div class="form-row form-row-3">
                     <div class="form-group">
-                        <label class="form-label">ID (Número Chamado)</label>
+                        <label class="form-label" for="numeroChamado">ID do chamado</label>
                         <input type="text" class="form-input" id="numeroChamado" placeholder="Ex: 8000072831">
                     </div>
                     <div class="form-group">
@@ -387,7 +391,7 @@
                 <div class="form-row form-row-3">
                     <div class="form-group">
                         <label class="form-label">Priorização</label>
-                        <input type="number" class="form-input" id="numeroOrdem" placeholder="Ex: 0, 1, 2, 3..." min="0" value="0">
+                        <input type="number" class="form-input" id="numeroOrdem" placeholder="0" min="0" value="0">
                     </div>
                     <div class="form-group">
                         <label class="form-label">Prioridade</label>
@@ -430,12 +434,12 @@
                         <input type="number" class="form-input" id="progresso" placeholder="0" min="0" max="100" value="0">
                     </div>
                 </div>
-
-                <div class="form-group">
-                    <label class="form-label">Observações</label>
-                    <textarea class="form-textarea" id="observacoes" placeholder="Anotações adicionais"></textarea>
-                </div>
             </form>
+            <aside class="demanda-historico" aria-label="Histórico de interações">
+                <div class="demanda-historico-titulo">Histórico de interações</div>
+                <div id="notasDemanda"></div>
+            </aside>
+            </div>
         </div>
     </div>
 
@@ -478,6 +482,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase-config.js"></script>
 
+    <script src="notas.js"></script>
     <script src="app.js"></script>
     <script src="planner.js"></script>
     <script src="graficos.js"></script>

@@ -1,4 +1,4 @@
-        // ============================================
+﻿        // ============================================
         // COCKPIT OPERACIONAL - Gestão de Demandas
         // ============================================
         // Sistema completo para gerenciar demandas operacionais
@@ -232,7 +232,10 @@
                 this.slaHoras = data.slaHoras || 24;
                 this.dataConclusao = data.dataConclusao || '';
                 this.progresso = data.progresso || 0;
-                this.observacoes = data.observacoes || '';
+                // Observações viraram um histórico de notas (notas.js). `observacoes` continua existindo
+                // como texto derivado das notas, para Excel/exportação e compatibilidade com dados antigos.
+                this.notas = NotasDemanda.migrar(data);
+                this.observacoes = NotasDemanda.textoDerivado(this.notas);
                 this.ordemKanban = data.ordemKanban || 0;
                 // Histórico de auditoria (aba Planner): registros append-only { id, em (ISO), tipo, texto }.
                 // Precisa estar aqui, senão `new Demanda(d)` descarta o campo ao recarregar.
@@ -375,6 +378,8 @@
                 this.frentesExpandidas = new Set(JSON.parse(localStorage.getItem('cockpit_frentes_expandidas') || '[]'));
                 // Filtros da aba Reunião Semanal (estado local, independente dos filtros da aba Demandas)
                 this.filtroReuniao = { periodo: 'semana_anterior', inicio: '', fim: '', frente: '', status: '', responsavel: '', prioridade: '', sistema: '', tipo: '' };
+                // Painel de filtros extras da Reunião Semanal (recolhido por padrão: tela minimalista)
+                this.reuniaoFiltrosAbertos = false;
                 // Grupo de status aplicado pela Reunião Semanal ao clicar num KPI (drill-down para a aba Demandas); null = sem filtro de grupo ativo
                 this.filtroGrupoStatus = null;
                 // Pontos importantes anotados na Reunião Semanal (bloco ao lado das torres) — só localStorage, não vai pro Supabase
@@ -1100,6 +1105,7 @@
                 document.getElementById(`tab-${abaAtiva}`)?.classList.remove('hidden');
 
                 // Renderiza conteúdo específico
+                if (abaAtiva === 'timeline') this._timelineAnimar = true; // efeito de abertura (barras crescendo)
                 this.renderizarConteudoAba(abaAtiva, abaAtiva === 'demandas');
                 this.atualizarIcones();
 
@@ -1479,7 +1485,15 @@
                             const numero = dados.numero ? String(dados.numero).trim() : '';
                             const existente = numero ? this.demandas.find(d => String(d.numero).trim() === numero) : null;
                             if (existente) {
+                                // Observações do arquivo: só vira nota nova se for diferente do que já existe
+                                // (o Excel exportado já traz o texto derivado das notas — não duplicar).
+                                const obsImportada = typeof dados.observacoes === 'string' ? dados.observacoes.trim() : '';
+                                delete dados.observacoes;
                                 Object.assign(existente, dados);
+                                if (obsImportada && obsImportada !== String(existente.observacoes || '').trim()) {
+                                    existente.notas.push({ id: 'imp' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), autor: 'Importação Excel', em: new Date().toISOString(), editadoEm: '', texto: obsImportada, legado: false });
+                                    existente.observacoes = NotasDemanda.textoDerivado(existente.notas);
+                                }
                                 atualizadas++;
                             } else {
                                 this.demandas.push(new Demanda(dados));
@@ -1515,6 +1529,7 @@
                 document.getElementById('dataAbertura').value = new Date().toISOString().split('T')[0];
                 // Excluir só faz sentido numa demanda já existente
                 document.getElementById('btnExcluirDemanda').style.display = 'none';
+                this.montarNotasModal(null);
                 this.restaurarBotaoSalvar();
                 document.getElementById('modalDemanda').classList.add('active');
             }
@@ -1558,6 +1573,9 @@
                 }
 
                 try {
+                    // Texto digitado no composer e ainda não gravado entra como nota (nada se perde)
+                    if (this.notasModal) this.notasModal.gravarPendente();
+                    const notasModal = this.notasModal ? this.notasModal.obter() : [];
                     const numeroChamado = document.getElementById('numeroChamado').value.trim();
                     const statusEscolhido = document.getElementById('status').value;
                     const demandaData = {
@@ -1573,7 +1591,8 @@
                         // Status Concluído sempre implica progresso 100%, mesmo que o campo
                         // não tenha sido ajustado manualmente antes de salvar.
                         progresso: statusEscolhido === 'Concluído' ? 100 : (parseInt(document.getElementById('progresso').value) || 0),
-                        observacoes: document.getElementById('observacoes').value
+                        notas: notasModal,
+                        observacoes: NotasDemanda.textoDerivado(notasModal)
                     };
 
                     // Verifica se é edição (demanda existente com esse número)
@@ -1581,12 +1600,14 @@
                     const demandaOriginal = document.getElementById('numeroChamadoOriginal')?.value;
                     let demandaSalva = null;
                     let origemAnterior = null;
+                    let statusAnterior = null;
 
                     if (demandaOriginal && demandaOriginal !== numeroChamado) {
                         // Mudou o número - atualiza a demanda original
                         const demanda = this.demandas.find(d => d.numero === demandaOriginal);
                         if (demanda) {
                             origemAnterior = demanda.origem;
+                            statusAnterior = demanda.status;
                             const antesHistorico = this.instantaneoHistorico(demanda);
                             Object.assign(demanda, demandaData);
                             this.registrarMudancasHistorico(demanda, antesHistorico, 'cadastro');
@@ -1596,6 +1617,7 @@
                     } else if (demandaExistente) {
                         // Editar demanda existente
                         origemAnterior = demandaExistente.origem;
+                        statusAnterior = demandaExistente.status;
                         const antesHistorico = this.instantaneoHistorico(demandaExistente);
                         Object.assign(demandaExistente, demandaData);
                         this.registrarMudancasHistorico(demandaExistente, antesHistorico, 'cadastro');
@@ -1611,6 +1633,15 @@
                     }
 
                     if (demandaSalva) {
+                        // Data de conclusão acompanha o status (alimenta "Concluídas no período" na Reunião)
+                        if (demandaSalva.status === 'Concluído') {
+                            if (!demandaSalva.dataConclusao) {
+                                const agora = new Date();
+                                demandaSalva.dataConclusao = `${agora.getFullYear()}-${String(agora.getMonth() + 1).padStart(2, '0')}-${String(agora.getDate()).padStart(2, '0')}`;
+                            }
+                        } else if (statusAnterior === 'Concluído') {
+                            demandaSalva.dataConclusao = '';
+                        }
                         this.reordenarPrioridades(demandaSalva, origemAnterior);
                     }
 
@@ -1624,10 +1655,45 @@
                 }
 
                 // Persistência em segundo plano, em fila (uma gravação por vez, na ordem)
+                await this.persistirEmSegundoPlano();
+            }
+
+            // Grava (Supabase + localStorage) em fila: uma gravação por vez, na ordem, sem travar a UI
+            persistirEmSegundoPlano() {
                 this.filaPersistencia = (this.filaPersistencia || Promise.resolve())
                     .then(() => this.salvarDados())
                     .catch(err => console.error('Erro ao persistir demandas:', err));
-                await this.filaPersistencia;
+                return this.filaPersistencia;
+            }
+
+            // Aplica a lista de notas (histórico de interações) numa demanda existente: atualiza o
+            // texto derivado, registra no histórico de auditoria, redesenha e grava em segundo plano.
+            aplicarNotasDemanda(d, lista, acao, nota) {
+                d.notas = lista.map(n => Object.assign({}, n));
+                d.observacoes = NotasDemanda.textoDerivado(d.notas);
+                const verbos = { adicionou: 'Nota adicionada', editou: 'Nota editada', excluiu: 'Nota excluída' };
+                const autor = nota && nota.autor ? ` por ${nota.autor}` : '';
+                const trecho = nota ? String(nota.texto || '').replace(/\s+/g, ' ').trim() : '';
+                const resumo = trecho.length > 120 ? trecho.slice(0, 117) + '…' : trecho;
+                this.registrarHistorico(d, 'nota', `${verbos[acao] || 'Nota alterada'}${autor}${resumo ? `: “${resumo}”` : ''}`);
+                this.renderizar();
+                if (this.planner && this.planner.selecionado && typeof this.atualizarPartesDetalhe === 'function') {
+                    this.atualizarPartesDetalhe();
+                }
+                this.persistirEmSegundoPlano();
+            }
+
+            // Monta o histórico de interações no modal: demanda existente grava a cada ação;
+            // nova demanda mantém uma cópia de trabalho até clicar em Salvar.
+            montarNotasModal(demanda) {
+                const alvo = document.getElementById('notasDemanda');
+                if (!alvo || !window.NotasDemanda) return;
+                this.notasModal = NotasDemanda.montar(alvo, {
+                    notas: demanda ? demanda.notas : [],
+                    aoMudar: demanda
+                        ? (lista, acao, nota) => this.aplicarNotasDemanda(demanda, lista, acao, nota)
+                        : () => {}
+                });
             }
 
             // Volta o botão Salvar do modal ao estado normal e libera o travamento de duplo envio
@@ -1689,7 +1755,7 @@
                 document.getElementById('vencimento').value = demanda.vencimento;
                 document.getElementById('status').value = demanda.status;
                 document.getElementById('progresso').value = demanda.progresso;
-                document.getElementById('observacoes').value = demanda.observacoes;
+                this.montarNotasModal(demanda);
                 this.restaurarBotaoSalvar();
 
                 // Botão Excluir do cabeçalho do modal substitui a antiga coluna "Ações" da
@@ -2814,6 +2880,27 @@
                         </div>`;
                     };
 
+                    // Filtros minimalistas: período em pílulas + botão "Filtros" que abre o painel com os
+                    // demais; filtros ativos viram chips removíveis na própria linha.
+                    const rotulosFiltro = { frente: 'Frente', status: 'Status', responsavel: 'Responsável', prioridade: 'Prioridade', sistema: 'Sistema', tipo: 'Tipo' };
+                    const filtrosAtivos = Object.keys(rotulosFiltro).filter(k => f[k]);
+                    const filtrosAbertos = !!this.reuniaoFiltrosAbertos;
+                    const htmlPeriodoSeg = opcoesPeriodo.map(o =>
+                        `<button type="button" class="reu-seg-btn${o.v === f.periodo ? ' ativo' : ''}" data-reu-periodo="${o.v}">${o.l}</button>`).join('');
+                    const htmlChips = filtrosAtivos.map(k =>
+                        `<button type="button" class="reu-chip" data-reu-limpar="${k}" title="Remover filtro">${rotulosFiltro[k]}: ${escapeHtml(f[k])} <span aria-hidden="true">&times;</span></button>`).join('');
+
+                    // Pontos automáticos da reunião: o que está em teste/validação (estado atual) e o que foi
+                    // concluído no período já entram sozinhos — vêm dos dados, não são gravados.
+                    const porNumero = (a, b) => String(a.numero).localeCompare(String(b.numero), 'pt-BR', { numeric: true });
+                    const pontosTeste = baseEstado.filter(d => STATUS_GRUPO_TESTE.includes(d.status)).sort(porNumero);
+                    const pontosConcluidos = baseEstado.filter(d => d.status === 'Concluído' && dataDentroDoPeriodo(d.dataConclusao, inicio, fim)).sort(porNumero);
+                    const htmlPontoAuto = (d, classe, icone) => `
+                        <li class="reu-ponto-item reu-ponto-auto ${classe}" data-numero="${escapeHtml(d.numero)}" onclick="app.editarDemanda(this.dataset.numero)" title="Abrir demanda">
+                            <span class="reu-ponto-ico" aria-hidden="true">${icone}</span>
+                            <span class="reu-ponto-texto"><b>${escapeHtml(d.numero)}</b> ${escapeHtml(d.titulo)}<small>${escapeHtml(d.status)}${d.origem ? ' · ' + escapeHtml(d.origem) : ''}</small></span>
+                        </li>`;
+
                     container.innerHTML = `
                         <style>
                             .reu { display: grid; gap: 1.5rem; }
@@ -2824,6 +2911,38 @@
                             .reu .custom-select.open { z-index: 60; }
                             .reu-head h2 { font-size: 1.35rem; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 0.2rem; }
                             .reu-head p { color: var(--text-tertiary); font-size: 0.85rem; }
+                            /* Filtros minimalistas */
+                            .reu-filtros { position: relative; z-index: 30; display: grid; gap: 0.6rem; }
+                            .reu-filtros-linha { display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem; }
+                            .reu-seg { display: inline-flex; padding: 3px; border-radius: 999px; background: rgba(148,163,184,0.16); border: 1px solid var(--glass-border); }
+                            .reu-seg-btn { border: 0; background: transparent; color: var(--text-secondary); font: inherit; font-size: 0.8rem; font-weight: 700; padding: 0.4rem 0.95rem; border-radius: 999px; cursor: pointer; transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease; }
+                            .reu-seg-btn.ativo { background: linear-gradient(135deg, #005a9c, #00a9dc); color: #fff; box-shadow: 0 4px 12px rgba(0,90,156,0.35); }
+                            .reu-filtros-toggle { display: inline-flex; align-items: center; gap: 0.4rem; border: 1px solid var(--glass-border); background: rgba(148,163,184,0.12); color: var(--text-secondary); font: inherit; font-size: 0.8rem; font-weight: 700; padding: 0.4rem 0.85rem; border-radius: 999px; cursor: pointer; }
+                            .reu-filtros-toggle:hover, .reu-filtros-toggle[aria-expanded="true"] { background: rgba(0,169,220,0.16); color: var(--text-primary); }
+                            .reu-filtros-toggle b { min-width: 1.25rem; height: 1.25rem; display: inline-flex; align-items: center; justify-content: center; border-radius: 999px; background: #00a9dc; color: #fff; font-size: 0.7rem; }
+                            .reu-filtros-toggle .reu-seta { font-size: 0.6rem; transition: transform 0.2s ease; }
+                            .reu-filtros-toggle[aria-expanded="true"] .reu-seta { transform: rotate(180deg); }
+                            .reu-chip { display: inline-flex; align-items: center; gap: 0.35rem; border: 1px solid rgba(0,169,220,0.4); background: rgba(0,169,220,0.14); color: var(--text-primary); font: inherit; font-size: 0.75rem; font-weight: 600; padding: 0.3rem 0.65rem; border-radius: 999px; cursor: pointer; }
+                            .reu-chip:hover { background: rgba(220,38,38,0.14); border-color: rgba(220,38,38,0.4); }
+                            .reu-limpar { border: 0; background: transparent; color: var(--text-tertiary); font: inherit; font-size: 0.75rem; font-weight: 700; text-decoration: underline; cursor: pointer; padding: 0.3rem 0.4rem; }
+                            .reu-filtros-painel { display: none; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.6rem; padding: 0.7rem; border-radius: 18px; background: var(--glass); border: 1px solid var(--glass-border); -webkit-backdrop-filter: blur(22px) saturate(190%); backdrop-filter: blur(22px) saturate(190%); }
+                            .reu-filtros.aberto .reu-filtros-painel { display: grid; }
+                            /* Pontos automáticos (teste = azul, concluídos = verde preenchido) */
+                            .reu-pontos-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1.4rem; align-items: start; }
+                            .reu-pontos-col { min-width: 0; }
+                            .reu-pontos-sub { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.7rem; font-size: 0.74rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-tertiary); }
+                            .reu-pontos-sub b { min-width: 1.5rem; text-align: center; padding: 0.05rem 0.45rem; border-radius: 999px; background: rgba(148,163,184,0.2); color: var(--text-secondary); font-size: 0.72rem; }
+                            .reu-ponto-auto { cursor: pointer; align-items: flex-start; transition: transform 0.15s ease, background 0.15s ease; }
+                            .reu-ponto-auto:hover { transform: translateY(-1px); background: rgba(0,169,220,0.12); }
+                            .reu-ponto-ico { flex-shrink: 0; width: 1.5rem; height: 1.5rem; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; font-size: 0.8rem; font-weight: 800; }
+                            .reu-ponto-auto.teste .reu-ponto-ico { background: rgba(29,78,216,0.18); color: #3b82f6; }
+                            .reu-ponto-auto.feito .reu-ponto-ico { background: #16a34a; color: #fff; box-shadow: 0 3px 8px rgba(22,163,74,0.4); }
+                            .reu-ponto-auto.feito .reu-ponto-texto { color: var(--text-tertiary); }
+                            .reu-ponto-auto .reu-ponto-texto { font-size: 0.9rem; }
+                            .reu-ponto-auto .reu-ponto-texto small { display: block; margin-top: 0.15rem; font-size: 0.72rem; color: var(--text-tertiary); }
+                            .reu-ponto-auto .reu-ponto-texto b { font-variant-numeric: tabular-nums; margin-right: 0.25rem; color: var(--text-primary); }
+                            .reu-pontos-vazio { padding: 1rem; text-align: center; font-size: 0.8rem; color: var(--text-tertiary); border: 1.5px dashed var(--glass-border); border-radius: 12px; }
+                            @media (max-width: 1100px) { .reu-pontos-grid { grid-template-columns: minmax(0, 1fr); } }
                             .reu-kpis { display: grid; grid-template-columns: repeat(5, 1fr); gap: 1rem; }
                             .reu-kpi { background: var(--glass); border: 1px solid var(--glass-border); border-radius: 16px; padding: 1.1rem 1.2rem; border-left: 4px solid var(--kc, #3b82f6); }
                             .reu-kpi.clickable { cursor: pointer; transition: transform 0.15s ease, background 0.15s ease; }
@@ -2860,7 +2979,7 @@
                             .reu-insight span { flex-shrink: 0; }
                             /* Pontos para a reunião — lista curta em tópicos, ao lado da Visão por
                                Frente (.reu-split). Só localStorage, sem sincronizar com Supabase. */
-                            .reu-pontos { display: flex; flex-direction: column; min-height: 460px; padding: 1.6rem; }
+                            .reu-pontos { display: flex; flex-direction: column; min-height: 320px; padding: 1.6rem; }
                             .reu-pontos .reu-panel-title { font-size: 1.15rem; }
                             .reu-pontos-form { display: flex; gap: 0.75rem; margin-bottom: 1.25rem; }
                             .reu-pontos-form input { flex: 1; font-size: 1rem; padding: 0.8rem 1rem; }
@@ -2879,14 +2998,23 @@
                                 <p>${escapeHtml(rotuloPeriodo)} · ${total} demanda(s) no filtro atual</p>
                             </div>
 
-                            <div class="filters-bar">
-                                ${htmlSelectPeriodo()}
-                                ${htmlSelect('frente', 'Todas as Frentes', valoresDistintos('origem'))}
-                                ${htmlSelect('status', 'Todos os Status', STATUS)}
-                                ${htmlSelect('responsavel', 'Todos os Responsáveis', valoresDistintos('responsavel'))}
-                                ${htmlSelect('prioridade', 'Todas as Prioridades', PRIORIDADES)}
-                                ${htmlSelect('sistema', 'Todos os Sistemas', valoresDistintos('sistema'))}
-                                ${htmlSelect('tipo', 'Todos os Tipos', TIPOS)}
+                            <div class="reu-filtros${filtrosAbertos ? ' aberto' : ''}">
+                                <div class="reu-filtros-linha">
+                                    <div class="reu-seg" role="group" aria-label="Período">${htmlPeriodoSeg}</div>
+                                    <button type="button" class="reu-filtros-toggle" data-reu-toggle aria-expanded="${filtrosAbertos}">
+                                        Filtros${filtrosAtivos.length ? ` <b>${filtrosAtivos.length}</b>` : ''} <span class="reu-seta" aria-hidden="true">▼</span>
+                                    </button>
+                                    ${htmlChips}
+                                    ${filtrosAtivos.length ? '<button type="button" class="reu-limpar" data-reu-limpar-tudo>Limpar</button>' : ''}
+                                </div>
+                                <div class="reu-filtros-painel">
+                                    ${htmlSelect('frente', 'Todas as Frentes', valoresDistintos('origem'))}
+                                    ${htmlSelect('status', 'Todos os Status', STATUS)}
+                                    ${htmlSelect('responsavel', 'Todos os Responsáveis', valoresDistintos('responsavel'))}
+                                    ${htmlSelect('prioridade', 'Todas as Prioridades', PRIORIDADES)}
+                                    ${htmlSelect('sistema', 'Todos os Sistemas', valoresDistintos('sistema'))}
+                                    ${htmlSelect('tipo', 'Todos os Tipos', TIPOS)}
+                                </div>
                             </div>
 
                             <div class="reu-kpis">
@@ -2920,21 +3048,38 @@
                             <div class="reu-split">
                                 <div class="reu-panel reu-pontos">
                                     <div class="reu-panel-title">Pontos para a Reunião</div>
-                                    <form class="reu-pontos-form" onsubmit="app.submeterPontoReuniao(event)">
-                                        <input type="text" id="inputNovoPontoReuniao" class="form-input" placeholder="Adicionar ponto..." maxlength="300" autocomplete="off">
-                                        <button type="submit" class="btn btn-neon-green btn-sm">Adicionar</button>
-                                    </form>
-                                    ${this.pontosReuniao.length ? `
-                                        <ul class="reu-pontos-lista">
-                                            ${this.pontosReuniao.map((p, i) => `
-                                                <li class="reu-ponto-item">
-                                                    <span class="reu-ponto-num">${i + 1}.</span>
-                                                    <span class="reu-ponto-texto">${escapeHtml(p.texto)}</span>
-                                                    <button type="button" class="reu-ponto-remover" onclick="app.removerPontoReuniao(${p.id})" title="Remover">&times;</button>
-                                                </li>
-                                            `).join('')}
-                                        </ul>
-                                    ` : '<div class="reu-empty">Nenhum ponto adicionado ainda.</div>'}
+                                    <div class="reu-pontos-grid">
+                                        <div class="reu-pontos-col">
+                                            <div class="reu-pontos-sub"><span>Em teste / validação</span><b>${pontosTeste.length}</b></div>
+                                            ${pontosTeste.length
+                                                ? `<ul class="reu-pontos-lista">${pontosTeste.map(d => htmlPontoAuto(d, 'teste', '◐')).join('')}</ul>`
+                                                : '<div class="reu-pontos-vazio">Nenhuma demanda em teste.</div>'}
+                                        </div>
+                                        <div class="reu-pontos-col">
+                                            <div class="reu-pontos-sub"><span>Concluídas no período</span><b>${pontosConcluidos.length}</b></div>
+                                            ${pontosConcluidos.length
+                                                ? `<ul class="reu-pontos-lista">${pontosConcluidos.map(d => htmlPontoAuto(d, 'feito', '✓')).join('')}</ul>`
+                                                : '<div class="reu-pontos-vazio">Nenhuma conclusão no período.</div>'}
+                                        </div>
+                                        <div class="reu-pontos-col">
+                                            <div class="reu-pontos-sub"><span>Anotações</span><b>${this.pontosReuniao.length}</b></div>
+                                            <form class="reu-pontos-form" onsubmit="app.submeterPontoReuniao(event)">
+                                                <input type="text" id="inputNovoPontoReuniao" class="form-input" placeholder="Adicionar ponto..." maxlength="300" autocomplete="off">
+                                                <button type="submit" class="btn btn-neon-green btn-sm">Adicionar</button>
+                                            </form>
+                                            ${this.pontosReuniao.length ? `
+                                                <ul class="reu-pontos-lista">
+                                                    ${this.pontosReuniao.map((p, i) => `
+                                                        <li class="reu-ponto-item">
+                                                            <span class="reu-ponto-num">${i + 1}.</span>
+                                                            <span class="reu-ponto-texto">${escapeHtml(p.texto)}</span>
+                                                            <button type="button" class="reu-ponto-remover" onclick="app.removerPontoReuniao(${p.id})" title="Remover">&times;</button>
+                                                        </li>
+                                                    `).join('')}
+                                                </ul>
+                                            ` : '<div class="reu-pontos-vazio">Nenhum ponto adicionado ainda.</div>'}
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
 
@@ -2961,6 +3106,28 @@
             // DOM mesmo com a aba escondida). O "fechar ao clicar fora" já é coberto pelo
             // listener global de .custom-select cadastrado em inicializarCustomSelects().
             wireFiltrosReuniao(container) {
+                // Período (pílulas), botão Filtros (abre/fecha o painel) e chips de filtros ativos
+                container.querySelectorAll('[data-reu-periodo]').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        this.filtroReuniao.periodo = btn.dataset.reuPeriodo;
+                        this.renderizarReuniaoSemanal();
+                    });
+                });
+                container.querySelector('[data-reu-toggle]')?.addEventListener('click', () => {
+                    this.reuniaoFiltrosAbertos = !this.reuniaoFiltrosAbertos;
+                    this.renderizarReuniaoSemanal();
+                });
+                container.querySelectorAll('[data-reu-limpar]').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        this.filtroReuniao[btn.dataset.reuLimpar] = '';
+                        this.renderizarReuniaoSemanal();
+                    });
+                });
+                container.querySelector('[data-reu-limpar-tudo]')?.addEventListener('click', () => {
+                    ['frente', 'status', 'responsavel', 'prioridade', 'sistema', 'tipo'].forEach(k => { this.filtroReuniao[k] = ''; });
+                    this.renderizarReuniaoSemanal();
+                });
+
                 container.querySelectorAll('.custom-select[data-reu-filter]').forEach(select => {
                     const chave = select.dataset.reuFilter;
                     const trigger = select.querySelector('.custom-select-trigger');
@@ -3615,6 +3782,9 @@
                 if (!container) return;
 
                 const s = this._timelineState;
+                const animar = !!this._timelineAnimar;
+                this._timelineAnimar = false;
+                let idxBarra = 0;
                 const hoje = new Date();
                 hoje.setHours(12, 0, 0, 0);
 
@@ -3716,7 +3886,7 @@
                 html += '</div>';
 
                 // === Gantt ===
-                html += '<div class="timeline-gantt" id="timelineGantt">';
+                html += `<div class="timeline-gantt${animar ? ' anim' : ''}" id="timelineGantt">`;
                 html += '<div class="timeline-gantt-inner">';
 
                 // Cabeçalho de semanas (ou meses, no período "Completo")
@@ -3779,19 +3949,21 @@
                             html += '</div>';
                             // Barras
                             html += '<div class="timeline-row-bars">';
-                            html += `<div class="timeline-bar ${statusCls} ${atrasada ? 'atrasada' : ''}" style="left:${barLeft * 100}%; width:${barWidth * 100}%;" data-demanda-id="${d.id}">`;
+                            html += `<div class="timeline-bar ${statusCls} ${atrasada ? 'atrasada' : ''}" style="left:${barLeft * 100}%; width:${barWidth * 100}%; --i:${Math.min(idxBarra, 40)};" data-demanda-id="${d.id}">`;
                             html += `<div class="timeline-bar-fill" style="width:${prog}%;"></div>`;
                             html += `<span class="timeline-bar-text">${prog}%</span>`;
                             html += '</div>';
                             // Marcos
+                            const iAnim = Math.min(idxBarra, 40);
+                            idxBarra++;
                             if (posAbertura !== null) {
-                                html += `<div class="timeline-milestone abertura" style="left:${posAbertura * 100}%;" title="Abertura: ${d.dataAbertura}"></div>`;
+                                html += `<div class="timeline-milestone abertura" style="left:${posAbertura * 100}%; --i:${iAnim};" title="Abertura: ${d.dataAbertura}"></div>`;
                             }
                             if (posVencimento !== null) {
-                                html += `<div class="timeline-milestone vencimento" style="left:${posVencimento * 100}%;" title="Vencimento: ${d.vencimento}"></div>`;
+                                html += `<div class="timeline-milestone vencimento" style="left:${posVencimento * 100}%; --i:${iAnim};" title="Vencimento: ${d.vencimento}"></div>`;
                             }
                             if (posConclusao !== null && d.status === 'Concluído') {
-                                html += `<div class="timeline-milestone conclusao" style="left:${posConclusao * 100}%;" title="Conclusão: ${d.dataConclusao}"></div>`;
+                                html += `<div class="timeline-milestone conclusao" style="left:${posConclusao * 100}%; --i:${iAnim};" title="Conclusão: ${d.dataConclusao}"></div>`;
                             }
                             html += '</div></div>';
                         });
