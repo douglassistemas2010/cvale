@@ -1515,6 +1515,7 @@
                 document.getElementById('dataAbertura').value = new Date().toISOString().split('T')[0];
                 // Excluir só faz sentido numa demanda já existente
                 document.getElementById('btnExcluirDemanda').style.display = 'none';
+                this.restaurarBotaoSalvar();
                 document.getElementById('modalDemanda').classList.add('active');
             }
 
@@ -1615,14 +1616,27 @@
 
                     this.fecharModal();
                     this.renderizar();
-
-                    await this.salvarDados();
                 } finally {
-                    this.salvandoDemanda = false;
-                    if (btnSalvar) {
-                        btnSalvar.disabled = false;
-                        btnSalvar.textContent = 'Salvar';
-                    }
+                    // Libera o botão assim que a UI foi atualizada. A gravação na rede NÃO pode
+                    // segurar o botão: se o Supabase demorasse/pendurasse, o modal reabria com
+                    // "Salvando..." desabilitado e travado.
+                    this.restaurarBotaoSalvar();
+                }
+
+                // Persistência em segundo plano, em fila (uma gravação por vez, na ordem)
+                this.filaPersistencia = (this.filaPersistencia || Promise.resolve())
+                    .then(() => this.salvarDados())
+                    .catch(err => console.error('Erro ao persistir demandas:', err));
+                await this.filaPersistencia;
+            }
+
+            // Volta o botão Salvar do modal ao estado normal e libera o travamento de duplo envio
+            restaurarBotaoSalvar() {
+                this.salvandoDemanda = false;
+                const btn = document.getElementById('btnSalvarDemanda');
+                if (btn) {
+                    btn.disabled = false;
+                    btn.textContent = 'Salvar';
                 }
             }
 
@@ -1676,6 +1690,7 @@
                 document.getElementById('status').value = demanda.status;
                 document.getElementById('progresso').value = demanda.progresso;
                 document.getElementById('observacoes').value = demanda.observacoes;
+                this.restaurarBotaoSalvar();
 
                 // Botão Excluir do cabeçalho do modal substitui a antiga coluna "Ações" da
                 // tabela — onclick reatribuído (não addEventListener) pra não empilhar

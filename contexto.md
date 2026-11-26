@@ -628,3 +628,10 @@ ode --check).
 - Rótulos: toda barra/fatia mostra valor + percentual; legenda com valor e %; eixo X com números; tooltip no hover (inclusive pela legenda). Canvas agora é nítido em telas HiDPI e ocupa a largura do cartão (antes: 450x280 fixo esticado por CSS).
 - Correções de dados: (1) a pizza somava `total + 1` (`reduce(..., 1)`), então as fatias nunca fechavam 360° e o hover ficava deslocado; (2) status/tipo fora das listas viravam `NaN` — agora entram em "Outros"; (3) "Prioridades" contava todas as demandas e os cards de "Nível de Criticidade" só as ativas (sem Concluído/Pausado) — o gráfico passou a usar as ativas e o título indica isso; (4) "Conformidade de SLA" só considera demandas ativas com prazo (título indica); (5) sem dados exibe estado vazio.
 - Validado no navegador (dados injetados, tema escuro e claro, layout lado a lado e empilhado): sem erros de console. Não validado: `prefers-reduced-motion` e toque em celular real.
+
+## Sessão de 26/11/2026 — modal sem travar, filtros e gráficos
+
+- Bug: o botão do modal de demanda ficava preso em Salvando... (desabilitado) porque era liberado só depois do wait salvarDados() (rede/Supabase). Agora salvarDemanda libera o botão logo após fechar o modal e renderizar (estaurarBotaoSalvar(), também chamado ao abrir nova/editar) e a persistência roda em segundo plano, em fila (ilaPersistencia).
+- Filtros da aba Demandas (.custom-select) ganharam o mesmo visual dos campos do modal (ui-moderno.css: cantos 14px, chevron em máscara CSS, menu 18px).
+- graficos.css: removida a varredura de reflexo (::after/gf-varredura) que cruzava o fundo dos cartões de gráfico; pulso na borda e respiração do brilho foram mantidos.
+- Validado no navegador: botão volta a Salvar mesmo com a gravação pendurada; filtro aberto no tema claro. Tema escuro dos filtros não validado.

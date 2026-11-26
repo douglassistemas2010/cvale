@@ -327,6 +327,74 @@ body.theme-light .ui-date-trigger { background: #ffffff; }
 .ui-select.aberto .ui-ico { transform: rotate(180deg); color: var(--cyan); }
 .ui-date .ui-ico { color: var(--cyan); }
 
+/* ---------- Filtros da aba Demandas: mesmo visual dos campos do modal ---------- */
+body.theme-light .custom-select-trigger,
+body.theme-dark .custom-select-trigger {
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--ui-border);
+    border-radius: 14px;
+    background: var(--ui-field);
+    color: var(--ui-text);
+    font-size: 0.9rem;
+    font-weight: 600;
+    box-shadow: none;
+}
+
+body.theme-light .custom-select-trigger { background: #ffffff; }
+
+body.theme-light .custom-select-trigger:hover,
+body.theme-dark .custom-select-trigger:hover { border-color: #00a9dc; transform: none; }
+
+body.theme-light .custom-select.open .custom-select-trigger,
+body.theme-dark .custom-select.open .custom-select-trigger,
+.custom-select-trigger:focus-visible {
+    outline: none;
+    border-color: var(--cyan);
+    box-shadow: 0 0 0 4px var(--ui-ring);
+}
+
+/* Seta ▼ do texto vira o chevron do select próprio */
+.custom-select-icon {
+    flex-shrink: 0;
+    width: 16px;
+    height: 16px;
+    font-size: 0;
+    opacity: 1;
+    background-color: var(--ui-muted);
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") center / contain no-repeat;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+.custom-select.open .custom-select-icon { background-color: var(--cyan); }
+
+body.theme-light .custom-select-menu,
+body.theme-dark .custom-select-menu {
+    padding: 0.4rem;
+    border-radius: 18px;
+    background: var(--ui-surface);
+    border: 1px solid var(--ui-border);
+    box-shadow: var(--ui-shadow);
+    max-height: min(340px, 60vh);
+    overflow-y: auto;
+}
+
+body.theme-light .custom-select-option,
+body.theme-dark .custom-select-option {
+    padding: 0.65rem 0.8rem;
+    border-radius: 12px;
+    color: var(--ui-text);
+    font-size: 0.88rem;
+    font-weight: 600;
+}
+
+body.theme-light .custom-select-option:hover,
+body.theme-dark .custom-select-option:hover { background: var(--ui-hover); }
+
+body.theme-light .custom-select-option.active,
+body.theme-dark .custom-select-option.active {
+    background: var(--ui-active);
+    color: var(--ui-active-text);
+}
+
 /* Menu fixado no <body> (não é cortado pelo modal) */
 .ui-menu, .ui-cal, .ui-tip { position: fixed; z-index: 30000; }
 
