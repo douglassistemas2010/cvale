@@ -882,7 +882,7 @@
 
                 // Modal
                 document.getElementById('btnNewDemand').addEventListener('click', () => this.abrirModalNova());
-                ['numeroChamado', 'numeroTicket', 'titulo'].forEach((id) => {
+                ['numeroTicket', 'numeroCss', 'titulo'].forEach((id) => {
                     document.getElementById(id).addEventListener('input', () => this.atualizarTituloModal());
                 });
                 document.getElementById('closeModal').addEventListener('click', () => this.fecharModal());
@@ -1590,6 +1590,18 @@
                     return;
                 }
 
+                // O campo "ID do chamado" saiu do modal: demanda nova usa o nº do ticket (ou o da CSS)
+                // como número; demanda existente mantém o número original (identidade estável).
+                const numeroOriginal = document.getElementById('numeroChamadoOriginal').value;
+                const numeroTicketForm = document.getElementById('numeroTicket').value.trim();
+                const numeroCssForm = document.getElementById('numeroCss').value.trim();
+                const numeroDerivado = numeroOriginal || numeroTicketForm || numeroCssForm;
+                if (!numeroOriginal && numeroDerivado && this.demandas.some(d => d.numero === numeroDerivado)) {
+                    this.mostrarToast(`Já existe uma demanda com o número ${numeroDerivado}.`);
+                    document.getElementById(numeroTicketForm ? 'numeroTicket' : 'numeroCss').focus();
+                    return;
+                }
+
                 this.salvandoDemanda = true;
                 const btnSalvar = document.getElementById('btnSalvarDemanda');
                 if (btnSalvar) {
@@ -1601,7 +1613,7 @@
                     // Texto digitado no composer e ainda não gravado entra como nota (nada se perde)
                     if (this.notasModal) this.notasModal.gravarPendente();
                     const notasModal = this.notasModal ? this.notasModal.obter() : [];
-                    const numeroChamado = document.getElementById('numeroChamado').value.trim();
+                    const numeroChamado = numeroDerivado;
                     const statusEscolhido = document.getElementById('status').value;
                     const demandaData = {
                         numero: numeroChamado,
@@ -1776,7 +1788,10 @@
                 const el = document.getElementById('modalTitle');
                 if (!el) return;
                 const original = document.getElementById('numeroChamadoOriginal').value;
-                const numero = document.getElementById('numeroChamado').value.trim();
+                const ticket = document.getElementById('numeroTicket').value.trim();
+                const css = document.getElementById('numeroCss').value.trim();
+                // Demanda nova: o número é o do ticket (ou o da CSS). Existente: mantém o número original.
+                const numero = original || ticket || css;
                 const titulo = document.getElementById('titulo').value.trim();
                 const base = original ? 'Editar' : 'Nova Demanda';
                 const texto = [numero, titulo].filter(Boolean).join(' \u00b7 ');
@@ -1786,9 +1801,8 @@
 
                 const link = document.getElementById('linkCentralModal');
                 if (link) {
-                    // O nº do ticket manda; sem ele, usa o ID do chamado (compatibilidade com demandas antigas)
-                    const ticket = document.getElementById('numeroTicket').value.trim();
-                    const url = urlCentralServicos(ticket || numero);
+                    // O nº do ticket manda; sem ele, usa o número original (demandas antigas já usavam o ticket como número)
+                    const url = urlCentralServicos(ticket || original);
                     link.hidden = !url;
                     if (url) link.href = url;
                 }
@@ -2154,7 +2168,7 @@
                                         <span data-icon="copy"></span>
                                     </button>
                                 </td>
-                                <td style="${corNumeroTitulo}"><span class="num-com-link"><strong>${numEsc}</strong>${htmlLinkCentral(d.numeroTicket || d.numero)}</span>${(d.numeroTicket || d.numeroCss) ? `<div class="num-refs">${d.numeroTicket ? `<span title="Ticket na Central de Serviços">Ticket ${escapeHtml(d.numeroTicket)}</span>` : ''}${d.numeroCss ? `<span title="Número da CSS">CSS ${escapeHtml(d.numeroCss)}</span>` : ''}</div>` : ''}</td>
+                                <td style="${corNumeroTitulo}"><span class="num-com-link"><strong>${numEsc}</strong>${htmlLinkCentral(d.numeroTicket || d.numero)}</span>${(d.numeroTicket && d.numeroTicket !== d.numero) || (d.numeroCss && d.numeroCss !== d.numero) ? `<div class="num-refs">${d.numeroTicket && d.numeroTicket !== d.numero ? `<span title="Ticket na Central de Serviços">Ticket ${escapeHtml(d.numeroTicket)}</span>` : ''}${d.numeroCss && d.numeroCss !== d.numero ? `<span title="Número da CSS">CSS ${escapeHtml(d.numeroCss)}</span>` : ''}</div>` : ''}</td>
                                 <td style="${corNumeroTitulo}">${tituloEsc}</td>
                                 <td style="text-align: center;">
                                     <div class="order-controls" onclick="event.stopPropagation();" style="display: flex; align-items: center; justify-content: center; gap: 0.4rem;">

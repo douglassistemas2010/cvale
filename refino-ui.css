@@ -459,3 +459,8 @@ body.theme-dark .link-central:hover, body.theme-dark .link-central:focus-visible
     height: var(--campo-h); min-height: 0; box-sizing: border-box; padding-top: 0; padding-bottom: 0;
 }
 #modalDemanda .demanda-campos .link-central--campo { width: var(--campo-h); height: var(--campo-h); }
+
+/* Linha 1 do modal: Ticket | CSS | Categoria | Frente */
+#modalDemanda .form-row-4 { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr) minmax(0, 1.1fr) minmax(0, 1fr); gap: 0.6rem; }
+@media (min-width: 1101px) { #modalDemanda .demanda-layout { grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 1.6rem; } }
+@media (max-width: 640px) { #modalDemanda .form-row-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
