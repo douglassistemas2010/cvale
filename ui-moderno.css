@@ -144,10 +144,10 @@ body.theme-dark .tab.active:hover { color: #ffffff; background: linear-gradient(
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 2rem;
-    padding: 2rem 2.4rem;
+    gap: 1.5rem;
+    padding: 1.1rem 1.8rem;
     margin-bottom: 0.5rem;
-    border-radius: 32px;
+    border-radius: 28px;
     color: #ffffff;
     background-color: #003a5c; /* base opaca: a guarda de contraste (contraste.js) mede o fundo real */
     background-image:
@@ -172,8 +172,8 @@ body.theme-dark .tab.active:hover { color: #ffffff; background: linear-gradient(
 
 .ui-kicker {
     display: block;
-    margin-bottom: 0.45rem;
-    font-size: 0.72rem;
+    margin-bottom: 0.2rem;
+    font-size: 0.7rem;
     font-weight: 800;
     letter-spacing: 0.18em;
     color: #7fd8f5;
@@ -181,27 +181,27 @@ body.theme-dark .tab.active:hover { color: #ffffff; background: linear-gradient(
 
 .ui-hero h2 {
     color: #ffffff !important;
-    font-size: 2.2rem !important;
-    margin: 0 0 0.5rem 0 !important;
+    font-size: 1.7rem !important;
+    margin: 0 0 0.25rem 0 !important;
     -webkit-text-fill-color: #ffffff;
 }
 
-.ui-hero p { color: #cfe6f4; font-size: 1rem; max-width: 46ch; }
+.ui-hero p { color: #cfe6f4; font-size: 0.9rem; line-height: 1.35; max-width: 64ch; margin: 0; }
 
 .ui-hero-kpis {
     position: relative;
     z-index: 1;
     display: grid;
-    grid-template-columns: repeat(4, minmax(104px, 1fr));
-    gap: 0.9rem;
+    grid-template-columns: repeat(4, minmax(100px, 1fr));
+    gap: 0.7rem;
 }
 
 .ui-hero-kpi {
     display: flex;
     flex-direction: column;
-    gap: 0.15rem;
-    padding: 0.95rem 1.1rem;
-    border-radius: 22px;
+    gap: 0.1rem;
+    padding: 0.55rem 0.9rem;
+    border-radius: 18px;
     background: linear-gradient(145deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.05));
     border: 1.5px solid rgba(255, 255, 255, 0.24);
     -webkit-backdrop-filter: blur(14px);
@@ -209,7 +209,7 @@ body.theme-dark .tab.active:hover { color: #ffffff; background: linear-gradient(
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3);
 }
 
-.ui-hero-kpi b { font-size: 1.9rem; font-weight: 800; letter-spacing: -0.03em; line-height: 1.05; font-variant-numeric: tabular-nums; }
+.ui-hero-kpi b { font-size: 1.5rem; font-weight: 800; letter-spacing: -0.03em; line-height: 1.05; font-variant-numeric: tabular-nums; }
 .ui-hero-kpi span { font-size: 0.74rem; font-weight: 700; letter-spacing: 0.04em; color: #cfe6f4; }
 .ui-hero-kpi.alerta b { color: #ffd479; }
 .ui-hero-kpi.ok b { color: #6ee7b7; }
@@ -217,6 +217,74 @@ body.theme-dark .tab.active:hover { color: #ffffff; background: linear-gradient(
 @media (max-width: 1100px) {
     .ui-hero { flex-direction: column; align-items: flex-start; }
     .ui-hero-kpis { width: 100%; }
+}
+
+/* ---------- Fundo tecnológico animado do hero (grade em movimento, feixe de varredura e nós pulsando) ---------- */
+.ui-hero-fx {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    border-radius: inherit;
+    pointer-events: none;
+}
+
+.ui-hero-fx::before {
+    content: '';
+    position: absolute;
+    inset: -40px;
+    background-image:
+        linear-gradient(rgba(127, 216, 245, 0.13) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(127, 216, 245, 0.13) 1px, transparent 1px);
+    background-size: 34px 34px;
+    -webkit-mask-image: radial-gradient(ellipse 75% 120% at 80% 40%, #000 0%, transparent 78%);
+    mask-image: radial-gradient(ellipse 75% 120% at 80% 40%, #000 0%, transparent 78%);
+    animation: heroGrade 16s linear infinite;
+}
+
+.ui-hero-fx::after {
+    content: '';
+    position: absolute;
+    top: -20%;
+    bottom: -20%;
+    left: 0;
+    width: 26%;
+    background: linear-gradient(90deg, transparent, rgba(0, 200, 255, 0.20), rgba(255, 255, 255, 0.10), transparent);
+    transform: translateX(-120%) skewX(-22deg);
+    animation: heroVarredura 8s ease-in-out infinite;
+}
+
+.ui-hero-fx i {
+    position: absolute;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #7fe3ff;
+    box-shadow: 0 0 0 0 rgba(127, 227, 255, 0.55), 0 0 14px 3px rgba(0, 200, 255, 0.55);
+    animation: heroNo 3.6s ease-in-out infinite;
+}
+
+.ui-hero-fx i:nth-child(1) { left: 46%; top: 24%; }
+.ui-hero-fx i:nth-child(2) { left: 58%; top: 68%; animation-delay: -1.2s; }
+.ui-hero-fx i:nth-child(3) { left: 71%; top: 30%; animation-delay: -2.2s; }
+.ui-hero-fx i:nth-child(4) { left: 33%; top: 72%; animation-delay: -0.6s; }
+
+@keyframes heroGrade { to { background-position: 34px 34px; } }
+
+@keyframes heroVarredura {
+    0%, 12% { transform: translateX(-120%) skewX(-22deg); opacity: 0; }
+    30% { opacity: 1; }
+    70% { opacity: 1; }
+    88%, 100% { transform: translateX(520%) skewX(-22deg); opacity: 0; }
+}
+
+@keyframes heroNo {
+    0%, 100% { transform: scale(0.7); opacity: 0.45; }
+    50% { transform: scale(1.25); opacity: 1; box-shadow: 0 0 0 9px rgba(127, 227, 255, 0), 0 0 18px 5px rgba(0, 200, 255, 0.7); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .ui-hero-fx::before, .ui-hero-fx::after, .ui-hero-fx i { animation: none; }
+    .ui-hero-fx::after { display: none; }
 }
 
 @media (max-width: 640px) {
