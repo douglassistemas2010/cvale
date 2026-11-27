@@ -64,6 +64,8 @@ const CockpitAuth = {
     },
 
     atualizarIndicador() {
+        // Importar só aparece no modo edição (grava no servidor; sem login ficaria só local)
+        document.getElementById('btnImportDemandas')?.classList.toggle('oculto-ui', !this.estaLogado());
         const btn = document.getElementById('btnAuthSupabase');
         if (!btn) return;
         if (this.estaLogado()) {
