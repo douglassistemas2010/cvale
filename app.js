@@ -1790,12 +1790,15 @@
                 const original = document.getElementById('numeroChamadoOriginal').value;
                 const ticket = document.getElementById('numeroTicket').value.trim();
                 const css = document.getElementById('numeroCss').value.trim();
-                // Demanda nova: o número é o do ticket (ou o da CSS). Existente: mantém o número original.
-                const numero = original || ticket || css;
                 const titulo = document.getElementById('titulo').value.trim();
-                const base = original ? 'Editar' : 'Nova Demanda';
-                const texto = [numero, titulo].filter(Boolean).join(' \u00b7 ');
-                const completo = [base, texto].filter(Boolean).join(' ');
+                // Cabeçalho: "Demanda · Ticket 1525930 · CSS 9988 · Título". Sem ticket nem CSS (demanda
+                // antiga), mostra o número original da demanda.
+                const refs = [];
+                if (ticket) refs.push(`Ticket ${ticket}`);
+                if (css) refs.push(`CSS ${css}`);
+                if (!refs.length && original) refs.push(original);
+                const base = original ? 'Demanda' : 'Nova Demanda';
+                const completo = [base, ...refs, titulo].filter(Boolean).join(' \u00b7 ');
                 el.textContent = completo;
                 el.title = completo;
 
