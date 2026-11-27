@@ -25,6 +25,10 @@
 
 .timeline-nav-arrows button { border-radius: 999px; }
 
+/* ---------- Sem barra de rolagem horizontal: o marco de vencimento (7px, centrado na data)
+   passava ~4px do limite direito e gerava a barra no fim da página ---------- */
+.timeline-gantt { overflow-x: hidden; }
+
 /* ---------- Cabeçalho leve ---------- */
 .timeline-gantt .timeline-header {
     background: transparent;

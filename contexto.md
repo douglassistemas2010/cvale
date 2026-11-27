@@ -9,6 +9,21 @@ coluna `dados` em jsonb). `supabase/seed.sql` é só a carga inicial histórica 
 de verdade atual; para ver os dados reais em produção é preciso consultar a API do Supabase
 (`supabase-config.js` tem URL + anon key, leitura é pública).
 
+## Busca de demandas, abas do menu e rolagem horizontal (27/11/2026)
+
+- **Busca** (`demandaCorrespondeBusca` em `app.js`, usada pelo filtro de Demandas e pelo da Timeline): cada
+  palavra/número digitado (em qualquer ordem) precisa aparecer em algum campo — nº, Nº do ticket, Nº da CSS,
+  título, descrição, frente, tipo, status, prioridade, solicitante, responsável, sistema e notas. Ignora acento
+  e pontuação ("INC-1525930" = "1525930"). O Planner tem busca própria (não alterada). Campo de busca com
+  Plus Jakarta Sans (`refino-ui.css`).
+- **Abas do menu**: indicador deslizante (`.tab-slider`, criado em `refino-ui.js`) + ícone que "pula" + brilho
+  + conteúdo da aba entra com fade/subida. A aba ativa mantém um `background-image` de tamanho 0 só para a
+  guarda de contraste (`contraste.js`) enxergar fundo escuro e manter o texto branco.
+- **Armadilha**: `classList.add` de classe que já existe AINDA gera registro de mutação — dentro de um
+  `MutationObserver` que observa `class`, sempre guarde com `contains` (senão laço infinito e página travada).
+- **Rolagem horizontal**: o marco de vencimento da Timeline passava ~4px da borda e criava barra horizontal
+  (`.timeline-gantt { overflow-x: hidden }`); colunas do Planner de 272→232px (5 colunas cabem em 1366px).
+
 ## Performance — lentidão da página (27/11/2026)
 
 Medido no navegador (60 demandas, ~5400 elementos no DOM): Dashboard parado rodava a ~1 fps.

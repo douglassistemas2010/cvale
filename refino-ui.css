@@ -532,3 +532,128 @@ body.theme-dark .ins-lg--hoje { background: #e2e8f0; }
 @media (min-width: 1101px) and (max-height: 790px) { #modalDemanda .ins-tl { display: none; } }
 @media (min-width: 1101px) and (max-height: 660px) { #modalDemanda .demanda-insights { display: none; } }
 @media (max-width: 1100px) { .ins-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* =====================================================================
+   Campo de busca — tipografia própria (Plus Jakarta Sans) em vez da fonte padrão do campo
+   ===================================================================== */
+.search-box input,
+.timeline-filters .search-box input {
+    font-family: 'Plus Jakarta Sans', var(--font-sans, system-ui), sans-serif;
+    font-size: 0.95rem;
+    font-weight: 600;
+    letter-spacing: 0.005em;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.3;
+    text-overflow: ellipsis;
+}
+.search-box input::placeholder {
+    font-family: 'Plus Jakarta Sans', var(--font-sans, system-ui), sans-serif;
+    font-weight: 500;
+    letter-spacing: 0.01em;
+    font-style: normal;
+}
+.timeline-filters .search-box { min-width: 300px; max-width: 400px; }
+
+/* =====================================================================
+   Abas do menu — barra segmentada com indicador deslizante
+   - sem vidro/sombra por aba: só texto + ícone; o "indicador" (.tab-slider) desliza até a aba ativa
+   - hover: leve realce e ícone que se anima; ativa: ícone dá um "pulo" e o brilho passa pelo indicador
+   - o conteúdo da aba nova entra com fade + subida suave
+   ===================================================================== */
+.tabs { position: relative; scrollbar-width: none; }
+.tabs::-webkit-scrollbar { display: none; }
+
+.tab-slider {
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 0;
+    width: 0;
+    border-radius: 999px;
+    pointer-events: none;
+    z-index: 0;
+    overflow: hidden;
+    opacity: 0;
+    background: linear-gradient(135deg, #005a9c 0%, #0a86c4 55%, #00a9dc 100%);
+    box-shadow: 0 10px 24px rgba(0, 90, 156, 0.36), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+    will-change: transform, width;
+}
+.tab-slider.pronto {
+    opacity: 1;
+    transition: transform 0.5s cubic-bezier(0.34, 1.28, 0.5, 1), width 0.5s cubic-bezier(0.34, 1.28, 0.5, 1), opacity 0.2s ease;
+}
+.tab-slider::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(110deg, transparent 30%, rgba(255, 255, 255, 0.45) 50%, transparent 70%);
+    transform: translateX(-120%);
+}
+.tab-slider.brilho::after { animation: abaBrilho 0.7s ease-out; }
+
+body[class*="theme-"] .tabs .tab {
+    position: relative;
+    z-index: 1;
+    gap: 0.5rem;
+    color: #3d5a73;
+    background: transparent;
+    box-shadow: none;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    transform: none;
+    font-weight: 700;
+    letter-spacing: 0.005em;
+    transition: color 0.25s ease, background-color 0.25s ease;
+}
+body.theme-dark .tabs .tab { color: #c4dcee; }
+.tabs .tab::after { display: none; }
+
+body[class*="theme-"] .tabs .tab:hover {
+    color: #005a9c;
+    background: rgba(0, 112, 184, 0.09);
+    box-shadow: none;
+    transform: none;
+}
+body.theme-dark .tabs .tab:hover { color: #ffffff; background: rgba(255, 255, 255, 0.10); }
+
+body[class*="theme-"] .tabs .tab.active,
+body[class*="theme-"] .tabs .tab.active:hover {
+    color: #ffffff;
+    background-color: transparent;
+    /* O fundo azul real é o .tab-slider (irmão). Esta imagem com tamanho 0 não pinta nada, mas deixa a
+       guarda de contraste (contraste.js, que só olha os ancestrais) enxergar o fundo escuro e manter o texto branco. */
+    background-image: linear-gradient(135deg, #005a9c, #00a9dc);
+    background-size: 0 0;
+    background-repeat: no-repeat;
+    box-shadow: none;
+}
+/* Sem JS (ou antes do indicador existir), a aba ativa continua destacada. */
+.tabs:not(.tem-slider) .tab.active,
+.tabs:not(.tem-slider) .tab.active:hover {
+    background-size: auto !important;
+}
+
+.tabs .tab svg { transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); }
+.tabs .tab:hover svg { transform: translateY(-2px) scale(1.12); }
+.tabs .tab.active svg { animation: abaIcone 0.55s cubic-bezier(0.34, 1.56, 0.64, 1); }
+.tabs .tab:focus-visible { outline: 2px solid #00a9dc; outline-offset: 2px; }
+
+.tab-content:not(.hidden) { animation: abaConteudoEntra 0.38s cubic-bezier(0.22, 1, 0.36, 1) backwards; }
+
+@keyframes abaBrilho { to { transform: translateX(120%); } }
+@keyframes abaIcone {
+    0% { transform: scale(0.6) rotate(-14deg); }
+    60% { transform: scale(1.22) rotate(6deg); }
+    100% { transform: scale(1) rotate(0); }
+}
+@keyframes abaConteudoEntra {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .tab-slider.pronto { transition: none; }
+    .tab-slider.brilho::after,
+    .tabs .tab.active svg,
+    .tab-content:not(.hidden) { animation: none; }
+}

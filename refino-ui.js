@@ -496,3 +496,55 @@
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => instalarPresetsProgresso());
     else instalarPresetsProgresso();
 })();
+
+// =====================================================================
+// Indicador deslizante das abas do menu (ver ".tab-slider" em refino-ui.css)
+// =====================================================================
+(function () {
+    'use strict';
+
+    const barra = document.querySelector('.tabs');
+    if (!barra) return;
+
+    const slider = document.createElement('span');
+    slider.className = 'tab-slider';
+    slider.setAttribute('aria-hidden', 'true');
+    barra.insertBefore(slider, barra.firstChild);
+
+    let abaAnterior = null;
+
+    function posicionar(animar) {
+        const ativa = barra.querySelector('.tab.active');
+        if (!ativa || !ativa.offsetWidth) return;
+        // classList.add numa classe que já existe AINDA gera registro de mutação: sem a guarda,
+        // o observer abaixo chamaria posicionar() em laço infinito.
+        if (!barra.classList.contains('tem-slider')) barra.classList.add('tem-slider');
+        slider.style.width = ativa.offsetWidth + 'px';
+        slider.style.height = ativa.offsetHeight + 'px';
+        slider.style.transform = 'translate(' + ativa.offsetLeft + 'px, ' + ativa.offsetTop + 'px)';
+        if (!slider.classList.contains('pronto')) {
+            // 1ª posição sem deslizar; só depois liga a transição
+            requestAnimationFrame(() => requestAnimationFrame(() => slider.classList.add('pronto')));
+        }
+        if (animar && abaAnterior && abaAnterior !== ativa) {
+            slider.classList.remove('brilho');
+            void slider.offsetWidth;
+            slider.classList.add('brilho');
+        }
+        abaAnterior = ativa;
+        // garante que a aba ativa fique visível quando a barra rola (janela estreita)
+        if (barra.scrollWidth > barra.clientWidth) ativa.scrollIntoView({ inline: 'nearest', block: 'nearest' });
+    }
+
+    // a troca de aba (clique ou drill-down) só muda a classe "active": observa isso
+    new MutationObserver(() => posicionar(true))
+        .observe(barra, { subtree: true, attributes: true, attributeFilter: ['class'] });
+
+    window.addEventListener('resize', () => posicionar(false));
+    if (window.ResizeObserver) new ResizeObserver(() => posicionar(false)).observe(barra);
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => posicionar(false));
+
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => posicionar(false));
+    else posicionar(false);
+    window.addEventListener('load', () => posicionar(false));
+})();

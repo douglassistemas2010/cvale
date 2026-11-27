@@ -309,6 +309,21 @@
                 .replace(/[^a-z0-9\s]/g, '');
         }
 
+        // Busca dinâmica de demandas: cada palavra/número digitado precisa aparecer em ALGUM campo
+        // (em qualquer ordem). Cobre nº, Nº do ticket, Nº da CSS, título, descrição, frente, tipo,
+        // status, prioridade, pessoas, sistema e o histórico de interações.
+        // Ex.: "1525930", "8000072831", "inc-1525930", "cadastro c4c", "alta deploy".
+        function demandaCorrespondeBusca(d, termo) {
+            const palavras = String(termo || '').split(/\s+/).map(normalizarTexto).filter(Boolean);
+            if (!palavras.length) return true;
+            const notas = Array.isArray(d.notas) ? d.notas.map(n => (n.texto || '') + ' ' + (n.autor || '')).join(' ') : '';
+            const palheiro = normalizarTexto([
+                d.numero, d.numeroTicket, d.numeroCss, d.titulo, d.descricao, d.origem, d.tipo,
+                d.status, d.prioridade, d.solicitante, d.responsavel, d.sistema, d.observacoes, notas
+            ].join(' '));
+            return palavras.every(p => palheiro.includes(p));
+        }
+
         // Escapa texto de usuário antes de inserir em innerHTML/atributos HTML.
         // Sem isso, um título ou número de demanda com "<script>" ou aspas quebra
         // a página (ou pior, executa código) para qualquer visitante — a leitura
@@ -2326,7 +2341,7 @@
             filtrarDemandas() {
                 // Coleta valores dos filtros da UI
                 // Busca ignora acentuação e pontuação — "atendimento" encontra "atendiménto." ou "atendimento,"
-                const busca = normalizarTexto(document.getElementById('searchDemand').value);
+                const termoBusca = document.getElementById('searchDemand').value;
                 const tipo = document.getElementById('filterTipo').value;
                 const status = document.getElementById('filterStatus').value;
                 const prioridade = document.getElementById('filterPrioridade').value;
@@ -2335,7 +2350,7 @@
 
                 // Aplica cada filtro se valor não vazio
                 let filtradas = this.demandas.filter(d => {
-                    const matchBusca = !busca || normalizarTexto(d.titulo).includes(busca) || normalizarTexto(d.numero).includes(busca) || normalizarTexto(d.descricao).includes(busca);
+                    const matchBusca = demandaCorrespondeBusca(d, termoBusca);
                     const matchTipo = !tipo || d.tipo === tipo;
                     const matchStatus = !status || d.status === status;
                     const matchPrioridade = !prioridade || d.prioridade === prioridade;
@@ -4091,12 +4106,7 @@
 
                 // Filtro de busca
                 if (s.filtroBusca) {
-                    const busca = normalizarTexto(s.filtroBusca);
-                    demandas = demandas.filter(d =>
-                        normalizarTexto(d.titulo).includes(busca) ||
-                        normalizarTexto(d.numero).includes(busca) ||
-                        normalizarTexto(d.descricao).includes(busca)
-                    );
+                    demandas = demandas.filter(d => demandaCorrespondeBusca(d, s.filtroBusca));
                 }
 
                 // Mostrar/ocultar concluídas
@@ -4217,7 +4227,7 @@
                 // === Filtros ===
                 html += '<div class="timeline-filters">';
                 // Busca
-                html += `<div class="search-box"><input type="text" id="timelineSearch" placeholder="Buscar demandas..." value="${escapeHtml(s.filtroBusca)}"></div>`;
+                html += `<div class="search-box"><input type="text" id="timelineSearch" placeholder="Buscar por ticket, CSS, título ou palavras..." value="${escapeHtml(s.filtroBusca)}"></div>`;
                 // Frente
                 html += '<select id="timelineFiltroFrente">';
                 html += `<option value="" ${s.filtroFrente === '' ? 'selected' : ''}>Todas as Frentes</option>`;
