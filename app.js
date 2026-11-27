@@ -1845,6 +1845,9 @@
                 const refs = [];
                 if (ticket) refs.push(`Ticket ${ticket}`);
                 if (css) refs.push(`CSS ${css}`);
+                // Campos preenchidos ficam em verde e negrito
+                document.getElementById('numeroTicket').classList.toggle('campo-ref-preenchido', !!ticket);
+                document.getElementById('numeroCss').classList.toggle('campo-ref-preenchido', !!css);
                 if (!refs.length && original) refs.push(original);
                 // Duas linhas: título da demanda e, abaixo, Ticket · CSS (fora do texto do título)
                 const base = original ? 'Demanda' : 'Nova Demanda';

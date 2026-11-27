@@ -707,3 +707,11 @@ body.theme-light .confirm-modal { background: rgba(0, 41, 74, 0.38); }
     .ui-menu, .ui-cal { animation: none; }
     .ui-tip { transition: none; }
 }
+
+/* ---------- Nº do ticket / Nº da CSS preenchidos: verde e negrito ---------- */
+.form-input.campo-ref-preenchido {
+    font-weight: 800 !important;
+    color: #0b7a55 !important;
+    border-color: rgba(20, 150, 107, 0.55);
+}
+body.theme-dark .form-input.campo-ref-preenchido { color: #6ee7b7 !important; }
