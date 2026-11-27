@@ -246,6 +246,11 @@
                 // Histórico de auditoria (aba Planner): registros append-only { id, em (ISO), tipo, texto }.
                 // Precisa estar aqui, senão `new Demanda(d)` descarta o campo ao recarregar.
                 this.historico = Array.isArray(data.historico) ? data.historico : [];
+                // Campos que esta versão não conhece (ex.: criados por versão mais nova do app) passam
+                // adiante intactos. Sem isso, uma página em cache apagaria esses dados ao salvar.
+                Object.keys(data).forEach((k) => {
+                    if (!(k in this) && typeof data[k] !== 'function') this[k] = data[k];
+                });
             }
 
             // Gera novo número sequencial para demanda
@@ -710,7 +715,36 @@
                         }
                     });
                 });
-                return Array.from(mapaDemandas.values());
+                const resultado = Array.from(mapaDemandas.values());
+                this.recuperarReferenciasDoLocal(resultado, demandasLocal);
+                return resultado;
+            }
+
+            // Nº Ticket / Nº CSS vazios no servidor (ex.: apagados por página antiga em cache ou editados
+            // sem login) são preenchidos com o valor guardado neste navegador: cache local e histórico de
+            // backups (do mais novo para o mais antigo). Nunca sobrescreve valor já preenchido.
+            recuperarReferenciasDoLocal(demandas, demandasLocal) {
+                try {
+                    const fontes = [demandasLocal];
+                    try { fontes.push(JSON.parse(localStorage.getItem(BACKUP_KEY) || '{}').demandas || []); } catch (e) {}
+                    try { (JSON.parse(localStorage.getItem(BACKUP_HISTORY_KEY) || '[]')).forEach(b => fontes.push(b.demandas || [])); } catch (e) {}
+                    const refs = new Map();
+                    fontes.forEach(lista => lista.forEach(d => {
+                        const chave = d.numero || d.id;
+                        const r = refs.get(chave) || {};
+                        if (!r.numeroTicket && d.numeroTicket) r.numeroTicket = d.numeroTicket;
+                        if (!r.numeroCss && d.numeroCss) r.numeroCss = d.numeroCss;
+                        refs.set(chave, r);
+                    }));
+                    demandas.forEach(d => {
+                        const r = refs.get(d.numero || d.id);
+                        if (!r) return;
+                        if (!d.numeroTicket && r.numeroTicket) d.numeroTicket = r.numeroTicket;
+                        if (!d.numeroCss && r.numeroCss) d.numeroCss = r.numeroCss;
+                    });
+                } catch (err) {
+                    console.warn('⚠️ Não foi possível recuperar Ticket/CSS do cache local:', err);
+                }
             }
 
             atualizarTimestamp() {
