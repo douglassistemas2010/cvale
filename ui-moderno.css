@@ -633,6 +633,21 @@ input[type="checkbox"]:focus-visible { outline: 3px solid var(--gold); outline-o
 
 .modal-title { font-weight: 800; letter-spacing: -0.02em; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-right: 1rem; }
 
+.modal-title .modal-title-main,
+.modal-title .modal-title-refs {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.modal-title .modal-title-refs {
+    margin-top: 0.25rem;
+    font-size: 0.95rem;
+    font-weight: 600;
+    letter-spacing: 0;
+    color: var(--ui-muted, var(--text-secondary));
+}
+
 .modal-title::before {
     content: 'C.VALE | GECLI';
     display: block;

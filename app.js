@@ -574,7 +574,7 @@
 
             atualizarInputsTema(tema) {
                 const isLight = tema === 'light';
-                document.querySelectorAll('input, textarea, select').forEach(el => {
+                document.querySelectorAll('input:not([type="checkbox"]):not([type="radio"]), textarea, select').forEach(el => {
                     if (isLight) {
                         el.style.color = '#16293d';
                         el.style.background = '#ffffff';
@@ -1840,16 +1840,26 @@
                 const ticket = document.getElementById('numeroTicket').value.trim();
                 const css = document.getElementById('numeroCss').value.trim();
                 const titulo = document.getElementById('titulo').value.trim();
-                // Cabeçalho: "Demanda · Ticket 1525930 · CSS 9988 · Título". Sem ticket nem CSS (demanda
+                // Cabeçalho em duas linhas: título e, abaixo, "Ticket 1525930 · CSS 9988". Sem ticket nem CSS (demanda
                 // antiga), mostra o número original da demanda.
                 const refs = [];
                 if (ticket) refs.push(`Ticket ${ticket}`);
                 if (css) refs.push(`CSS ${css}`);
                 if (!refs.length && original) refs.push(original);
+                // Duas linhas: título da demanda e, abaixo, Ticket · CSS (fora do texto do título)
                 const base = original ? 'Demanda' : 'Nova Demanda';
-                const completo = [base, ...refs, titulo].filter(Boolean).join(' \u00b7 ');
-                el.textContent = completo;
-                el.title = completo;
+                const linhaTitulo = document.createElement('span');
+                linhaTitulo.className = 'modal-title-main';
+                linhaTitulo.textContent = titulo || base;
+                el.replaceChildren(linhaTitulo);
+                const textoRefs = refs.join(' \u00b7 ');
+                if (textoRefs) {
+                    const linhaRefs = document.createElement('span');
+                    linhaRefs.className = 'modal-title-refs';
+                    linhaRefs.textContent = textoRefs;
+                    el.appendChild(linhaRefs);
+                }
+                el.title = [titulo || base, textoRefs].filter(Boolean).join('\n');
 
                 const link = document.getElementById('linkCentralModal');
                 if (link) {
