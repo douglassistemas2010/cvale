@@ -463,3 +463,103 @@ body.theme-dark .modal-torre-content {
 @media (prefers-reduced-motion: reduce) {
     .table tbody tr td { transition: none; }
 }
+
+
+/* ---------- Abas do menu em vidro iOS (pílulas translúcidas) ---------- */
+.tabs .tab {
+    position: relative;
+    overflow: hidden;
+    -webkit-backdrop-filter: blur(16px) saturate(180%);
+    backdrop-filter: blur(16px) saturate(180%);
+    transition: background .2s ease, color .2s ease, box-shadow .2s ease, transform .2s ease;
+}
+
+.tabs .tab::after {
+    content: '';
+    position: absolute;
+    inset: 0 0 50% 0;
+    border-radius: inherit;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.45), rgba(255, 255, 255, 0));
+    pointer-events: none;
+}
+
+body.theme-light .tabs .tab {
+    color: #2a4a66;
+    background: linear-gradient(160deg, rgba(255, 255, 255, 0.78), rgba(255, 255, 255, 0.38));
+    box-shadow: inset 0 1.5px 0 rgba(255, 255, 255, 0.95), inset 0 -1px 0 rgba(0, 90, 156, 0.12), 0 6px 16px rgba(0, 70, 120, 0.10);
+}
+
+body.theme-dark .tabs .tab {
+    color: #dbeaf5;
+    background: linear-gradient(160deg, rgba(255, 255, 255, 0.20), rgba(255, 255, 255, 0.06));
+    box-shadow: inset 0 1.5px 0 rgba(255, 255, 255, 0.38), inset 0 -1px 0 rgba(0, 0, 0, 0.20), 0 6px 16px rgba(0, 12, 30, 0.30);
+}
+
+body.theme-light .tabs .tab:hover,
+body.theme-dark .tabs .tab:hover {
+    transform: translateY(-1px);
+    background: linear-gradient(160deg, rgba(255, 255, 255, 0.92), rgba(190, 228, 248, 0.55));
+    color: #005a9c;
+}
+
+body.theme-dark .tabs .tab:hover {
+    background: linear-gradient(160deg, rgba(255, 255, 255, 0.30), rgba(0, 169, 220, 0.18));
+    color: #ffffff;
+}
+
+body.theme-light .tabs .tab.active,
+body.theme-dark .tabs .tab.active {
+    color: #ffffff;
+    background: linear-gradient(160deg, rgba(0, 90, 156, 0.92), rgba(0, 169, 220, 0.78));
+    box-shadow: inset 0 1.5px 0 rgba(255, 255, 255, 0.55), inset 0 -1px 0 rgba(0, 41, 74, 0.25), 0 10px 22px rgba(0, 90, 156, 0.34);
+}
+
+body.theme-light .tabs .tab.active:hover,
+body.theme-dark .tabs .tab.active:hover { color: #ffffff; background: linear-gradient(160deg, rgba(0, 90, 156, 0.95), rgba(0, 169, 220, 0.85)); }
+
+.tabs .tab > * { position: relative; z-index: 1; }
+
+/* ---------- Rodapé institucional (vidro, fixo no fim da janela) ---------- */
+.app-footer {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 0.5rem 0.9rem;
+    padding: 0.55rem 1.5rem;
+    font-size: 0.74rem;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    text-align: center;
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    backdrop-filter: blur(20px) saturate(180%);
+}
+
+.app-footer-marca { font-weight: 800; letter-spacing: 0.18em; }
+
+.app-footer-sep {
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: currentColor;
+    opacity: 0.45;
+}
+
+body.theme-light .app-footer {
+    color: #3b5a75;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0.85));
+    border-top: 1px solid rgba(255, 255, 255, 0.9);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.95), 0 -6px 18px rgba(0, 70, 120, 0.06);
+}
+
+body.theme-light .app-footer-marca { color: #005a9c; }
+
+body.theme-dark .app-footer {
+    color: #c5dbec;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.03));
+    border-top: 1px solid rgba(255, 255, 255, 0.14);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16);
+}
+
+body.theme-dark .app-footer-marca { color: #7fd8f5; }
