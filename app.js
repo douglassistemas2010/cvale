@@ -309,6 +309,20 @@
             }[c]));
         }
 
+        // Link direto para o chamado na Central de Serviços (sem API: só URL de acesso).
+        // Aceita "1525930", "INC-1525930" ou "#1525930"; outros formatos não geram link.
+        const URL_CENTRAL_TICKET = 'https://suporte.cvale.com.br/a/tickets/';
+        function urlCentralServicos(numero) {
+            const m = String(numero ?? '').trim().match(/^(?:#?INC-?|#)?(\d{5,9})$/i);
+            return m ? `${URL_CENTRAL_TICKET}${m[1]}?current_tab=details` : '';
+        }
+        const ICONE_LINK_CENTRAL = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>';
+        function htmlLinkCentral(numero) {
+            const url = urlCentralServicos(numero);
+            if (!url) return '';
+            return `<a class="link-central" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer" title="Abrir chamado na Central de Serviços" aria-label="Abrir chamado na Central de Serviços" onclick="event.stopPropagation();">${ICONE_LINK_CENTRAL}</a>`;
+        }
+
         // Escapa valor para uso como argumento dentro de um atributo inline
         // onclick="...('${valor}')". Precisa escapar para JS (contra fechar a
         // string do handler) e DEPOIS para HTML (contra fechar o atributo) — a
@@ -1760,6 +1774,13 @@
                 const completo = [base, texto].filter(Boolean).join(' ');
                 el.textContent = completo;
                 el.title = completo;
+
+                const link = document.getElementById('linkCentralModal');
+                if (link) {
+                    const url = urlCentralServicos(numero);
+                    link.hidden = !url;
+                    if (url) link.href = url;
+                }
             }
 
             editarDemanda(numero) {
@@ -2120,7 +2141,7 @@
                                         <span data-icon="copy"></span>
                                     </button>
                                 </td>
-                                <td style="${corNumeroTitulo}"><strong>${numEsc}</strong></td>
+                                <td style="${corNumeroTitulo}"><span class="num-com-link"><strong>${numEsc}</strong>${htmlLinkCentral(d.numero)}</span></td>
                                 <td style="${corNumeroTitulo}">${tituloEsc}</td>
                                 <td style="text-align: center;">
                                     <div class="order-controls" onclick="event.stopPropagation();" style="display: flex; align-items: center; justify-content: center; gap: 0.4rem;">

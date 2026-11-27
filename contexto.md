@@ -9,6 +9,15 @@ coluna `dados` em jsonb). `supabase/seed.sql` é só a carga inicial histórica 
 de verdade atual; para ver os dados reais em produção é preciso consultar a API do Supabase
 (`supabase-config.js` tem URL + anon key, leitura é pública).
 
+## Link do chamado na Central de Serviços (27/11/2026)
+
+Sem API da Central (Freshservice) — só URL de acesso: `https://suporte.cvale.com.br/a/tickets/<nº>?current_tab=details`.
+Ícone "abrir em nova aba" ao lado do número na tabela de Demandas e ao lado do campo "ID do chamado" no
+modal (`urlCentralServicos`/`htmlLinkCentral` em `app.js`; estilo `.link-central` em `refino-ui.css`).
+Só gera link para números de 5 a 9 dígitos (aceita `INC-`/`#`); números SAP/GECLI de 10 dígitos (8000…) não geram.
+**Status do ticket não é trazido automaticamente**: a página é cross-origin e exige login SSO (CORS bloqueia
+leitura pelo navegador); só seria possível com API/chave do Freshservice no backend.
+
 ## Refino de UI, Insights/Reunião com panorama e status "Realizar Deploy" (26/11/2026)
 
 Novos arquivos (carregados por último): `refino-ui.css`, `refino-ui.js`, `LOGO_padrao.png`.
