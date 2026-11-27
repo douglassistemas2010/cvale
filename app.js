@@ -80,8 +80,8 @@
         };
 
         const CORES_TIPO = {
-            'Incidente': '#ef4444',
-            'Melhoria': '#10b981',
+            'Incidente': '#dc2626',
+            'Melhoria': '#16a34a',
             'Projeto': '#3b82f6',
             'Suporte': '#8b5cf6',
             'Reunião': '#f59e0b',
@@ -2479,9 +2479,6 @@
                         if (isConcluido) {
                             // Ícone OK verde para demandas concluídas
                             iconeStatus = '<span title="Concluído" style="display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; background: linear-gradient(135deg, #10b981, #059669); border-radius: 6px; box-shadow: 0 0 12px rgba(16, 185, 129, 0.5), 0 0 20px rgba(16, 185, 129, 0.3);"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>';
-                        } else if (frente === 'C4C' && idx < 3) {
-                            // Ícone de prioridade máxima para as 3 primeiras linhas do C4C
-                            iconeStatus = '<span title="Top 3 Prioridade C4C" style="display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; background: linear-gradient(135deg, #ef4444, #dc2626); border-radius: 6px; box-shadow: 0 0 12px rgba(239, 68, 68, 0.5), 0 0 20px rgba(239, 68, 68, 0.3); animation: pulseIcon 1.5s ease-in-out infinite;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></span>';
                         }
 
                         return `
@@ -2502,8 +2499,8 @@
                                     </div>
                                 </td>
                                 <td style="text-align: center;">${getBadgeFrente(d.origem)}</td>
-                                <td><span style="color: #a78bfa; font-weight: 500;">${escapeHtml(d.tipo)}</span></td>
-                                <td><span class="badge ${d.status === 'Em Testes Integrados' ? 'status-em-testes-integrados' : ''}" style="background: ${CORES_STATUS[d.status] || '#gray'}33; color: ${d.status === 'Em Testes Integrados' ? '#fff' : CORES_STATUS[d.status] || '#gray'}; ${d.status === 'Em Testes Integrados' ? 'background: linear-gradient(135deg, #1d4ed8, #3b82f6); font-weight: 600;' : ''}">${escapeHtml(d.status)}</span></td>
+                                <td><span style="color: ${d.tipo === 'Incidente' ? '#e11d1d' : d.tipo === 'Melhoria' ? '#16a34a' : '#a78bfa'}; font-weight: ${d.tipo === 'Incidente' || d.tipo === 'Melhoria' ? '700' : '500'};">${escapeHtml(d.tipo)}</span></td>
+                                <td><span class="badge ${d.status === 'Em Testes Integrados' ? 'status-em-testes-integrados' : 'badge-status-glass'}" style="--c: ${CORES_STATUS[d.status] || '#94a3b8'}; ${d.status === 'Em Testes Integrados' ? 'background: linear-gradient(135deg, #1d4ed8, #3b82f6); color: #fff; font-weight: 600;' : ''}">${escapeHtml(d.status)}</span></td>
                                 <td>${templateBadgePrioridade(d.prioridade)}</td>
                                 <td>
                                     <div style="display: flex; align-items: center; gap: 0.5rem;">
@@ -4547,7 +4544,7 @@
                         </div>
                         <div class="timeline-detail-field">
                             <span class="timeline-detail-field-label">Categoria / Tipo</span>
-                            <span class="timeline-detail-field-value">${escapeHtml(demanda.tipo || '-')}</span>
+                            <span class="timeline-detail-field-value"${demanda.tipo === 'Incidente' ? ' style="color: #e11d1d; font-weight: 700;"' : demanda.tipo === 'Melhoria' ? ' style="color: #16a34a; font-weight: 700;"' : ''}>${escapeHtml(demanda.tipo || '-')}</span>
                         </div>
                         <div class="timeline-detail-field">
                             <span class="timeline-detail-field-label">Status</span>

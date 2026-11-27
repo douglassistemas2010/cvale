@@ -1008,6 +1008,26 @@
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
         }
 
+        /* Status em vidro: tom translúcido da própria cor do status (--c inline) */
+        .badge.badge-status-glass {
+            white-space: nowrap;
+            background: linear-gradient(135deg,
+                color-mix(in srgb, var(--c) 34%, transparent),
+                color-mix(in srgb, var(--c) 12%, transparent));
+            border: 1px solid color-mix(in srgb, var(--c) 50%, transparent);
+            color: color-mix(in srgb, var(--c) 72%, #fff);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28),
+                0 2px 10px color-mix(in srgb, var(--c) 22%, transparent);
+            -webkit-backdrop-filter: blur(14px) saturate(160%);
+            backdrop-filter: blur(14px) saturate(160%);
+        }
+        body.theme-light .badge.badge-status-glass {
+            color: color-mix(in srgb, var(--c) 78%, #000);
+            background: linear-gradient(135deg,
+                color-mix(in srgb, var(--c) 26%, #fff),
+                color-mix(in srgb, var(--c) 10%, #fff));
+        }
+
         /* ===== FRENTE BADGE (substitui as logos-imagem por texto elegante) =====
            Chip com a cor do contexto de cada frente (SAP/C4C/ESG/MKT/etc).
            A cor vem da variável inline --fc; o fundo é um tint translúcido dela,
@@ -3199,7 +3219,7 @@
             overflow-wrap: anywhere;
         }
         .table td:nth-child(5), .table td:nth-child(6), .table td:nth-child(8) { white-space: nowrap; }
-        .table td:nth-child(7) .badge { white-space: normal; line-height: 1.25; }
+        .table td:nth-child(7) .badge { white-space: nowrap; line-height: 1.25; }
         .table th:nth-child(9), .table td:nth-child(9) { min-width: 120px; }
         .table td:nth-child(10), .table td:nth-child(11) { white-space: nowrap; }
         .table .badge { white-space: nowrap; }
