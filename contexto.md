@@ -15,6 +15,10 @@ Sem API da Central (Freshservice) — só URL de acesso: `https://suporte.cvale.
 Ícone "abrir em nova aba" ao lado do número na tabela de Demandas e ao lado do campo "ID do chamado" no
 modal (`urlCentralServicos`/`htmlLinkCentral` em `app.js`; estilo `.link-central` em `refino-ui.css`).
 Só gera link para números de 5 a 9 dígitos (aceita `INC-`/`#`); números SAP/GECLI de 10 dígitos (8000…) não geram.
+**Campos novos no modal (27/11/2026):** "Nº do ticket (Central de Serviços)" (`numeroTicket`, com o ícone de
+link) e "Nº da CSS" (`numeroCss`), em nova linha abaixo do Título. O link usa `numeroTicket` e, se vazio, o
+"ID do chamado" (compatibilidade). Na tabela, ticket e CSS aparecem em linha pequena sob o número. Entram no
+histórico de auditoria e no Excel (colunas "Nº Ticket" e "Nº CSS", antes de "Ordem Kanban").
 **Status do ticket não é trazido automaticamente**: a página é cross-origin e exige login SSO (CORS bloqueia
 leitura pelo navegador); só seria possível com API/chave do Freshservice no backend.
 

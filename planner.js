@@ -368,6 +368,8 @@
         instantaneoHistorico(d) {
             return {
                 numero: d.numero,
+                numeroTicket: d.numeroTicket || '',
+                numeroCss: d.numeroCss || '',
                 titulo: d.titulo || '',
                 status: d.status || '',
                 prioridade: d.prioridade || '',
@@ -387,6 +389,8 @@
             const sufixo = origem ? ` (${origem})` : '';
             const prazo = (v) => fmtData(v) || 'sem prazo';
             if (antes.numero !== depois.numero) this.registrarHistorico(d, 'campo', `Número alterado: ${antes.numero} → ${depois.numero}`);
+            if (antes.numeroTicket !== depois.numeroTicket) this.registrarHistorico(d, 'campo', `Nº do ticket: ${antes.numeroTicket || '—'} → ${depois.numeroTicket || '—'}${sufixo}`);
+            if (antes.numeroCss !== depois.numeroCss) this.registrarHistorico(d, 'campo', `Nº da CSS: ${antes.numeroCss || '—'} → ${depois.numeroCss || '—'}${sufixo}`);
             if (antes.titulo !== depois.titulo) this.registrarHistorico(d, 'campo', `Título alterado: "${antes.titulo}" → "${depois.titulo}"`);
             if (antes.status !== depois.status) this.registrarHistorico(d, 'status', `Status: ${antes.status} → ${depois.status}${sufixo}`);
             if (antes.prioridade !== depois.prioridade) this.registrarHistorico(d, 'campo', `Prioridade: ${antes.prioridade} → ${depois.prioridade}${sufixo}`);

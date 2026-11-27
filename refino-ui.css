@@ -268,7 +268,7 @@ body.theme-light .pn-panel-title svg { color: #0070b8; }
    --campo-h vai de 38px (janela baixa) a 54px (janela alta), sempre sem rolagem.
    ===================================================================== */
 #modalDemanda .demanda-campos {
-    --campo-h: clamp(38px, calc((92vh - 330px) / 4), 54px);
+    --campo-h: clamp(36px, calc((92vh - 340px) / 5), 52px);
     --campo-gap: clamp(0.4rem, 1.7vh, 0.95rem);
 }
 #modalDemanda .demanda-campos .form-group { margin-bottom: var(--campo-gap); }
@@ -434,6 +434,7 @@ body.theme-dark .timeline-pct { background: #e8f1fb; color: #0b2540; border-colo
    LINK PARA O CHAMADO NA CENTRAL DE SERVICOS (sem API: apenas URL de acesso)
    ===================================================================== */
 .num-com-link { display: inline-flex; align-items: center; gap: 0.45rem; }
+.num-refs { display: flex; flex-wrap: wrap; gap: 0.25rem 0.6rem; margin-top: 0.2rem; font-size: 0.72rem; font-weight: 500; color: var(--text-secondary); text-shadow: none; }
 .link-central {
     display: inline-flex; align-items: center; justify-content: center;
     width: 24px; height: 24px; flex: 0 0 auto;

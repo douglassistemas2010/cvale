@@ -43,6 +43,8 @@
             { chave: 'dataConclusao', rotulo: 'Data Conclusão',  tipo: 'data'   },
             { chave: 'progresso',     rotulo: 'Progresso (%)',   tipo: 'numero' },
             { chave: 'observacoes',   rotulo: 'Observações',     tipo: 'texto'  },
+            { chave: 'numeroTicket',  rotulo: 'Nº Ticket',       tipo: 'texto'  },
+            { chave: 'numeroCss',     rotulo: 'Nº CSS',          tipo: 'texto'  },
             { chave: 'ordemKanban',   rotulo: 'Ordem Kanban',    tipo: 'numero' }
         ];
         // Índice reverso (rótulo/chave normalizados -> chave interna) para a importação
@@ -213,6 +215,9 @@
             constructor(data = {}) {
                 this.id = data.id || Date.now();
                 this.numero = data.numero || this.gerarNumero();
+                // Nº do ticket na Central de Serviços e nº da CSS (referências externas, texto livre)
+                this.numeroTicket = data.numeroTicket ? String(data.numeroTicket).trim() : '';
+                this.numeroCss = data.numeroCss ? String(data.numeroCss).trim() : '';
                 this.titulo = data.titulo || '';
                 this.descricao = data.descricao || '';
                 this.tipo = data.tipo || '';
@@ -877,7 +882,7 @@
 
                 // Modal
                 document.getElementById('btnNewDemand').addEventListener('click', () => this.abrirModalNova());
-                ['numeroChamado', 'titulo'].forEach((id) => {
+                ['numeroChamado', 'numeroTicket', 'titulo'].forEach((id) => {
                     document.getElementById(id).addEventListener('input', () => this.atualizarTituloModal());
                 });
                 document.getElementById('closeModal').addEventListener('click', () => this.fecharModal());
@@ -1205,9 +1210,9 @@
                     numero: 14, titulo: 46, descricao: 52, tipo: 18, status: 26, prioridade: 14, numeroOrdem: 9,
                     impacto: 12, urgencia: 12, complexidade: 14, origem: 14, sistema: 14, solicitante: 18,
                     responsavel: 18, dataAbertura: 14, vencimento: 14, slaHoras: 12, dataConclusao: 15,
-                    progresso: 16, observacoes: 52, ordemKanban: 12
+                    progresso: 16, observacoes: 52, numeroTicket: 14, numeroCss: 14, ordemKanban: 12
                 };
-                const CENTRALIZADOS = ['numero', 'tipo', 'status', 'prioridade', 'numeroOrdem', 'impacto', 'urgencia',
+                const CENTRALIZADOS = ['numero', 'numeroTicket', 'numeroCss', 'tipo', 'status', 'prioridade', 'numeroOrdem', 'impacto', 'urgencia',
                     'complexidade', 'origem', 'sistema', 'dataAbertura', 'vencimento', 'slaHoras', 'dataConclusao', 'progresso', 'ordemKanban'];
 
                 aba.columns = [
@@ -1539,6 +1544,8 @@
                 document.getElementById('formDemanda').reset();
                 document.getElementById('numeroChamado').value = '';
                 document.getElementById('numeroChamadoOriginal').value = '';
+                document.getElementById('numeroTicket').value = '';
+                document.getElementById('numeroCss').value = '';
                 document.getElementById('progresso').value = 0;
                 document.getElementById('numeroOrdem').value = 1;
                 document.getElementById('prioridade').value = 'Média';
@@ -1598,6 +1605,8 @@
                     const statusEscolhido = document.getElementById('status').value;
                     const demandaData = {
                         numero: numeroChamado,
+                        numeroTicket: document.getElementById('numeroTicket').value.trim(),
+                        numeroCss: document.getElementById('numeroCss').value.trim(),
                         titulo,
                         tipo,
                         origem: document.getElementById('origem').value,
@@ -1777,7 +1786,9 @@
 
                 const link = document.getElementById('linkCentralModal');
                 if (link) {
-                    const url = urlCentralServicos(numero);
+                    // O nº do ticket manda; sem ele, usa o ID do chamado (compatibilidade com demandas antigas)
+                    const ticket = document.getElementById('numeroTicket').value.trim();
+                    const url = urlCentralServicos(ticket || numero);
                     link.hidden = !url;
                     if (url) link.href = url;
                 }
@@ -1794,6 +1805,8 @@
 
                 document.getElementById('numeroChamadoOriginal').value = numero;
                 document.getElementById('numeroChamado').value = numero;
+                document.getElementById('numeroTicket').value = demanda.numeroTicket || '';
+                document.getElementById('numeroCss').value = demanda.numeroCss || '';
                 document.getElementById('titulo').value = demanda.titulo;
                 document.getElementById('tipo').value = demanda.tipo;
                 document.getElementById('origem').value = demanda.origem;
@@ -2141,7 +2154,7 @@
                                         <span data-icon="copy"></span>
                                     </button>
                                 </td>
-                                <td style="${corNumeroTitulo}"><span class="num-com-link"><strong>${numEsc}</strong>${htmlLinkCentral(d.numero)}</span></td>
+                                <td style="${corNumeroTitulo}"><span class="num-com-link"><strong>${numEsc}</strong>${htmlLinkCentral(d.numeroTicket || d.numero)}</span>${(d.numeroTicket || d.numeroCss) ? `<div class="num-refs">${d.numeroTicket ? `<span title="Ticket na Central de Serviços">Ticket ${escapeHtml(d.numeroTicket)}</span>` : ''}${d.numeroCss ? `<span title="Número da CSS">CSS ${escapeHtml(d.numeroCss)}</span>` : ''}</div>` : ''}</td>
                                 <td style="${corNumeroTitulo}">${tituloEsc}</td>
                                 <td style="text-align: center;">
                                     <div class="order-controls" onclick="event.stopPropagation();" style="display: flex; align-items: center; justify-content: center; gap: 0.4rem;">
