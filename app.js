@@ -1525,10 +1525,18 @@
                         }
 
                         const totalArquivo = demandasArquivo.length;
+                        // Mostra exatamente quais campos o arquivo vai alterar (ex.: só Ticket e CSS)
+                        const camposAfetados = new Set();
+                        demandasArquivo.forEach(d => Object.keys(d).forEach(k => { if (k !== 'numero') camposAfetados.add(k); }));
+                        const rotuloDe = k => (CAMPOS_DEMANDA.find(c => c.chave === k) || {}).rotulo || k;
+                        // Arquivo só com Ticket/CSS: apenas PREENCHE o que está vazio, nunca troca valor já preenchido
+                        const soReferencias = camposAfetados.size > 0 && Array.from(camposAfetados).every(k => k === 'numeroTicket' || k === 'numeroCss');
                         const confirmouImportacao = await this.mostrarConfirmacao({
                             icon: '📥',
                             title: `Importar ${totalArquivo} linha(s) do arquivo?`,
-                            message: 'Demandas com número já existente serão ATUALIZADAS; números novos serão CRIADOS. As demais demandas atuais são mantidas.',
+                            message: soReferencias
+                                ? `Somente ${Array.from(camposAfetados).map(rotuloDe).join(' e ')} serão preenchidos, e apenas onde estiverem vazios. Nada mais é alterado, criado ou apagado. Um backup é criado antes.`
+                                : `Campos que serão alterados: ${Array.from(camposAfetados).map(rotuloDe).join(', ') || '—'}. Demandas com número já existente serão ATUALIZADAS; números novos serão CRIADOS. As demais demandas e campos são mantidos. Um backup é criado antes.`,
                             confirmText: 'Importar'
                         });
                         if (!confirmouImportacao) {
@@ -1536,12 +1544,19 @@
                             return;
                         }
 
+                        this.criarBackup('antes_importar');
+
                         // Upsert por número: atualiza existentes, cria novas
                         let criadas = 0, atualizadas = 0;
                         demandasArquivo.forEach(dados => {
                             const numero = dados.numero ? String(dados.numero).trim() : '';
                             const existente = numero ? this.demandas.find(d => String(d.numero).trim() === numero) : null;
                             if (existente) {
+                                // Célula vazia de Ticket/CSS nunca apaga o que já está preenchido na demanda
+                                ['numeroTicket', 'numeroCss'].forEach(k => {
+                                    if (k in dados && (!String(dados[k] ?? '').trim() || (soReferencias && String(existente[k] ?? '').trim()))) delete dados[k];
+                                });
+                                if (soReferencias && !Object.keys(dados).some(k => k !== 'numero')) return; // nada a preencher
                                 // Observações do arquivo: só vira nota nova se for diferente do que já existe
                                 // (o Excel exportado já traz o texto derivado das notas — não duplicar).
                                 const obsImportada = typeof dados.observacoes === 'string' ? dados.observacoes.trim() : '';
@@ -1552,7 +1567,7 @@
                                     existente.observacoes = NotasDemanda.textoDerivado(existente.notas);
                                 }
                                 atualizadas++;
-                            } else {
+                            } else if (!soReferencias) { // arquivo só de Ticket/CSS nunca cria demanda
                                 this.demandas.push(new Demanda(dados));
                                 criadas++;
                             }
