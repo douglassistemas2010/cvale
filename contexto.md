@@ -9,6 +9,13 @@ coluna `dados` em jsonb). `supabase/seed.sql` é só a carga inicial histórica 
 de verdade atual; para ver os dados reais em produção é preciso consultar a API do Supabase
 (`supabase-config.js` tem URL + anon key, leitura é pública).
 
+## Performance — lentidão da página (27/11/2026)
+
+Medido no navegador (60 demandas, ~5400 elementos no DOM): Dashboard parado rodava a ~1 fps.
+- `graficos.js`: o loop `quadro()` lia `offsetParent`/`clientWidth`/`getComputedStyle` a cada quadro e `dimensionar()` regravava `style` toda vez → reflow forçado (1,7 s em 3 s). Agora: largura em cache (invalidada pelo `ResizeObserver`), `style` só é gravado se mudou, visibilidade via `IntersectionObserver` (`g.naTela`, com fallback a `offsetParent` até o 1º aviso). Resultado: ~33 fps.
+- `contraste.js`: a passada caiu de 100–465 ms para ~20 ms (opacidade acumulada memoizada por passada, `TreeWalker` que poda subárvores `display:none`, atraso do debounce 80→150 ms).
+- Não mexer: `ui-moderno.js` (observer leve, só enfileira varredura por rAF).
+
 ## Link do chamado na Central de Serviços (27/11/2026)
 
 Sem API da Central (Freshservice) — só URL de acesso: `https://suporte.cvale.com.br/a/tickets/<nº>?current_tab=details`.

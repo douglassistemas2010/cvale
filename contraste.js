@@ -14,7 +14,7 @@
 
     const MIN_TEXTO = 4.5;   // WCAG AA — texto normal
     const MIN_GRANDE = 3;    // WCAG AA — texto grande (>=24px, ou >=18.66px em negrito)
-    const ATRASO_MS = 80;
+    const ATRASO_MS = 150;
 
     const IGNORAR_TAGS = new Set(['SCRIPT', 'STYLE', 'SVG', 'PATH', 'CANVAS', 'OPTION', 'HEAD', 'NOSCRIPT']);
 
@@ -144,13 +144,15 @@
     }
 
     // ---------- avaliação ----------
-    function opacidadeAcumulada(el) {
-        let op = 1;
-        for (let e = el; e && e !== document.documentElement; e = e.parentElement) {
-            // opacidade em animação de entrada é transitória: não conta
-            if (e.getAnimations && e.getAnimations().length) continue;
-            op *= parseFloat(getComputedStyle(e).opacity);
-        }
+    function opacidadeAcumulada(el, memoOp) {
+        // memoizado por passada: cada ancestral é avaliado uma única vez
+        if (memoOp && memoOp.has(el)) return memoOp.get(el);
+        let propria = 1;
+        // opacidade em animação de entrada é transitória: não conta
+        if (!(el.getAnimations && el.getAnimations().length)) propria = parseFloat(getComputedStyle(el).opacity);
+        const pai = el.parentElement;
+        const op = propria * (pai && pai !== document.documentElement ? opacidadeAcumulada(pai, memoOp) : 1);
+        if (memoOp) memoOp.set(el, op);
         return op;
     }
 
@@ -205,9 +207,18 @@
         try {
             restaurar();
             const memo = new Map();
-            const todos = document.body.querySelectorAll('*');
-            for (const el of todos) {
-                if (IGNORAR_TAGS.has(el.tagName.toUpperCase()) || el.closest('svg')) continue;
+            const memoOp = new Map();
+            // percorre só o que está renderizado: abas/modais com display:none são podados inteiros
+            const andador = document.createTreeWalker(document.body, NodeFilter.SHOW_ELEMENT, {
+                acceptNode(n) {
+                    if (IGNORAR_TAGS.has(n.tagName.toUpperCase())) return NodeFilter.FILTER_REJECT;
+                    if (n.namespaceURI === 'http://www.w3.org/2000/svg') return NodeFilter.FILTER_REJECT;
+                    if (getComputedStyle(n).display === 'none') return NodeFilter.FILTER_REJECT;
+                    return NodeFilter.FILTER_ACCEPT;
+                }
+            });
+            while (andador.nextNode()) {
+                const el = andador.currentNode;
                 if (!temTextoProprio(el) || el.getClientRects().length === 0) continue;
 
                 const cs = getComputedStyle(el);
@@ -223,7 +234,7 @@
                 const minimo = (tamanho >= 24 || (tamanho >= 18.66 && negrito)) ? MIN_GRANDE : MIN_TEXTO;
 
                 const fundos = fundosDe(el, memo);
-                let op = opacidadeAcumulada(el);
+                let op = opacidadeAcumulada(el, memoOp);
                 if (op < 0.05) continue; // invisível de propósito (animação de entrada, toast oculto)
 
                 if (piorContraste(fg, fundos, op) >= minimo) continue;
@@ -234,7 +245,8 @@
                     el.dataset.cg = '1';
                     el.dataset.cgOp = '1';
                     el.style.setProperty('opacity', '1', 'important');
-                    op = opacidadeAcumulada(el);
+                    memoOp.delete(el);
+                    op = opacidadeAcumulada(el, memoOp);
                     if (piorContraste(fg, fundos, op) >= minimo) continue;
                 }
 

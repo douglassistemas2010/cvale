@@ -86,10 +86,13 @@
 
     // ------------------------------------------------------------------ tamanho do canvas
     function largura(g) {
+        // largura em cache: ler layout a cada quadro forçava reflow; o ResizeObserver invalida
+        if (g.larguraCache) return g.larguraCache;
         const pai = g.canvas.parentElement;
         if (!pai || !pai.clientWidth) return 0;
         const cs = getComputedStyle(pai);
         const W = Math.floor(pai.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight));
+        if (W > 40) g.larguraCache = W;
         return W > 40 ? W : 0;
     }
 
@@ -102,9 +105,10 @@
             c.width = pw;
             c.height = ph;
         }
-        c.style.width = '100%';
-        c.style.height = H + 'px';
-        c.style.display = 'block';
+        if (c.style.width !== '100%') c.style.width = '100%';
+        const altura = H + 'px';
+        if (c.style.height !== altura) c.style.height = altura;
+        if (c.style.display !== 'block') c.style.display = 'block';
         const ctx = c.getContext('2d');
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
         ctx.clearRect(0, 0, W, H);
@@ -909,8 +913,15 @@
     }
 
     // ------------------------------------------------------------------ motor de animação
+    // Visibilidade sem ler layout: o IntersectionObserver mantém g.naTela (undefined até o 1º aviso).
+    function estaVisivel(g) {
+        if (!g.canvas.isConnected) return false;
+        if (g.naTela !== undefined) return g.naTela;
+        return g.canvas.offsetParent !== null;
+    }
+
     function desenhar(g, now) {
-        if (!document.body.contains(g.canvas) || g.canvas.offsetParent === null || !g.dados) return;
+        if (!estaVisivel(g) || !g.dados) return;
         if (g.tipo === 'barras') desenharBarras(g, now);
         else if (g.tipo === 'linha') desenharLinha(g, now);
         else desenharRosca(g, now);
@@ -920,7 +931,7 @@
         rafId = null;
         let ativo = false;
         graficos.forEach((g) => {
-            if (!document.body.contains(g.canvas) || g.canvas.offsetParent === null) {
+            if (!estaVisivel(g)) {
                 g.visivel = false;
                 return;
             }
@@ -959,9 +970,16 @@
         });
         if (typeof ResizeObserver !== 'undefined' && c.parentElement) {
             new ResizeObserver(() => {
+                g.larguraCache = 0;
                 iniciarLoop();
                 desenhar(g, performance.now());
             }).observe(c.parentElement);
+        }
+        if (typeof IntersectionObserver !== 'undefined') {
+            new IntersectionObserver((entradas) => {
+                g.naTela = entradas[entradas.length - 1].isIntersecting;
+                if (g.naTela) iniciarLoop();
+            }).observe(c);
         }
     }
 
