@@ -25,6 +25,8 @@
         const CAMPOS_DEMANDA = [
             { chave: 'numero',        rotulo: 'Número',          tipo: 'texto'  },
             { chave: 'titulo',        rotulo: 'Título',          tipo: 'texto'  },
+            { chave: 'numeroTicket',  rotulo: 'Nº Ticket',       tipo: 'texto'  },
+            { chave: 'numeroCss',     rotulo: 'Nº CSS',          tipo: 'texto'  },
             { chave: 'descricao',     rotulo: 'Descrição',       tipo: 'texto'  },
             { chave: 'tipo',          rotulo: 'Tipo',            tipo: 'texto'  },
             { chave: 'status',        rotulo: 'Status',          tipo: 'texto'  },
@@ -43,8 +45,6 @@
             { chave: 'dataConclusao', rotulo: 'Data Conclusão',  tipo: 'data'   },
             { chave: 'progresso',     rotulo: 'Progresso (%)',   tipo: 'numero' },
             { chave: 'observacoes',   rotulo: 'Observações',     tipo: 'texto'  },
-            { chave: 'numeroTicket',  rotulo: 'Nº Ticket',       tipo: 'texto'  },
-            { chave: 'numeroCss',     rotulo: 'Nº CSS',          tipo: 'texto'  },
             { chave: 'ordemKanban',   rotulo: 'Ordem Kanban',    tipo: 'numero' }
         ];
         // Índice reverso (rótulo/chave normalizados -> chave interna) para a importação
@@ -327,6 +327,66 @@
             return m ? `${URL_CENTRAL_TICKET}${m[1]}?current_tab=details` : '';
         }
         const ICONE_LINK_CENTRAL = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>';
+        // Métricas de uma demanda (usadas nos insights do modal e nas colunas extras do Excel).
+        // `d` precisa de status, dataAbertura, vencimento, dataConclusao, notas e historico.
+        // Datas são interpretadas no horário local, sempre à meia-noite, para contar dias inteiros.
+        function metricasDemanda(d) {
+            const DIA = 86400000;
+            const dataLocal = (s) => {
+                const m = String(s || '').match(/^(\d{4})-(\d{2})-(\d{2})/);
+                return m ? new Date(+m[1], +m[2] - 1, +m[3]) : null;
+            };
+            const instante = (iso) => {
+                const t = iso ? new Date(iso) : null;
+                return t && !isNaN(t.getTime()) ? t : null;
+            };
+            const diaDe = (t) => new Date(t.getFullYear(), t.getMonth(), t.getDate());
+            const hoje = diaDe(new Date());
+            const dias = (a, b) => Math.round((b - a) / DIA);
+
+            const abertura = dataLocal(d.dataAbertura);
+            const venc = dataLocal(d.vencimento);
+            const concluida = d.status === 'Concluído';
+
+            const historico = Array.isArray(d.historico) ? d.historico : [];
+            const mudancas = historico
+                .filter(h => h && h.tipo === 'status')
+                .map(h => {
+                    const m = String(h.texto || '').match(/Status:\s*(.+?)\s*→\s*([^(]+?)\s*(?:\(.*\))?\s*$/);
+                    return { em: instante(h.em), de: m ? m[1] : '', para: m ? m[2] : '' };
+                })
+                .filter(m => m.em)
+                .sort((a, b) => a.em - b.em);
+
+            // Fim da contagem: conclusão (data informada ou mudança para Concluído) ou hoje
+            let fim = hoje;
+            if (concluida) {
+                const dc = dataLocal(d.dataConclusao);
+                const ult = mudancas.filter(m => m.para === 'Concluído').pop();
+                fim = dc || (ult ? diaDe(ult.em) : hoje);
+            }
+
+            const notas = (Array.isArray(d.notas) ? d.notas : [])
+                .filter(n => n && String(n.texto || '').trim())
+                .map(n => ({ em: instante(n.em), autor: n.autor || '', texto: String(n.texto || '') }));
+            const datadas = notas.filter(n => n.em).sort((a, b) => a.em - b.em);
+            const ultimaNota = datadas.length ? datadas[datadas.length - 1].em : null;
+
+            const desdeStatus = mudancas.length ? diaDe(mudancas[mudancas.length - 1].em) : abertura;
+
+            return {
+                hoje, abertura, venc, fim, concluida,
+                diasAberto: abertura ? Math.max(0, dias(abertura, fim)) : null,
+                diasPrazo: venc ? dias(hoje, venc) : null,
+                prazoCumprido: concluida && venc ? fim <= venc : null,
+                notas, notasDatadas: datadas,
+                diasDesdeUltimaNota: ultimaNota ? Math.max(0, dias(diaDe(ultimaNota), hoje)) : null,
+                ultimaNota,
+                mudancas,
+                diasNoStatus: desdeStatus ? Math.max(0, dias(desdeStatus, hoje)) : null
+            };
+        }
+
         function htmlLinkCentral(numero) {
             const url = urlCentralServicos(numero);
             if (!url) return '';
@@ -922,6 +982,10 @@
                 document.getElementById('closeModal').addEventListener('click', () => this.fecharModal());
                 document.getElementById('btnCancelar').addEventListener('click', () => this.fecharModal());
                 document.getElementById('formDemanda').addEventListener('submit', (e) => this.salvarDemanda(e));
+                // Insights do modal acompanham o que está sendo digitado/escolhido (datas, status)
+                ['input', 'change'].forEach(tipo => {
+                    document.getElementById('formDemanda').addEventListener(tipo, () => this.atualizarInsightsModal());
+                });
                 // Ao escolher "Concluído" no modal, progresso já pula pra 100% na hora
                 // (reforçado de novo em salvarDemanda, caso o campo mude por outro caminho).
                 document.getElementById('status').addEventListener('change', (e) => {
@@ -1247,11 +1311,17 @@
                     progresso: 16, observacoes: 52, numeroTicket: 14, numeroCss: 14, ordemKanban: 12
                 };
                 const CENTRALIZADOS = ['numero', 'numeroTicket', 'numeroCss', 'tipo', 'status', 'prioridade', 'numeroOrdem', 'impacto', 'urgencia',
-                    'complexidade', 'origem', 'sistema', 'dataAbertura', 'vencimento', 'slaHoras', 'dataConclusao', 'progresso', 'ordemKanban'];
+                    'complexidade', 'origem', 'sistema', 'dataAbertura', 'vencimento', 'slaHoras', 'dataConclusao', 'progresso', 'ordemKanban',
+                    '_diasAberto', '_interacoes', '_ultimaInteracao', '_mudancasStatus', '_link'];
 
                 aba.columns = [
                     ...CAMPOS_DEMANDA.map(c => ({ header: c.rotulo, key: c.chave, width: LARGURAS[c.chave] || 16 })),
-                    { header: 'Situação do prazo', key: '_situacao', width: 24 }
+                    { header: 'Situação do prazo', key: '_situacao', width: 24 },
+                    { header: 'Dias em aberto (ou até concluir)', key: '_diasAberto', width: 18 },
+                    { header: 'Interações', key: '_interacoes', width: 12 },
+                    { header: 'Última interação', key: '_ultimaInteracao', width: 16 },
+                    { header: 'Mudanças de status', key: '_mudancasStatus', width: 14 },
+                    { header: 'Link do ticket', key: '_link', width: 16 }
                 ];
                 const totalColunas = aba.columns.length;
 
@@ -1300,6 +1370,13 @@
                     if (ICONE_PRIORIDADE[d.prioridade]) linha.prioridade = `${ICONE_PRIORIDADE[d.prioridade]} ${d.prioridade}`;
                     const sit = situacaoPrazo(d);
                     linha._situacao = sit.texto;
+                    const met = metricasDemanda(d);
+                    linha._diasAberto = met.diasAberto === null ? '' : met.diasAberto;
+                    linha._interacoes = met.notas.length;
+                    linha._ultimaInteracao = met.ultimaNota ? met.ultimaNota.toLocaleDateString('pt-BR') : '';
+                    linha._mudancasStatus = met.mudancas.length;
+                    const urlTicket = urlCentralServicos(d.numeroTicket || d.numero);
+                    linha._link = urlTicket ? { text: 'Abrir ticket', hyperlink: urlTicket } : '';
 
                     const row = aba.addRow(linha);
                     const zebra = i % 2 === 1 ? 'FFF8FAFC' : 'FFFFFFFF';
@@ -1313,6 +1390,7 @@
                             vertical: 'middle', wrapText: true
                         };
                     });
+                    if (urlTicket) row.getCell('_link').font = { name: 'Calibri', size: 10.5, underline: true, color: { argb: 'FF2563EB' } };
                     // Número e título em destaque
                     row.getCell('numero').font = { name: 'Calibri', size: 10.5, bold: true, color: { argb: argb(AZUL) } };
                     row.getCell('titulo').font = { name: 'Calibri', size: 10.5, bold: true, color: { argb: 'FF111827' } };
@@ -1419,6 +1497,75 @@
                         valor: this.demandas.filter(d => d.tipo === t).length,
                         cor: CORES_TIPO[t]
                     })));
+
+                // ===== Abas de detalhe: Intera\u00e7\u00f5es (notas) e Hist\u00f3rico de altera\u00e7\u00f5es (auditoria) =====
+                const dataHoraBR = (iso) => {
+                    const t = iso ? new Date(iso) : null;
+                    return t && !isNaN(t.getTime())
+                        ? `${t.toLocaleDateString('pt-BR')} ${t.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`
+                        : '';
+                };
+                const abaDetalhe = (nome, cor, colunas, linhas) => {
+                    const ws = livro.addWorksheet(nome, {
+                        views: [{ state: 'frozen', ySplit: 1, showGridLines: false }],
+                        properties: { tabColor: { argb: cor } }
+                    });
+                    ws.columns = colunas.map(c => ({ header: c.titulo, key: c.chave, width: c.largura }));
+                    const cabDet = ws.getRow(1);
+                    cabDet.height = 28;
+                    cabDet.eachCell(c => {
+                        c.font = { name: 'Calibri', bold: true, size: 11, color: { argb: 'FFFFFFFF' } };
+                        c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: argb(AZUL) } };
+                        c.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+                        c.border = bordas;
+                    });
+                    linhas.forEach((l, k) => {
+                        const r = ws.addRow(l);
+                        r.eachCell({ includeEmpty: true }, (cell, col) => {
+                            const centro = colunas[col - 1].centro;
+                            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: k % 2 === 1 ? 'FFF8FAFC' : 'FFFFFFFF' } };
+                            cell.border = bordas;
+                            cell.font = { name: 'Calibri', size: 10.5, color: { argb: 'FF1F2937' } };
+                            cell.alignment = { horizontal: centro ? 'center' : 'left', vertical: 'top', wrapText: true };
+                        });
+                    });
+                    if (linhas.length) ws.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: colunas.length } };
+                    ws.pageSetup = { orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0, paperSize: 9 };
+                };
+                const refsDemanda = (d) => ({ numero: d.numero, ticket: d.numeroTicket || '', css: d.numeroCss || '', titulo: d.titulo || '' });
+                const colunasRef = [
+                    { titulo: 'N\u00famero', chave: 'numero', largura: 14, centro: true },
+                    { titulo: 'N\u00ba Ticket', chave: 'ticket', largura: 14, centro: true },
+                    { titulo: 'N\u00ba CSS', chave: 'css', largura: 14, centro: true },
+                    { titulo: 'T\u00edtulo', chave: 'titulo', largura: 44 }
+                ];
+                const linhasInteracoes = [];
+                const linhasHistorico = [];
+                demandasOrdenadas.forEach(d => {
+                    const ref = refsDemanda(d);
+                    (Array.isArray(d.notas) ? d.notas : []).forEach(n => {
+                        linhasInteracoes.push({ ...ref, quando: dataHoraBR(n.em) || 'sem data', autor: n.autor || '', texto: n.texto || '', _t: n.em || '' });
+                    });
+                    (Array.isArray(d.historico) ? d.historico : []).forEach(h => {
+                        linhasHistorico.push({ ...ref, quando: dataHoraBR(h.em), tipo: h.tipo || '', texto: h.texto || '', _t: h.em || '' });
+                    });
+                });
+                // Mais recentes primeiro, dentro do conjunto
+                const maisRecentes = (a, b) => String(b._t).localeCompare(String(a._t));
+                linhasInteracoes.sort(maisRecentes);
+                linhasHistorico.sort(maisRecentes);
+                abaDetalhe('Intera\u00e7\u00f5es', 'FF0EA5E9', [
+                    ...colunasRef,
+                    { titulo: 'Data e hora', chave: 'quando', largura: 18, centro: true },
+                    { titulo: 'Autor', chave: 'autor', largura: 20 },
+                    { titulo: 'Intera\u00e7\u00e3o', chave: 'texto', largura: 80 }
+                ], linhasInteracoes);
+                abaDetalhe('Hist\u00f3rico de altera\u00e7\u00f5es', 'FF8B5CF6', [
+                    ...colunasRef,
+                    { titulo: 'Data e hora', chave: 'quando', largura: 18, centro: true },
+                    { titulo: 'Tipo', chave: 'tipo', largura: 12, centro: true },
+                    { titulo: 'Altera\u00e7\u00e3o', chave: 'texto', largura: 80 }
+                ], linhasHistorico);
 
                 // Download
                 try {
@@ -1602,7 +1749,9 @@
                 document.getElementById('dataAbertura').value = new Date().toISOString().split('T')[0];
                 // Excluir só faz sentido numa demanda já existente
                 document.getElementById('btnExcluirDemanda').style.display = 'none';
+                this.demandaModal = null;
                 this.atualizarTituloModal();
+                this.atualizarInsightsModal();
                 this.montarNotasModal(null);
                 this.restaurarBotaoSalvar();
                 document.getElementById('modalDemanda').classList.add('active');
@@ -1764,6 +1913,7 @@
                 const trecho = nota ? String(nota.texto || '').replace(/\s+/g, ' ').trim() : '';
                 const resumo = trecho.length > 120 ? trecho.slice(0, 117) + '…' : trecho;
                 this.registrarHistorico(d, 'nota', `${verbos[acao] || 'Nota alterada'}${autor}${resumo ? `: “${resumo}”` : ''}`);
+                if (this.demandaModal === d) this.atualizarInsightsModal();
                 this.renderizar();
                 if (this.planner && this.planner.selecionado && typeof this.atualizarPartesDetalhe === 'function') {
                     this.atualizarPartesDetalhe();
@@ -1873,6 +2023,112 @@
                 }
             }
 
+            // Indicadores da demanda aberta no modal: 4 KPIs e uma linha do tempo compacta
+            // (abertura → hoje → prazo, com interações e mudanças de status). Usa o que está no
+            // formulário (status e datas) sobre as notas/histórico já gravados da demanda.
+            atualizarInsightsModal() {
+                const alvo = document.getElementById('insightsDemanda');
+                if (!alvo) return;
+                const d = Object.assign({}, this.demandaModal || {}, {
+                    status: document.getElementById('status').value,
+                    dataAbertura: document.getElementById('dataAbertura').value,
+                    vencimento: document.getElementById('vencimento').value
+                });
+                const m = metricasDemanda(d);
+                const fmt = (dt) => dt.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+                const fmtCompleta = (dt) => dt.toLocaleDateString('pt-BR');
+                const dias = (n) => (n === 1 ? 'dia' : 'dias');
+
+                // ---- KPIs ----
+                const kpiAberto = {
+                    rotulo: m.concluida ? 'Tempo até concluir' : 'Em aberto há',
+                    valor: m.diasAberto === null ? '—' : String(m.diasAberto),
+                    un: m.diasAberto === null ? '' : dias(m.diasAberto),
+                    sub: m.abertura ? `desde ${fmtCompleta(m.abertura)}` : 'sem data de abertura',
+                    tom: ''
+                };
+                let kpiPrazo;
+                if (m.concluida) {
+                    if (m.prazoCumprido === null) kpiPrazo = { rotulo: 'Prazo', valor: '—', un: '', sub: 'sem vencimento definido', tom: '' };
+                    else if (m.prazoCumprido) kpiPrazo = { rotulo: 'Prazo', valor: 'Cumprido', un: '', sub: `vencia em ${fmtCompleta(m.venc)}`, tom: 'ok' };
+                    else {
+                        const atraso = Math.round((m.fim - m.venc) / 86400000);
+                        kpiPrazo = { rotulo: 'Prazo', valor: String(atraso), un: `${dias(atraso)} de atraso`, sub: `vencia em ${fmtCompleta(m.venc)}`, tom: 'risco' };
+                    }
+                } else if (m.diasPrazo === null) {
+                    kpiPrazo = { rotulo: 'Prazo', valor: '—', un: '', sub: 'sem vencimento definido', tom: '' };
+                } else if (m.diasPrazo < 0) {
+                    kpiPrazo = { rotulo: 'Atrasada há', valor: String(-m.diasPrazo), un: dias(-m.diasPrazo), sub: `venceu em ${fmtCompleta(m.venc)}`, tom: 'risco' };
+                } else if (m.diasPrazo === 0) {
+                    kpiPrazo = { rotulo: 'Prazo', valor: 'Hoje', un: '', sub: 'vence hoje', tom: 'alerta' };
+                } else {
+                    kpiPrazo = { rotulo: 'Faltam', valor: String(m.diasPrazo), un: dias(m.diasPrazo), sub: `vence em ${fmtCompleta(m.venc)}`, tom: m.diasPrazo <= 3 ? 'alerta' : '' };
+                }
+                const nNotas = m.notas.length;
+                const kpiInteracoes = {
+                    rotulo: 'Interações',
+                    valor: String(nNotas),
+                    un: '',
+                    sub: m.diasDesdeUltimaNota === null ? (nNotas ? 'sem data registrada' : 'nenhuma ainda')
+                        : (m.diasDesdeUltimaNota === 0 ? 'última hoje' : `última há ${m.diasDesdeUltimaNota} ${dias(m.diasDesdeUltimaNota)}`),
+                    tom: !m.concluida && m.diasDesdeUltimaNota !== null && m.diasDesdeUltimaNota >= 7 ? 'alerta' : ''
+                };
+                const kpiStatus = {
+                    rotulo: 'Mudanças de status',
+                    valor: String(m.mudancas.length),
+                    un: '',
+                    sub: m.diasNoStatus === null ? '' : (m.diasNoStatus === 0 ? `em “${d.status}” desde hoje` : `há ${m.diasNoStatus} ${dias(m.diasNoStatus)} em “${d.status}”`),
+                    tom: ''
+                };
+                const htmlKpi = (k) => `<div class="ins-kpi${k.tom ? ` ins-kpi--${k.tom}` : ''}">` +
+                    `<span class="ins-kpi-rotulo">${escapeHtml(k.rotulo)}</span>` +
+                    `<span class="ins-kpi-valor"><strong>${escapeHtml(k.valor)}</strong>${k.un ? `<small>${escapeHtml(k.un)}</small>` : ''}</span>` +
+                    `<span class="ins-kpi-sub">${escapeHtml(k.sub)}</span></div>`;
+
+                // ---- Linha do tempo ----
+                let timeline;
+                if (!m.abertura) {
+                    timeline = '<div class="ins-tl ins-tl--vazio">Informe a data de abertura para ver a linha do tempo.</div>';
+                } else {
+                    const t0 = m.abertura.getTime();
+                    const tHoje = m.concluida ? m.fim.getTime() : m.hoje.getTime();
+                    const instantes = [tHoje, ...(m.venc ? [m.venc.getTime()] : []),
+                        ...m.notasDatadas.map(n => n.em.getTime()), ...m.mudancas.map(x => x.em.getTime())];
+                    const span = Math.max(Math.max(...instantes) - t0, 86400000);
+                    const pos = (t) => Math.min(100, Math.max(0, ((t - t0) / span) * 100)).toFixed(2);
+                    const corPrazo = m.concluida ? (m.prazoCumprido === false ? '#dc2626' : '#16a34a')
+                        : (m.diasPrazo !== null && m.diasPrazo < 0 ? '#dc2626' : (m.diasPrazo !== null && m.diasPrazo <= 3 ? '#d97706' : '#2563eb'));
+
+                    const pontosNotas = m.notasDatadas.map(n =>
+                        `<span class="ins-tl-ponto ins-tl-ponto--nota" style="left:${pos(n.em.getTime())}%" title="${escapeHtml(`Interação em ${fmtCompleta(n.em)}${n.autor ? ' · ' + n.autor : ''}`)}"></span>`).join('');
+                    const pontosStatus = m.mudancas.map(x =>
+                        `<span class="ins-tl-ponto ins-tl-ponto--status" style="left:${pos(x.em.getTime())}%; --c:${CORES_STATUS[x.para] || '#64748b'}" title="${escapeHtml(`${fmtCompleta(x.em)} · ${x.de ? x.de + ' → ' : ''}${x.para}`)}"></span>`).join('');
+                    const marcoPrazo = m.venc
+                        ? `<span class="ins-tl-marco ins-tl-marco--prazo" style="left:${pos(m.venc.getTime())}%; --c:${corPrazo}" title="Prazo · ${fmtCompleta(m.venc)}"></span>` : '';
+                    const rotuloHoje = m.concluida ? 'Conclusão' : 'Hoje';
+
+                    timeline = '<div class="ins-tl">' +
+                        '<div class="ins-tl-titulo">Linha do tempo</div>' +
+                        '<div class="ins-tl-pista">' +
+                            '<span class="ins-tl-linha"></span>' +
+                            `<span class="ins-tl-decorrido" style="width:${pos(tHoje)}%"></span>` +
+                            '<span class="ins-tl-ponto ins-tl-ponto--abertura" style="left:0%" title="Abertura"></span>' +
+                            marcoPrazo + pontosNotas + pontosStatus +
+                            `<span class="ins-tl-marco ins-tl-marco--hoje" style="left:${pos(tHoje)}%" title="${rotuloHoje} · ${fmtCompleta(new Date(tHoje))}"></span>` +
+                        '</div>' +
+                        '<div class="ins-tl-legenda">' +
+                            `<span><i class="ins-lg ins-lg--abertura"></i>Abertura ${fmt(m.abertura)}</span>` +
+                            `<span><i class="ins-lg ins-lg--hoje"></i>${rotuloHoje} ${fmt(new Date(tHoje))}</span>` +
+                            (m.venc ? `<span><i class="ins-lg ins-lg--prazo" style="--c:${corPrazo}"></i>Prazo ${fmt(m.venc)}</span>` : '') +
+                            `<span><i class="ins-lg ins-lg--nota"></i>${nNotas} ${nNotas === 1 ? 'interação' : 'interações'}</span>` +
+                            `<span><i class="ins-lg ins-lg--status"></i>${m.mudancas.length} ${m.mudancas.length === 1 ? 'mudança' : 'mudanças'} de status</span>` +
+                        '</div>' +
+                    '</div>';
+                }
+
+                alvo.innerHTML = `<div class="ins-kpis">${[kpiAberto, kpiPrazo, kpiInteracoes, kpiStatus].map(htmlKpi).join('')}</div>${timeline}`;
+            }
+
             editarDemanda(numero) {
                 // Se o usuário estava selecionando texto (clique+arrastar+soltar), o mouseup
                 // dispara um "click" nativo mesmo sem intenção de abrir o modal. Ignora nesse caso.
@@ -1895,7 +2151,9 @@
                 document.getElementById('vencimento').value = demanda.vencimento;
                 document.getElementById('status').value = demanda.status;
                 document.getElementById('progresso').value = demanda.progresso;
+                this.demandaModal = demanda;
                 this.atualizarTituloModal();
+                this.atualizarInsightsModal();
                 this.montarNotasModal(demanda);
                 this.restaurarBotaoSalvar();
 

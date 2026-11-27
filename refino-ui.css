@@ -464,3 +464,71 @@ body.theme-dark .link-central:hover, body.theme-dark .link-central:focus-visible
 #modalDemanda .form-row-4 { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr) minmax(0, 1.1fr) minmax(0, 1fr); gap: 0.6rem; }
 @media (min-width: 1101px) { #modalDemanda .demanda-layout { grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 1.6rem; } }
 @media (max-width: 640px) { #modalDemanda .form-row-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* =====================================================================
+   MODAL DA DEMANDA: insights (4 KPIs + linha do tempo compacta)
+   ===================================================================== */
+#modalDemanda .demanda-insights { margin-top: clamp(0.2rem, 1vh, 0.6rem); display: flex; flex-direction: column; gap: 0.8rem; }
+
+.ins-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.6rem; }
+.ins-kpi {
+    display: flex; flex-direction: column; gap: 0.1rem;
+    min-width: 0; padding: 0.55rem 0.75rem 0.6rem;
+    border: 1px solid var(--ui-border-soft, rgba(148, 163, 184, 0.3));
+    border-radius: 14px;
+    background: color-mix(in srgb, var(--ui-field, #ffffff) 62%, transparent);
+}
+.ins-kpi-rotulo {
+    font-size: 0.64rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--text-tertiary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.ins-kpi-valor { display: flex; align-items: baseline; gap: 0.3rem; min-width: 0; color: var(--text-primary); }
+.ins-kpi-valor strong { font-size: 1.35rem; font-weight: 800; letter-spacing: -0.02em; line-height: 1.15; }
+.ins-kpi-valor small { font-size: 0.72rem; font-weight: 600; color: var(--text-secondary); white-space: nowrap; }
+.ins-kpi-sub { font-size: 0.7rem; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ins-kpi--ok .ins-kpi-valor strong { color: #0b7a55; }
+.ins-kpi--alerta .ins-kpi-valor strong { color: #b45309; }
+.ins-kpi--risco .ins-kpi-valor strong { color: #dc2626; }
+body.theme-dark .ins-kpi--ok .ins-kpi-valor strong { color: #6ee7b7; }
+body.theme-dark .ins-kpi--alerta .ins-kpi-valor strong { color: #fbbf24; }
+body.theme-dark .ins-kpi--risco .ins-kpi-valor strong { color: #fca5a5; }
+
+.ins-tl {
+    padding: 0.6rem 0.9rem 0.7rem;
+    border: 1px solid var(--ui-border-soft, rgba(148, 163, 184, 0.3));
+    border-radius: 14px;
+    background: color-mix(in srgb, var(--ui-field, #ffffff) 62%, transparent);
+}
+.ins-tl--vazio { font-size: 0.78rem; color: var(--text-secondary); }
+.ins-tl-titulo {
+    margin-bottom: 0.35rem;
+    font-size: 0.64rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--text-tertiary);
+}
+.ins-tl-pista { position: relative; height: 40px; margin: 0 8px; }
+.ins-tl-linha, .ins-tl-decorrido {
+    position: absolute; top: 50%; left: 0; height: 4px; margin-top: -2px; border-radius: 4px;
+}
+.ins-tl-linha { right: 0; background: var(--ui-border, rgba(148, 163, 184, 0.45)); }
+.ins-tl-decorrido { background: linear-gradient(90deg, #005a9c, #00a9dc); }
+.ins-tl-ponto, .ins-tl-marco { position: absolute; transform: translate(-50%, -50%); }
+.ins-tl-ponto--abertura { top: 50%; width: 10px; height: 10px; border-radius: 50%; background: #ffffff; border: 2.5px solid #005a9c; }
+.ins-tl-ponto--nota { top: 22%; width: 8px; height: 8px; border-radius: 50%; background: #00a9dc; box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.85); }
+.ins-tl-ponto--status { top: 78%; width: 9px; height: 9px; border-radius: 2px; background: var(--c, #64748b); transform: translate(-50%, -50%) rotate(45deg); box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.85); }
+.ins-tl-marco--hoje { top: 50%; width: 4px; height: 26px; border-radius: 4px; background: #0f2f4f; box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.85); }
+.ins-tl-marco--prazo { top: 50%; width: 12px; height: 12px; border-radius: 3px; background: var(--c, #2563eb); box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.85); }
+body.theme-dark .ins-tl-marco--hoje { background: #e2e8f0; }
+.ins-tl-legenda { display: flex; flex-wrap: wrap; gap: 0.25rem 0.9rem; margin-top: 0.3rem; font-size: 0.7rem; color: var(--text-secondary); }
+.ins-tl-legenda span { display: inline-flex; align-items: center; gap: 0.35rem; white-space: nowrap; }
+.ins-lg { display: inline-block; width: 8px; height: 8px; flex-shrink: 0; }
+.ins-lg--abertura { border-radius: 50%; border: 2px solid #005a9c; background: #ffffff; }
+.ins-lg--hoje { width: 3px; height: 12px; border-radius: 3px; background: #0f2f4f; }
+body.theme-dark .ins-lg--hoje { background: #e2e8f0; }
+.ins-lg--prazo { border-radius: 2px; background: var(--c, #2563eb); }
+.ins-lg--nota { border-radius: 50%; background: #00a9dc; }
+.ins-lg--status { border-radius: 2px; background: #64748b; transform: rotate(45deg); width: 7px; height: 7px; }
+
+/* Janela baixa: sem espaco sobra so os KPIs (o modal nao rola); muito baixa, nada */
+@media (min-width: 1101px) and (max-height: 790px) { #modalDemanda .ins-tl { display: none; } }
+@media (min-width: 1101px) and (max-height: 660px) { #modalDemanda .demanda-insights { display: none; } }
+@media (max-width: 1100px) { .ins-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

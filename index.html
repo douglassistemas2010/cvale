@@ -20,7 +20,7 @@
     <link rel="stylesheet" href="vidro-ios.css">
     <link rel="stylesheet" href="notas.css">
     <link rel="stylesheet" href="timeline-moderna.css">
-    <link rel="stylesheet" href="refino-ui.css">
+    <link rel="stylesheet" href="refino-ui.css?v=20261127e">
     <!-- Tema claro desde o primeiro desenho (o app.js reaplica as variáveis completas) -->
     <style>html, body { background: linear-gradient(135deg, #f4f8fc 0%, #e4f0f8 100%); color: #16293d; }</style>
 </head>
@@ -456,6 +456,8 @@
                         <input type="number" class="form-input" id="progresso" placeholder="0" min="0" max="100" value="0">
                     </div>
                 </div>
+
+                <div class="demanda-insights" id="insightsDemanda" aria-label="Indicadores desta demanda"></div>
             </form>
             <aside class="demanda-historico" aria-label="Histórico de interações">
                 <div class="demanda-historico-titulo">Histórico de interações</div>
@@ -505,7 +507,7 @@
     <script src="supabase-config.js"></script>
 
     <script src="notas.js?v=20261127"></script>
-    <script src="app.js?v=20261127d"></script>
+    <script src="app.js?v=20261127e"></script>
     <script src="planner.js?v=20261127"></script>
     <script src="graficos.js?v=20261127"></script>
     <script src="refino-ui.js?v=20261127"></script>

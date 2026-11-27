@@ -32,6 +32,22 @@ histórico de auditoria e no Excel (colunas "Nº Ticket" e "Nº CSS", antes de "
 **Status do ticket não é trazido automaticamente**: a página é cross-origin e exige login SSO (CORS bloqueia
 leitura pelo navegador); só seria possível com API/chave do Freshservice no backend.
 
+**Recuperação e importação (27/11/2026):** o botão "Importar" só aparece no modo edição (login; toggle em
+`supabase-config.js`). A importação lê a 1ª aba do Excel por **nome de coluna** (ignora colunas desconhecidas),
+por isso a ordem das colunas do export não afeta a importação.
+
+## Exportar Excel e insights no modal da demanda (27/11/2026)
+
+- **Export** (`exportarDemandas` em `app.js`): Nº Ticket e Nº CSS logo após o Título; colunas novas (link do
+  ticket, dias em aberto, nº de interações, última interação, mudanças de status); abas extras "Interações" (notas)
+  e "Histórico de alterações" (`historico`). `CAMPOS_DEMANDA` reordenado. O ExcelJS vem de CDN: a geração do
+  arquivo não foi validada no agente (sem acesso à CDN); validado só por `node --check`.
+- **Insights** (`atualizarInsightsModal`, `metricasDemanda` em `app.js`; CSS `.ins-*` no fim de `refino-ui.css`):
+  na coluna esquerda do modal, abaixo de Abertura/Vencimento/Progresso — 4 KPIs (em aberto há / faltam ou
+  atraso / interações / mudanças de status) e linha do tempo compacta (abertura, hoje, prazo, notas, mudanças de
+  status). Atualiza ao alterar datas/status e ao gravar notas. Em janela baixa (≤790px de altura) a linha do
+  tempo some; ≤660px some tudo (o modal não rola).
+
 ## Refino de UI, Insights/Reunião com panorama e status "Realizar Deploy" (26/11/2026)
 
 Novos arquivos (carregados por último): `refino-ui.css`, `refino-ui.js`, `LOGO_padrao.png`.
