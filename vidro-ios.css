@@ -519,15 +519,16 @@ body.theme-dark .tabs .tab.active:hover { color: #ffffff; background: linear-gra
 
 .tabs .tab > * { position: relative; z-index: 1; }
 
-/* ---------- Rodapé institucional (vidro, fixo no fim da janela) ---------- */
+/* ---------- Rodapé institucional (vidro, no fim do conteúdo: rola junto com a página) ---------- */
 .app-footer {
-    flex: 0 0 auto;
     display: flex;
     align-items: center;
     justify-content: center;
     flex-wrap: wrap;
     gap: 0.5rem 0.9rem;
-    padding: 0.55rem 1.5rem;
+    margin-top: 2rem;
+    padding: 0.8rem 1.5rem;
+    border-radius: 22px;
     font-size: 0.74rem;
     font-weight: 600;
     letter-spacing: 0.03em;
@@ -549,8 +550,8 @@ body.theme-dark .tabs .tab.active:hover { color: #ffffff; background: linear-gra
 body.theme-light .app-footer {
     color: #3b5a75;
     background: linear-gradient(180deg, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0.85));
-    border-top: 1px solid rgba(255, 255, 255, 0.9);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.95), 0 -6px 18px rgba(0, 70, 120, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.9);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.95), 0 8px 20px rgba(0, 70, 120, 0.08);
 }
 
 body.theme-light .app-footer-marca { color: #005a9c; }
@@ -558,7 +559,7 @@ body.theme-light .app-footer-marca { color: #005a9c; }
 body.theme-dark .app-footer {
     color: #c5dbec;
     background: linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.03));
-    border-top: 1px solid rgba(255, 255, 255, 0.14);
+    border: 1px solid rgba(255, 255, 255, 0.14);
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16);
 }
 
